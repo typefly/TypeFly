@@ -1,8 +1,10 @@
 idf_component_register(
     SRCS
-        "esp32s2mini.c"
+        "main.c"
         "camera.c"
+        "led.c"
     INCLUDE_DIRS
         "."
         "include"
+    REQUIRES "../esp32-camera/"
 )
