@@ -32,7 +32,7 @@ void init_camera() {
 
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK) {
-        set_debug_led(1);
+        debug_led_on();
         assert(false);
     }
 }

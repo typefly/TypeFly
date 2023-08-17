@@ -6,5 +6,5 @@ idf_component_register(
     INCLUDE_DIRS
         "."
         "include"
-    REQUIRES "../esp32-camera/"
+    REQUIRES esp32-camera
 )

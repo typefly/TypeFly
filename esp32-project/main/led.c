@@ -41,3 +41,11 @@ void set_debug_led(int value) {
     assert(value == 0 || value == 1);
     gpio_set_level(LEDD_GPIO_NUM, value);
 }
+
+void debug_led_on() {
+    set_debug_led(0);
+}
+
+void debug_led_off() {
+    set_debug_led(1);
+}
