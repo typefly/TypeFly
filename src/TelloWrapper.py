@@ -5,7 +5,6 @@ class TelloWrapper():
         self.drone = Tello()
         self.drone.connect()
         self.battery = self.drone.query_battery()
-        self.state = self.drone.get_current_state()
         
     def check_battery(self):
         self.battery = self.drone.query_battery()
@@ -16,10 +15,6 @@ class TelloWrapper():
             print('[OK]')
             return True
         return False
-
-    def get_state(self):
-        self.state = self.drone.get_current_state()
-        print(f"> State: {self.state}")
 
     def keep_alive(self):
         self.get_state()

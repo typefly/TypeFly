@@ -7,7 +7,6 @@ class TelloLLM():
         self.drone = Tello()
         self.drone.connect()
         self.battery = self.drone.query_battery()
-        self.state = self.drone.get_current_state()
         
     def check_battery(self):
         self.battery = self.drone.query_battery()
@@ -18,11 +17,6 @@ class TelloLLM():
             print('[OK]')
             return True
         return False
-
-    def get_state(self):
-        self.state = self.drone.get_current_state()
-        print(f"> State: {self.state}")
-
 
     def start(self):
         if not self.check_battery():
@@ -37,7 +31,7 @@ class TelloLLM():
         while (True):
             aliveCount += 1
             if aliveCount % 50 == 0:
-                self.get_state()
+                self.check_battery()
             frame = self.drone.get_frame_read().frame
             print("### GET Frame: ", frame.shape)
             cv2.imshow("Tello", frame)
