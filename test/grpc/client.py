@@ -1,13 +1,25 @@
 import grpc
-import string_concat_pb2
-import string_concat_pb2_grpc
+import yolo_pb2
+import yolo_pb2_grpc
+from PIL import Image
+from io import BytesIO
+
+def image_to_bytes(image):
+    # compress and convert the image to bytes
+    imgByteArr = BytesIO()
+    image.save(imgByteArr, format='WEBP')
+    return imgByteArr.getvalue()
 
 def run():
     channel = grpc.insecure_channel('localhost:50051')
-    stub = string_concat_pb2_grpc.StringConcatServiceStub(channel)
+    stub = yolo_pb2_grpc.YoloServiceStub(channel)
+
+    image_data = image_to_bytes(Image.open("../images/kitchen.webp"))
+
+    print(len(image_data))
     
-    response = stub.Concat(string_concat_pb2.StringRequest(a="Hello, ", b="gRPC!"))
-    print(f"Received: {response.result}")
+    response = stub.Detect(yolo_pb2.DetectRequest(image_data=image_data))
+    print(f"Received: {response.results[0]}")
 
 if __name__ == '__main__':
     run()

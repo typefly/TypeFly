@@ -2,10 +2,10 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import string_concat_pb2 as string__concat__pb2
+import yolo_pb2 as yolo__pb2
 
 
-class StringConcatServiceStub(object):
+class YoloServiceStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -14,42 +14,42 @@ class StringConcatServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Concat = channel.unary_unary(
-                '/StringConcatService/Concat',
-                request_serializer=string__concat__pb2.StringRequest.SerializeToString,
-                response_deserializer=string__concat__pb2.StringResponse.FromString,
+        self.Detect = channel.unary_unary(
+                '/YoloService/Detect',
+                request_serializer=yolo__pb2.DetectRequest.SerializeToString,
+                response_deserializer=yolo__pb2.DetectResponse.FromString,
                 )
 
 
-class StringConcatServiceServicer(object):
+class YoloServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def Concat(self, request, context):
+    def Detect(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
 
-def add_StringConcatServiceServicer_to_server(servicer, server):
+def add_YoloServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Concat': grpc.unary_unary_rpc_method_handler(
-                    servicer.Concat,
-                    request_deserializer=string__concat__pb2.StringRequest.FromString,
-                    response_serializer=string__concat__pb2.StringResponse.SerializeToString,
+            'Detect': grpc.unary_unary_rpc_method_handler(
+                    servicer.Detect,
+                    request_deserializer=yolo__pb2.DetectRequest.FromString,
+                    response_serializer=yolo__pb2.DetectResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'StringConcatService', rpc_method_handlers)
+            'YoloService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
  # This class is part of an EXPERIMENTAL API.
-class StringConcatService(object):
+class YoloService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def Concat(request,
+    def Detect(request,
             target,
             options=(),
             channel_credentials=None,
@@ -59,8 +59,8 @@ class StringConcatService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/StringConcatService/Concat',
-            string__concat__pb2.StringRequest.SerializeToString,
-            string__concat__pb2.StringResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/YoloService/Detect',
+            yolo__pb2.DetectRequest.SerializeToString,
+            yolo__pb2.DetectResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
