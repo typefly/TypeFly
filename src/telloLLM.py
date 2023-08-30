@@ -6,7 +6,7 @@ from TelloWrapper import TelloWrapper
 USE_DRONE = False
 
 openai.organization = "org-sAnQwPNnbSrHg1XyR4QYALf7"
-openai.api_key = "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"
+openai.api_key = ""
 
 class TelloLLM():
     def __init__(self):
