@@ -1,12 +1,12 @@
 from djitellopy import Tello
-import cv2, time
+import cv2, time, os
 import openai
 from TelloWrapper import TelloWrapper
 
 USE_DRONE = False
 
 openai.organization = "org-sAnQwPNnbSrHg1XyR4QYALf7"
-openai.api_key = ""
+openai.api_key = os.environ.get('OPENAI_API_KEY')
 
 class TelloLLM():
     def __init__(self):
