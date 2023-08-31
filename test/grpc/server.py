@@ -67,5 +67,5 @@ def serve(yolo_service=YoloService()):
 
 if __name__ == '__main__':
     yolo_service = YoloService()
-    prewarm_threads(2, yolo_service)
+    prewarm_threads(3, yolo_service)
     serve(yolo_service)

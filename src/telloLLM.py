@@ -1,4 +1,3 @@
-from djitellopy import Tello
 import cv2, time, os
 import openai
 from TelloWrapper import TelloWrapper
