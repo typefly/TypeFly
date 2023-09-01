@@ -4,8 +4,10 @@ import yolo_pb2_grpc
 from PIL import Image, ImageDraw
 from io import BytesIO
 
-import cv2
+import cv2, os
 import numpy as np
+
+SERVICE_IP = os.environ.get('SERVICE_IP', 'localhost')
 
 def image_to_bytes(image):
     # compress and convert the image to bytes
@@ -23,7 +25,7 @@ def cv2_to_pil(image):
     return Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
 def run():
-    channel = grpc.insecure_channel('localhost:50051')
+    channel = grpc.insecure_channel(SERVICE_IP + ':50051')
     stub = yolo_pb2_grpc.YoloServiceStub(channel)
 
     # image = Image.open("../images/kitchen.webp")
@@ -35,7 +37,7 @@ def run():
     # plot_results(image, response.results)
     # image.show()
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     # Check if camera opened successfully
     if (cap.isOpened() == False):
         print("Unable to read camera feed")
