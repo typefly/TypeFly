@@ -162,4 +162,3 @@ cython_debug/
 *.pt
 .vscode/
 .DS_Store
-images/
