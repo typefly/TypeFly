@@ -14,7 +14,7 @@ class YoloServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Detect = channel.unary_unary(
+        self.Detect = channel.stream_stream(
                 '/YoloService/Detect',
                 request_serializer=yolo__pb2.DetectRequest.SerializeToString,
                 response_deserializer=yolo__pb2.DetectResponse.FromString,
@@ -24,7 +24,7 @@ class YoloServiceStub(object):
 class YoloServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def Detect(self, request, context):
+    def Detect(self, request_iterator, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -33,7 +33,7 @@ class YoloServiceServicer(object):
 
 def add_YoloServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Detect': grpc.unary_unary_rpc_method_handler(
+            'Detect': grpc.stream_stream_rpc_method_handler(
                     servicer.Detect,
                     request_deserializer=yolo__pb2.DetectRequest.FromString,
                     response_serializer=yolo__pb2.DetectResponse.SerializeToString,
@@ -49,7 +49,7 @@ class YoloService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def Detect(request,
+    def Detect(request_iterator,
             target,
             options=(),
             channel_credentials=None,
@@ -59,7 +59,7 @@ class YoloService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/YoloService/Detect',
+        return grpc.experimental.stream_stream(request_iterator, target, '/YoloService/Detect',
             yolo__pb2.DetectRequest.SerializeToString,
             yolo__pb2.DetectResponse.FromString,
             options, channel_credentials,

@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nyolo.proto\"#\n\rDetectRequest\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\"2\n\x0e\x44\x65tectResponse\x12 \n\x07results\x18\x01 \x03(\x0b\x32\x0f.DetectedObject\"s\n\x0e\x44\x65tectedObject\x12\n\n\x02x1\x18\x01 \x01(\x02\x12\n\n\x02y1\x18\x02 \x01(\x02\x12\n\n\x02x2\x18\x03 \x01(\x02\x12\n\n\x02y2\x18\x04 \x01(\x02\x12\x12\n\nconfidence\x18\x05 \x01(\x02\x12\x0e\n\x06\x63lass_\x18\x06 \x01(\x05\x12\r\n\x05label\x18\x07 \x01(\t2:\n\x0bYoloService\x12+\n\x06\x44\x65tect\x12\x0e.DetectRequest\x1a\x0f.DetectResponse\"\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nyolo.proto\"#\n\rDetectRequest\x12\x12\n\nimage_data\x18\x01 \x01(\x0c\"2\n\x0e\x44\x65tectResponse\x12 \n\x07results\x18\x01 \x03(\x0b\x32\x0f.DetectedObject\"s\n\x0e\x44\x65tectedObject\x12\n\n\x02x1\x18\x01 \x01(\x02\x12\n\n\x02y1\x18\x02 \x01(\x02\x12\n\n\x02x2\x18\x03 \x01(\x02\x12\n\n\x02y2\x18\x04 \x01(\x02\x12\x12\n\nconfidence\x18\x05 \x01(\x02\x12\x0e\n\x06\x63lass_\x18\x06 \x01(\x05\x12\r\n\x05label\x18\x07 \x01(\t2>\n\x0bYoloService\x12/\n\x06\x44\x65tect\x12\x0e.DetectRequest\x1a\x0f.DetectResponse\"\x00(\x01\x30\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -28,5 +28,5 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_DETECTEDOBJECT']._serialized_start=103
   _globals['_DETECTEDOBJECT']._serialized_end=218
   _globals['_YOLOSERVICE']._serialized_start=220
-  _globals['_YOLOSERVICE']._serialized_end=278
+  _globals['_YOLOSERVICE']._serialized_end=282
 # @@protoc_insertion_point(module_scope)

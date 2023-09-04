@@ -1,12 +1,11 @@
 syntax = "proto3";
 
 service YoloService {
-    rpc Detect (DetectRequest) returns (DetectResponse) {}
+    rpc Detect (stream DetectRequest) returns (stream DetectResponse) {}
 }
 
 message DetectRequest {
     bytes image_data = 1; // Encoded image data
-  
 }
 
 message DetectResponse {

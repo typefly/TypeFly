@@ -25,22 +25,24 @@ class YoloService(yolo_pb2_grpc.YoloServiceServicer):
     def format_results(self, results):
         return results.pandas().xyxy[0]
 
-    def Detect(self, request, context):
-        image = Image.open(BytesIO(request.image_data))
-        local_model = self.get_model()
-        results = local_model(image).pandas().xyxy[0].values.tolist()
-        detect_response = [yolo_pb2.DetectedObject(
-                x1=result[0],
-                y1=result[1],
-                x2=result[2],
-                y2=result[3],
-                confidence=result[4],
-                class_=result[5],
-                label=result[6]
-            )
-            for result in results
-        ]
-        return yolo_pb2.DetectResponse(results=detect_response)
+    def Detect(self, request_iterator, context):
+        print(f"Received Detect request from {context.peer()}")
+        for request in request_iterator:
+            image = Image.open(BytesIO(request.image_data))
+            local_model = self.get_model()
+            results = local_model(image).pandas().xyxy[0].values.tolist()
+            detect_response = [yolo_pb2.DetectedObject(
+                    x1=result[0],
+                    y1=result[1],
+                    x2=result[2],
+                    y2=result[3],
+                    confidence=result[4],
+                    class_=result[5],
+                    label=result[6]
+                )
+                for result in results
+            ]
+            yield yolo_pb2.DetectResponse(results=detect_response)
 
 def prewarm_threads(num_threads, yolo_service_instance):
     """Pre-warm threads by loading YOLO models."""
@@ -66,6 +68,6 @@ def serve(yolo_service=YoloService()):
     server.wait_for_termination()
 
 if __name__ == '__main__':
-    yolo_service = YoloService()
-    prewarm_threads(3, yolo_service)
-    serve(yolo_service)
+    # yolo_service = YoloService()
+    # prewarm_threads(3, yolo_service)
+    serve(YoloService())
