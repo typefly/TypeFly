@@ -5,8 +5,9 @@ from PIL import Image, ImageDraw
 from io import BytesIO
 
 import queue
-import cv2, os
+import cv2, os, time
 import numpy as np
+import threading
 
 SERVICE_IP = os.environ.get('SERVICE_IP', 'localhost')
 
@@ -53,12 +54,24 @@ def request_video(stub):
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
+image_queue = queue.Queue()
+response_queue = queue.Queue()
+def display_stream():
+    while True:
+        image = image_queue.get()
+        response = response_queue.get()
+        print(f"Received: {response.results}")
+        plot_results(image, response.results)
+        cv2.imshow('Frame', cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR))
+        # Press Q on keyboard to exit
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
 def request_stream(stub, show_image=False):
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     # Check if camera opened successfully
     if (cap.isOpened() == False):
         print("Unable to read camera feed")
-    image_queue = queue.Queue(maxsize=10)
 
     def request_iterator():
         while True:
@@ -74,13 +87,7 @@ def request_stream(stub, show_image=False):
     responses = stub.Detect(request_iterator())
     for response in responses:
         # assuming the response contains results as before
-        image = image_queue.get()
-        plot_results(image, response.results)
-        cv2.imshow('Frame', cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR))
-        # Press Q on keyboard to exit
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-        # print(f"Received: {response.results}")
+        response_queue.put(response)
 
 def run():
     channel = grpc.insecure_channel(SERVICE_IP + ':50051')
@@ -91,7 +98,10 @@ def run():
     # request_video(stub)
 
     ### this one requires stream parameters
-    request_stream(stub)
+    request_thread = threading.Thread(target=request_stream, args=(stub,))
+    request_thread.start()
+    display_stream()
+    request_thread.join()
 
 if __name__ == '__main__':
     run()
