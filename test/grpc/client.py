@@ -54,18 +54,16 @@ def request_video(stub):
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
-image_queue = queue.Queue()
 response_queue = queue.Queue()
-def display_stream():
+
+def response_consumer():
+    size = 0
+    old_size = 0
     while True:
-        image = image_queue.get()
-        response = response_queue.get()
-        print(f"Received: {response.results}")
-        plot_results(image, response.results)
-        cv2.imshow('Frame', cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR))
-        # Press Q on keyboard to exit
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        size = response_queue._qsize() - old_size
+        old_size = response_queue._qsize()
+        print(f"Received: {size} fps")
+        time.sleep(1)
 
 def request_stream(stub, show_image=False):
     cap = cv2.VideoCapture(1)
@@ -78,7 +76,6 @@ def request_stream(stub, show_image=False):
             ret, frame = cap.read()
             if ret:
                 image = cv2_to_pil(frame)
-                image_queue.put(image)
                 image_data = image_to_bytes(image)
                 yield yolo_pb2.DetectRequest(image_data=image_data)
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -98,10 +95,9 @@ def run():
     # request_video(stub)
 
     ### this one requires stream parameters
-    request_thread = threading.Thread(target=request_stream, args=(stub,))
-    request_thread.start()
-    display_stream()
-    request_thread.join()
+    consumer_thread = threading.Thread(target=response_consumer).start()
+    request_stream(stub)
+    consumer_thread.join()
 
 if __name__ == '__main__':
     run()
