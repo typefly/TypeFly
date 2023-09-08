@@ -1,9 +1,9 @@
 import cv2, time, os
-import openai
 from TelloWrapper import TelloWrapper
 
 USE_DRONE = False
 
+import openai
 openai.organization = "org-sAnQwPNnbSrHg1XyR4QYALf7"
 openai.api_key = os.environ.get('OPENAI_API_KEY')
 

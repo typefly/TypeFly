@@ -1,7 +1,8 @@
 syntax = "proto3";
 
 service YoloService {
-    rpc Detect (stream DetectRequest) returns (stream DetectResponse) {}
+    rpc DetectStream (stream DetectRequest) returns (stream DetectResponse) {}
+    rpc Detect (DetectRequest) returns (DetectResponse) {}
 }
 
 message DetectRequest {
