@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw
 import grpc
 
 import sys, os
-sys.path.append('../proto/generated')
+sys.path.append('./proto/generated')
 import yolo_pb2
 import yolo_pb2_grpc
 
@@ -34,3 +34,11 @@ class YoloClient():
         image_bytes = YoloClient.image_to_bytes(image)
         request = yolo_pb2.DetectRequest(image_data=image_bytes)
         return self.stub.Detect(request)
+    
+if __name__ == "__main__":
+    yolo_client = YoloClient()
+    image = Image.open('../test/images/kitchen.webp')
+    results = yolo_client.detect(image).results
+    YoloClient.plot_results(image, results)
+    image.save('../test/images/kitchen_detected.webp')
+    print(results)
