@@ -1,1 +1,0 @@
-docker exec -it yolo-test bash
