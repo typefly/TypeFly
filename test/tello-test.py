@@ -27,18 +27,20 @@ class TelloLLM():
         self.drone.takeoff()
         print("> Application Start")
 
-        aliveCount = 1
-        while (True):
-            aliveCount += 1
-            if aliveCount % 50 == 0:
-                self.check_battery()
-            frame = self.drone.get_frame_read().frame
-            print("### GET Frame: ", frame.shape)
-            cv2.imshow("Tello", frame)
-            key = cv2.waitKey(10) & 0xff
-            # Press esc to exit
-            if key == 27:
-                break
+        self.drone.rotate_counter_clockwise(30)
+
+        # aliveCount = 1
+        # while (True):
+        #     aliveCount += 1
+        #     if aliveCount % 50 == 0:
+        #         self.check_battery()
+        #     frame = self.drone.get_frame_read().frame
+        #     print("### GET Frame: ", frame.shape)
+        #     cv2.imshow("Tello", frame)
+        #     key = cv2.waitKey(10) & 0xff
+        #     # Press esc to exit
+        #     if key == 27:
+        #         break
 
         self.drone.land()
         self.drone.streamoff()

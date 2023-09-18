@@ -163,4 +163,4 @@ cython_debug/
 .vscode/
 images/
 .DS_Store
-controller/proto/generated/*_pb2*
+proto/generated/*.py

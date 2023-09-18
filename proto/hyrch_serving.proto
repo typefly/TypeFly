@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+service YoloService {
+    rpc DetectStream (stream DetectRequest) returns (stream DetectResponse) {}
+    rpc Detect (DetectRequest) returns (DetectResponse) {}
+    rpc Configure (ConfigureRequest) returns (ConfigureResponse) {}
+}
+
+message DetectRequest {
+    bytes image_data = 1; // Encoded image data
+}
+
+message DetectResponse {
+    // repeated DetectedObject results = 1;
+    string results = 1;
+}
+
+message ConfigureRequest {
+    int32 number = 1;
+}
+
+message ConfigureResponse {
+    bool success = 1;
+    int32 number = 2;
+}
+
+// message DetectedObject {
+//     float x1 = 1;
+//     float y1 = 2;
+//     float x2 = 3;
+//     float y2 = 4;
+//     float confidence = 5;
+//     int32 class_ = 6;
+//     string label = 7;
+// }
+
+service Llama2Service {
+    rpc ChatRequest (PromptRequest) returns (PromptResponse) {}
+}
+
+message PromptRequest {
+    string json_data = 1; // prompt
+}
+
+message PromptResponse {
+    string json_data = 1; // response
+}
