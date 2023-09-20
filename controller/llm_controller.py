@@ -38,12 +38,17 @@ class LLMController():
 
         self.high_level_tools = {
             "find": "loop#4 if#low,is_not_in_sight,$1#2 exec#low,turn_left,10 skip#1 break",
-            "centering": "loop#7 if#low,check_location_x,$1,>,0.6#1 exec#low,turn_right,10 if#low,check_location_x,$1,<,0.4#1 exec#low,turn_left,10 \
+            "centering": "loop#7 if#low,check_location_x,$1,>,0.6#1 exec#low,turn_right,10 \
+                if#low,check_location_x,$1,<,0.4#1 exec#low,turn_left,10 \
                 if#low,check_location_x,$1,<,0.6#2 if#low,check_location_x,$1,>,0.4#1 break",
         }
 
         self.commands_list = [
             "exec#high,find,person exec#high,centering,person",
+        ]
+
+        self.input_list = [
+            "Find a person and center it"
         ]
 
     def execute_tool_command(self, tool_command) -> bool:
