@@ -9,9 +9,10 @@ import cv2
 
 from yolo_client import YoloClient
 from controller.tello_wrapper import TelloWrapper
-from toolset import Toolset
+from controller.drone_wrapper import DroneToolset
 openai.organization = "org-sAnQwPNnbSrHg1XyR4QYALf7"
 openai.api_key = os.environ.get('OPENAI_API_KEY')
+MODEL_NAME = "gpt-3.5-turbo-16k"
 
 class LLMController():
     def __init__(self):
@@ -20,7 +21,7 @@ class LLMController():
         self.controller_state = True
         self.controller_wait_takeoff = True
         self.drone = TelloWrapper()
-        self.toolset = Toolset(self.yolo_results_queue, self.drone)
+        self.toolset = DroneToolset(self.yolo_results_queue, self.drone)
         self.low_level_tools = {
             "move_forward": self.toolset.move_forward,
             "move_backward": self.toolset.move_backward,
@@ -47,9 +48,12 @@ class LLMController():
             "exec#high,find,person exec#high,centering,person",
         ]
 
-        self.input_list = [
-            "Find a person and center it"
-        ]
+        self.prompt = "You are a drone pilot. You are provided with a toolset that allows \
+            you to move the drone or get visual information. The toolset contains both \
+            high-level and low-level tools, please use high-level tools as much as possible. \
+            Here is an example: input: \"Find an apple\", output: \"exec#high,find,apple exec#high,centering,apple\""
+
+        self.conversation = []
 
     def execute_tool_command(self, tool_command) -> bool:
         # parse tool command
