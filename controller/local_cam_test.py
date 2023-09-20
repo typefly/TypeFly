@@ -6,7 +6,7 @@ import openai
 import cv2
 
 from yolo_client import YoloClient
-from TelloWrapper import TelloWrapper
+from tello_wrapper import TelloWrapper
 from toolset import Toolset
 openai.organization = "org-sAnQwPNnbSrHg1XyR4QYALf7"
 openai.api_key = os.environ.get('OPENAI_API_KEY')

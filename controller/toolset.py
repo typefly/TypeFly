@@ -1,5 +1,5 @@
 import queue
-from TelloWrapper import TelloWrapper
+from tello_wrapper import TelloWrapper
 
 class Toolset():
     def __init__(self, yolo_results_queue: queue.Queue, drone_wrapper: TelloWrapper = None, image_size: tuple = (960, 720)):
