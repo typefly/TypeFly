@@ -27,10 +27,9 @@ class YoloClient():
     
     def plot_results(frame, results):
         draw = ImageDraw.Draw(frame)
-        font = ImageFont.truetype("Keyboard.ttf", 35)
         for result in results:
             draw.rectangle(((int(result['x1']), int(result['y1'])), (int(result['x2']), int(result['y2']))), fill=None, outline='blue', width=2)
-            draw.text((int(result['x1']), int(result['y1']) - 10), result['label'], fill='red', font=font)
+            draw.text((int(result['x1']), int(result['y1']) - 10), result['label'], fill='red')
     
     def detect(self, image):
         image_bytes = YoloClient.image_to_bytes(image)
@@ -46,7 +45,7 @@ class YoloClient():
 if __name__ == "__main__":
     yolo_client = YoloClient()
     image = Image.open('../test/images/kitchen.webp')
-    results = yolo_client.detect(image).results
+    results = yolo_client.detect(image)
     YoloClient.plot_results(image, results)
     image.save('../test/images/kitchen_detected.webp')
     print(results)
