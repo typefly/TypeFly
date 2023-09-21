@@ -1,18 +1,14 @@
-from threading import Lock
 from PIL import Image
 from threading import Thread
 import numpy as np
-import openai
-import os, sys, json
 import queue, time
 import cv2
 
 from yolo_client import YoloClient
-from controller.tello_wrapper import TelloWrapper
-from controller.drone_wrapper import DroneToolset
-openai.organization = "org-sAnQwPNnbSrHg1XyR4QYALf7"
-openai.api_key = os.environ.get('OPENAI_API_KEY')
-MODEL_NAME = "gpt-3.5-turbo-16k"
+from tello_wrapper import TelloWrapper
+from drone_wrapper import DroneWrapper
+from vision_wrapper import VisionWrapper
+from toolset import ToolSet, LowLevelToolItem, HighLevelToolItem, ToolArg
 
 class LLMController():
     def __init__(self):
@@ -20,40 +16,41 @@ class LLMController():
         self.yolo_client = YoloClient(self.yolo_results_queue)
         self.controller_state = True
         self.controller_wait_takeoff = True
-        self.drone = TelloWrapper()
-        self.toolset = DroneToolset(self.yolo_results_queue, self.drone)
-        self.low_level_tools = {
-            "move_forward": self.toolset.move_forward,
-            "move_backward": self.toolset.move_backward,
-            "move_left": self.toolset.move_left,
-            "move_right": self.toolset.move_right,
-            "move_up": self.toolset.move_up,
-            "move_down": self.toolset.move_down,
-            "turn_left": self.toolset.turn_left,
-            "turn_right": self.toolset.turn_right,
-            "is_in_sight": self.toolset.is_in_sight,
-            "is_not_in_sight": self.toolset.is_not_in_sight,
-            "check_location_x": self.toolset.check_location_x,
-            "check_location_y": self.toolset.check_location_y,
-        }
+        self.drone: DroneWrapper = TelloWrapper()
+        self.vision = VisionWrapper(self.yolo_results_queue)
+        self.low_level_toolset = ToolSet(level="low")
 
-        self.high_level_tools = {
-            "find": "loop#4 if#low,is_not_in_sight,$1#2 exec#low,turn_left,10 skip#1 break",
-            "centering": "loop#7 if#low,check_location_x,$1,>,0.6#1 exec#low,turn_right,10 \
-                if#low,check_location_x,$1,<,0.4#1 exec#low,turn_left,10 \
-                if#low,check_location_x,$1,<,0.6#2 if#low,check_location_x,$1,>,0.4#1 break",
-        }
+        self.low_level_toolset.add_tool(LowLevelToolItem("move_forward", self.drone.move_forward, "Move forward by a distance", args=[ToolArg("distance", int)]))
+        self.low_level_toolset.add_tool(LowLevelToolItem("move_backward", self.drone.move_backward, "Move backward by a distance", args=[ToolArg("distance", int)]))
+        self.low_level_toolset.add_tool(LowLevelToolItem("move_left", self.drone.move_left, "Move left by a distance", args=[ToolArg("distance", int)]))
+        self.low_level_toolset.add_tool(LowLevelToolItem("move_right", self.drone.move_right, "Move right by a distance", args=[ToolArg("distance", int)]))
+        self.low_level_toolset.add_tool(LowLevelToolItem("move_up", self.drone.move_up, "Move up by a distance", args=[ToolArg("distance", int)]))
+        self.low_level_toolset.add_tool(LowLevelToolItem("move_down", self.drone.move_down, "Move down by a distance", args=[ToolArg("distance", int)]))
+        self.low_level_toolset.add_tool(LowLevelToolItem("turn_ccw", self.drone.turn_ccw, "Turn counter clockwise by a degree", args=[ToolArg("degree", int)]))
+        self.low_level_toolset.add_tool(LowLevelToolItem("turn_cw", self.drone.turn_cw, "Turn clockwise by a degree", args=[ToolArg("degree", int)]))
+        self.low_level_toolset.add_tool(LowLevelToolItem("is_in_sight", self.vision.is_in_sight, "Check if an object is in sight", args=[ToolArg("object_name", str)]))
+        self.low_level_toolset.add_tool(LowLevelToolItem("is_not_in_sight", self.vision.is_not_in_sight, "Check if an object is not in sight", args=[ToolArg("object_name", str)]))
+        self.low_level_toolset.add_tool(LowLevelToolItem("check_location_x", self.vision.check_location_x, \
+                                                         "Check if x location of an object meets the comparison criterion with the value", \
+                                                         args=[ToolArg("object_name", str), ToolArg("compare", str), ToolArg("val", float)]))
+        self.low_level_toolset.add_tool(LowLevelToolItem("check_location_y", self.vision.check_location_y, \
+                                                         "Check if y location of an object meets the comparison criterion with the value", \
+                                                         args=[ToolArg("object_name", str), ToolArg("compare", str), ToolArg("val", float)]))
+
+        
+        self.high_level_toolset = ToolSet(level="high")
+        self.high_level_toolset.add_tool(HighLevelToolItem("scan", "loop#4 if#low,is_not_in_sight,$1#2 exec#low,turn_left,10 skip#1 break"))
+        self.high_level_toolset.add_tool(HighLevelToolItem("align", "loop#7 if#low,check_location_x,$1,>,0.6#1 exec#low,turn_cw,10 \
+                                                            if#low,check_location_x,$1,<,0.4#1 exec#low,turn_ccw,10 \
+                                                            if#low,check_location_x,$1,<,0.6#2 if#low,check_location_x,$1,>,0.4#1 break"))
+        self.high_level_toolset.add_tool(HighLevelToolItem("centering", "loop#7 if#low,check_location_x,$1,>,0.6#1 exec#low,move_right,10 \
+                                                            if#low,check_location_x,$1,<,0.4#1 exec#low,move_left,10 \
+                                                            if#low,check_location_x,$1,<,0.6#2 if#low,check_location_x,$1,>,0.4#1 break"))
+        
 
         self.commands_list = [
-            "exec#high,find,person exec#high,centering,person",
+            "exec#high,scan,person exec#high,centering,person",
         ]
-
-        self.prompt = "You are a drone pilot. You are provided with a toolset that allows \
-            you to move the drone or get visual information. The toolset contains both \
-            high-level and low-level tools, please use high-level tools as much as possible. \
-            Here is an example: input: \"Find an apple\", output: \"exec#high,find,apple exec#high,centering,apple\""
-
-        self.conversation = []
 
     def execute_tool_command(self, tool_command) -> bool:
         # parse tool command
@@ -61,26 +58,16 @@ class LLMController():
         level = segments[0]
         tool_name = segments[1]
         if level == 'low':
-            tool = self.low_level_tools.get(tool_name)
-            if tool is not None:
-                print(f'> > exec low-level tool: {tool}, {segments[2:]}')
-                if callable(tool):
-                    return tool(*segments[2:])
-                return True
+            tool = self.low_level_toolset.get_tool(tool_name)
+            return tool.execute(segments[2:])
         elif level == 'high':
-            tool = self.high_level_tools.get(tool_name)
-            if tool is not None:
-                # replace all $1, $2, ... with segments
-                for i in range(2, len(segments)):
-                    tool = tool.replace(f"${i - 1}", segments[i])
-                print(f"> > expanded high-level tool: {tool}")
-                return self.execute_commands(tool)
+            tool = self.high_level_toolset.get_tool(tool_name)
+            return self.execute_commands(tool.execute(segments[2:]))
         return False
-    
+
     def execute_commands(self, commands) -> bool:
         parts = commands.split()
         loop_range = (-1, 0)
-        print (f"> parts: {parts}")
         loop_index = 0
         while loop_index < len(parts):
             # check controller state
@@ -132,13 +119,14 @@ class LLMController():
 
     def run(self):
         self.drone.connect()
-        self.drone.start()
+        self.drone.takeoff()
+        self.drone.start_stream()
         self.controller_wait_takeoff = False
         control_thread = Thread(target=self.control_thread)
         control_thread.start()
 
         while self.controller_state:
-            self.drone.keep_alive()
+            self.drone.keep_active()
             frame = self.drone.get_image()
             image = Image.fromarray(frame)
             results = self.yolo_client.detect(image)
@@ -149,7 +137,8 @@ class LLMController():
             if key == 27:
                 break
         self.controller_state = False
-        self.drone.stop()
+        self.drone.land()
+        self.drone.stop_stream()
         control_thread.join()
 
 def main():

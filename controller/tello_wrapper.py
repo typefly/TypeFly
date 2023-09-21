@@ -6,7 +6,6 @@ class TelloWrapper(DroneWrapper):
         self.drone = Tello()
         self.active_count = 0
         self.streamOn = False
-        self.is_battery_good()
 
     def keep_alive(self):
         if self.active_count % 20 == 0:
@@ -16,8 +15,12 @@ class TelloWrapper(DroneWrapper):
     def connect(self):
         self.drone.connect()
 
-    def takeoff(self):
-        self.drone.takeoff()
+    def takeoff(self) -> bool:
+        if not self.is_battery_good():
+            return False
+        else:
+            self.drone.takeoff()
+            return True
 
     def land(self):
         self.drone.land()
@@ -35,29 +38,37 @@ class TelloWrapper(DroneWrapper):
             return None
         return self.drone.get_frame_read().frame
 
-    def move_forward(self, distance: int):
+    def move_forward(self, distance: int) -> bool:
         self.drone.move_forward(distance)
+        return True
 
-    def move_backward(self, distance: int):
+    def move_backward(self, distance: int) -> bool:
         self.drone.move_back(distance)
+        return True
 
-    def move_left(self, distance: int):
+    def move_left(self, distance: int) -> bool:
         self.drone.move_left(distance)
+        return True
 
-    def move_right(self, distance: int):
+    def move_right(self, distance: int) -> bool:
         self.drone.move_right(distance)
+        return True
 
-    def move_up(self, distance: int):
+    def move_up(self, distance: int) -> bool:
         self.drone.move_up(distance)
+        return True
 
-    def move_down(self, distance: int):
+    def move_down(self, distance: int) -> bool:
         self.drone.move_down(distance)
+        return True
 
-    def turn_counter_clockwise(self, degree: int):
+    def turn_ccw(self, degree: int) -> bool:
         self.drone.rotate_ccw(degree)
+        return True
 
-    def turn_clockwise(self, degree: int):
+    def turn_cw(self, degree: int) -> bool:
         self.drone.rotate_cw(degree)
+        return True
     
     def is_battery_good(self):
         self.battery = self.drone.query_battery()

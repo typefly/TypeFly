@@ -20,24 +20,24 @@ class VisionWrapper():
     def is_not_in_sight(self, object_name: str) -> bool:
         return self.get_obj_info(object_name) is None
     
-    def check_location_x(self, object_name: str, compare: str, val: float) -> Optional[bool]:
+    def check_location_x(self, object_name: str, compare: str, value: float) -> Optional[bool]:
         info = self.get_obj_info(object_name)
         if info is None:
             return None
         if compare == '<':
-            return (info['x1'] + info['x2']) / 2 / self.image_size[0] < val
+            return (info['x1'] + info['x2']) / 2 / self.image_size[0] < value
         elif compare == '>':
-            return (info['x1'] + info['x2']) / 2 / self.image_size[0] > val
+            return (info['x1'] + info['x2']) / 2 / self.image_size[0] > value
         else:
             return None
     
-    def check_location_y(self, object_name: str, compare: str, val: float) -> Optional[bool]:
+    def check_location_y(self, object_name: str, compare: str, value: float) -> Optional[bool]:
         info = self.get_obj_info(object_name)
         if info is None:
             return None
         if compare == '<':
-            return (info['y1'] + info['y2']) / 2 / self.image_size[1] < val
+            return (info['y1'] + info['y2']) / 2 / self.image_size[1] < value
         elif compare == '>':
-            return (info['y1'] + info['y2']) / 2 / self.image_size[1] > val
+            return (info['y1'] + info['y2']) / 2 / self.image_size[1] > value
         else:
             return None

@@ -10,7 +10,7 @@ class DroneWrapper(ABC):
         pass
 
     @abstractmethod
-    def takeoff(self):
+    def takeoff(self) -> bool:
         pass
 
     @abstractmethod
@@ -30,33 +30,33 @@ class DroneWrapper(ABC):
         pass
 
     @abstractmethod
-    def move_forward(self, distance: int):
+    def move_forward(self, distance: int) -> bool:
         pass
     
     @abstractmethod
-    def move_backward(self, distance: int):
+    def move_backward(self, distance: int) -> bool:
         pass
     
     @abstractmethod
-    def move_left(self, distance: int):
+    def move_left(self, distance: int) -> bool:
         pass
 
     @abstractmethod
-    def move_right(self, distance: int):
+    def move_right(self, distance: int) -> bool:
         pass
     
     @abstractmethod
-    def move_up(self, distance: int):
+    def move_up(self, distance: int) -> bool:
         pass
     
     @abstractmethod
-    def move_down(self, distance: int):
+    def move_down(self, distance: int) -> bool:
         pass
 
     @abstractmethod
-    def turn_counter_clockwise(self, degree: int):
+    def turn_ccw(self, degree: int) -> bool:
         pass
 
     @abstractmethod
-    def turn_clockwise(self, degree: int):
+    def turn_cw(self, degree: int) -> bool:
         pass

@@ -35,9 +35,9 @@ class ToolSet():
         LOW = "low"
         HIGH = "high"
 
-    def __init__(self, level: ToolSetLevel = ToolSetLevel.LOW):
+    def __init__(self, level = "low"):
         self.tools = {}
-        self.level = level
+        self.level = ToolSet.ToolSetLevel(level)
 
     def get_tool(self, tool_name: str) -> ToolItem:
         """Returns a ToolItem by its name."""
@@ -61,7 +61,7 @@ class ToolSet():
         """Executes a tool by its name with the provided arguments."""
         if tool_name not in self.tools:
             raise ValueError(f"No tool found with the name '{tool_name}'.")
-        return self.tools[tool_name].execute(args_str)
+        return self.tools[tool_name].execute(args_str.split(','))
 
 class LowLevelToolItem(ToolItem):
     def __init__(self, tool_name: str, tool_callable: callable = None,
@@ -93,16 +93,14 @@ class LowLevelToolItem(ToolItem):
                 missing_args.append(self.args[i])
         return missing_args
 
-    def parse_args(self, args_str: str, allow_positional_args: bool = False):
+    def parse_args(self, args_str_list: [str], allow_positional_args: bool = False):
         """Parses the string of arguments and converts them to the expected types."""
-        args = args_str.split(',')
-        
         # Check the number of arguments
-        if len(args) != len(self.args):
-            raise ValueError(f"Expected {len(self.args)} arguments, but got {len(args)}.")
+        if len(args_str_list) != len(self.args):
+            raise ValueError(f"Expected {len(self.args)} arguments, but got {len(args_str_list)}.")
         
         parsed_args = []
-        for i, arg in enumerate(args):
+        for i, arg in enumerate(args_str_list):
             # Allow positional arguments
             if arg.startswith('$') and allow_positional_args:
                 parsed_args.append(arg)
@@ -113,10 +111,10 @@ class LowLevelToolItem(ToolItem):
                 raise ValueError(f"Error parsing argument {i + 1}. Expected type {self.args[i].arg_type.__name__}, but got value '{arg.strip()}'. Original error: {e}")
         return parsed_args
     
-    def execute(self, args_str: str):
+    def execute(self, args_str_list: [str]):
         """Executes the tool with the provided arguments."""
         if callable(self.tool_callable):
-            parsed_args = self.parse_args(args_str)
+            parsed_args = self.parse_args(args_str_list)
             return self.tool_callable(*parsed_args)
         else:
             raise ValueError(f"'{self.tool_callable}' is not a callable function.")
@@ -129,12 +127,14 @@ class LowLevelToolItem(ToolItem):
                 f")")
 
 class HighLevelToolItem(ToolItem):
-    def __init__(self, tool_name: str, tool_str: str = None, comment: str = "", low_level_toolset: ToolSet = None):
+    def __init__(self, tool_name: str, tool_str: str = None,
+                 comment: str = "", low_level_toolset: ToolSet = None, control_state: bool = True):
         self.tool_name = tool_name
         self.tool_str = tool_str
         self.comment = comment
         self.low_level_toolset = low_level_toolset
         self.args = self.generate_arg_types()
+        self.controller_state = control_state
 
     def get_name(self) -> str:
         return self.tool_name
@@ -151,7 +151,8 @@ class HighLevelToolItem(ToolItem):
         return missing_args
 
     def generate_arg_types(self):
-        """Parses the tool string, generate arg list and check if the arguments are valid for the low-level tools."""
+        """Parses the tool string, generate arg list and check \
+            if the arguments are valid for the low-level tools."""
         args = []
         for section in self.tool_str.split():
             segments = section.split("#")
@@ -163,16 +164,25 @@ class HighLevelToolItem(ToolItem):
                     # append two list into arg_types and arg_names
                     args.extend(tool.get_missing_args(split[2:]))
         return args
+    
+    def execute_tool_command(self, tool_command) -> bool:
+        split = tool_command.split(",")
+        level = split[0]
+        tool_name = split[1]
+        if level == 'low':
+            tool = self.low_level_toolset.get_tool(tool_name)
+            print(f'> > exec low-level tool: {tool}, {split[2:]}')
+            return tool.execute(split[2:])
+        return False
 
-    def execute(self, args_str: str):
+    def execute(self, args_str_list: [str]):
         """Executes the tool with the provided arguments."""
-        args = args_str.split(',')
-        if len(args) != len(self.args):
-            raise ValueError(f"Expected {len(self.args)} arguments, but got {len(args)}.")
+        if len(args_str_list) != len(self.args):
+            raise ValueError(f"Expected {len(self.args)} arguments, but got {len(args_str_list)}.")
         # replace all $1, $2, ... with segments
         tool_str = self.tool_str
-        for i in range(0, len(args)):
-            tool_str = tool_str.replace(f"${i + 1}", args[i])
+        for i in range(0, len(args_str_list)):
+            tool_str = tool_str.replace(f"${i + 1}", args_str_list[i])
         return tool_str
 
     def __repr__(self) -> str:

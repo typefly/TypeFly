@@ -6,8 +6,6 @@ import openai
 import cv2
 
 from yolo_client import YoloClient
-from tello_wrapper import TelloWrapper
-from controller.drone_wrapper import Toolset
 openai.organization = "org-sAnQwPNnbSrHg1XyR4QYALf7"
 openai.api_key = os.environ.get('OPENAI_API_KEY')
 
@@ -18,14 +16,6 @@ global yolo_results_lock
 global commands_list
 global image_width
 global image_height
-
-# class LLMController():
-#     def __init__(self):
-#         self.yolo_client = YoloClient()
-#         self.yolo_results = None
-#         self.yolo_results_lock = Lock()
-#         self.controller_state = True
-#         self.toolset = Toolset(TelloWrapper())
 
 def is_in_sight(obj) -> bool:
     with yolo_results_lock:
@@ -101,7 +91,7 @@ def camera_capture():
     global controller_state
     global image_width
     global image_height
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     # Check if camera opened successfully
     if (cap.isOpened() == False):
         print("Unable to read camera feed")
@@ -207,7 +197,7 @@ def init():
 
 if __name__ == "__main__":
     init()
-    control_thread = Thread(target=control)
-    control_thread.start()
+    # control_thread = Thread(target=control)
+    # control_thread.start()
     camera_capture()
-    control_thread.join()
+    # control_thread.join()

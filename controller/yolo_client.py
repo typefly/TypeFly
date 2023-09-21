@@ -9,8 +9,8 @@ sys.path.append('../proto/generated')
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 
-YOLO_SERVICE_IP = 'localhost'
-# YOLO_SERVICE_IP = '172.29.249.77'
+# YOLO_SERVICE_IP = 'localhost'
+YOLO_SERVICE_IP = '172.29.249.77'
 YOLO_SERVICE_PORT = '50051'
 
 class YoloClient():
