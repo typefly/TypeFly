@@ -7,7 +7,7 @@ class TelloWrapper(DroneWrapper):
         self.active_count = 0
         self.streamOn = False
 
-    def keep_alive(self):
+    def keep_active(self):
         if self.active_count % 20 == 0:
             self.drone.send_control_command("command")
         self.active_count += 1

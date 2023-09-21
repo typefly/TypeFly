@@ -30,14 +30,15 @@ class ToolItem(ABC):
     def execute(self, args_str: str):
         pass
 
-class ToolSet():
-    class ToolSetLevel(Enum):
+class ToolSetLevel(Enum):
         LOW = "low"
         HIGH = "high"
 
-    def __init__(self, level = "low"):
+class ToolSet():
+    def __init__(self, level = "low", lower_level_toolset: 'ToolSet' = None):
         self.tools = {}
-        self.level = ToolSet.ToolSetLevel(level)
+        self.level = ToolSetLevel(level)
+        self.lower_level_toolset = lower_level_toolset
 
     def get_tool(self, tool_name: str) -> ToolItem:
         """Returns a ToolItem by its name."""
@@ -49,6 +50,8 @@ class ToolSet():
         """Adds a ToolItem to the set."""
         if tool_item.tool_name in self.tools:
             raise ValueError(f"A tool with the name '{tool_item.tool_name}' already exists.")
+        if self.level == ToolSetLevel.HIGH and self.lower_level_toolset is not None:
+            tool_item.set_low_level_toolset(self.lower_level_toolset)
         self.tools[tool_item.tool_name] = tool_item
     
     def remove_tool(self, tool_name: str):
@@ -128,19 +131,22 @@ class LowLevelToolItem(ToolItem):
 
 class HighLevelToolItem(ToolItem):
     def __init__(self, tool_name: str, tool_str: str = None,
-                 comment: str = "", low_level_toolset: ToolSet = None, control_state: bool = True):
+                 comment: str = ""):
         self.tool_name = tool_name
         self.tool_str = tool_str
         self.comment = comment
-        self.low_level_toolset = low_level_toolset
-        self.args = self.generate_arg_types()
-        self.controller_state = control_state
+        self.low_level_toolset = None
+        self.args = []
 
     def get_name(self) -> str:
         return self.tool_name
     
     def get_comment(self) -> str:
         return self.comment
+
+    def set_low_level_toolset(self, low_level_toolset: ToolSet):
+        self.low_level_toolset = low_level_toolset
+        self.args = self.generate_arg_types()
     
     def get_missing_args(self, args_str_list: [str]) -> [ToolArg]:
         """Return types of non-static args in the args_str."""
@@ -177,6 +183,8 @@ class HighLevelToolItem(ToolItem):
 
     def execute(self, args_str_list: [str]):
         """Executes the tool with the provided arguments."""
+        if self.low_level_toolset is None:
+            raise ValueError("Low-level toolset is not set.")
         if len(args_str_list) != len(self.args):
             raise ValueError(f"Expected {len(self.args)} arguments, but got {len(args_str_list)}.")
         # replace all $1, $2, ... with segments

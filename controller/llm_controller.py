@@ -37,7 +37,6 @@ class LLMController():
                                                          "Check if y location of an object meets the comparison criterion with the value", \
                                                          args=[ToolArg("object_name", str), ToolArg("compare", str), ToolArg("val", float)]))
 
-        
         self.high_level_toolset = ToolSet(level="high")
         self.high_level_toolset.add_tool(HighLevelToolItem("scan", "loop#4 if#low,is_not_in_sight,$1#2 exec#low,turn_left,10 skip#1 break"))
         self.high_level_toolset.add_tool(HighLevelToolItem("align", "loop#7 if#low,check_location_x,$1,>,0.6#1 exec#low,turn_cw,10 \
@@ -49,7 +48,7 @@ class LLMController():
         
 
         self.commands_list = [
-            "exec#high,scan,person exec#high,centering,person",
+            "exec#high,scan,bottle exec#high,centering,bottle",
         ]
 
     def execute_tool_command(self, tool_command) -> bool:
