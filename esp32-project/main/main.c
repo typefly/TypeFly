@@ -15,12 +15,12 @@ void app_main(void) {
     init_camera();
     
     while (true) {
-        ESP_LOGI(TAG, "Taking picture...");
-        camera_fb_t *pic = esp_camera_fb_get();
+        // ESP_LOGI(TAG, "Taking picture...");
+        // camera_fb_t *pic = esp_camera_fb_get();
 
-        // use pic->buf to access the image
-        ESP_LOGI(TAG, "Picture taken! Its size was: %zu bytes", pic->len);
-        esp_camera_fb_return(pic);
+        // // use pic->buf to access the image
+        // ESP_LOGI(TAG, "Picture taken! Its size was: %zu bytes", pic->len);
+        // esp_camera_fb_return(pic);
 
         vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
