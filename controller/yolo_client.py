@@ -27,9 +27,10 @@ class YoloClient():
     
     def plot_results(frame, results):
         draw = ImageDraw.Draw(frame)
+        font = ImageFont.truetype('Monaco.ttf', 50)
         for result in results:
             draw.rectangle(((int(result['x1']), int(result['y1'])), (int(result['x2']), int(result['y2']))), fill=None, outline='blue', width=2)
-            draw.text((int(result['x1']), int(result['y1']) - 10), result['label'], fill='red')
+            draw.text((int(result['x1']), int(result['y1']) - 10), result['label'], fill='red', font=font)
     
     def detect(self, image):
         image_bytes = YoloClient.image_to_bytes(image)

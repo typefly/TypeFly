@@ -27,7 +27,6 @@ class TelloLLM():
         self.drone.streamon()
         print("> Application Start")
 
-        # self.drone.rotate_counter_clockwise(30)
         frame_read = self.drone.get_frame_read()
 
         aliveCount = 1

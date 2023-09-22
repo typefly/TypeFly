@@ -19,10 +19,6 @@ class ToolItem(ABC):
         pass
 
     @abstractmethod
-    def get_missing_args(self, args_str_list: [str]) -> [ToolArg]:
-        pass
-
-    @abstractmethod
     def __repr__(self) -> str:
         pass
 
@@ -65,6 +61,12 @@ class ToolSet():
         if tool_name not in self.tools:
             raise ValueError(f"No tool found with the name '{tool_name}'.")
         return self.tools[tool_name].execute(args_str.split(','))
+    
+    def __repr__(self) -> str:
+        return (f"ToolSet(\n"
+                f"  level: {self.level.value},\n"
+                f"  tools: {[tool for tool in self.tools.values()]},\n"
+                f")")
 
 class LowLevelToolItem(ToolItem):
     def __init__(self, tool_name: str, tool_callable: callable = None,
@@ -87,14 +89,6 @@ class LowLevelToolItem(ToolItem):
             return True
         except ValueError:
             return False
-        
-    def get_missing_args(self, args_str_list: [str]) -> [ToolArg]:
-        """Return types of non-static args in the args_str."""
-        missing_args = []
-        for i, arg in enumerate(args_str_list):
-            if arg.startswith('$'):
-                missing_args.append(self.args[i])
-        return missing_args
 
     def parse_args(self, args_str_list: [str], allow_positional_args: bool = False):
         """Parses the string of arguments and converts them to the expected types."""
@@ -147,19 +141,12 @@ class HighLevelToolItem(ToolItem):
     def set_low_level_toolset(self, low_level_toolset: ToolSet):
         self.low_level_toolset = low_level_toolset
         self.args = self.generate_arg_types()
-    
-    def get_missing_args(self, args_str_list: [str]) -> [ToolArg]:
-        """Return types of non-static args in the args_str."""
-        missing_args = []
-        for i, arg in enumerate(args_str_list):
-            if arg.startswith('$'):
-                missing_args.append(self.args[i])
-        return missing_args
 
     def generate_arg_types(self):
         """Parses the tool string, generate arg list and check \
             if the arguments are valid for the low-level tools."""
         args = []
+        positional_args = []
         for section in self.tool_str.split():
             segments = section.split("#")
             for segment in segments:
@@ -168,7 +155,15 @@ class HighLevelToolItem(ToolItem):
                     tool_name = split[1]
                     tool = self.low_level_toolset.get_tool(tool_name)
                     # append two list into arg_types and arg_names
-                    args.extend(tool.get_missing_args(split[2:]))
+                    for i, arg_str in enumerate(split[2:]):
+                        if arg_str.startswith("$"):
+                            arg_instance = tool.args[i]
+                            arg_index = int(arg_str[1:])
+                            if arg_index not in positional_args:
+                                positional_args.append(arg_index)
+                                args.append(arg_instance)
+                            elif args[positional_args.index(arg_index)].arg_type != arg_instance.arg_type:
+                                raise ValueError(f"Argument {arg_index} is used twice with different types.")
         return args
     
     def execute_tool_command(self, tool_command) -> bool:
@@ -196,6 +191,7 @@ class HighLevelToolItem(ToolItem):
     def __repr__(self) -> str:
         return (f"ToolItem(\n"
                 f"  name: {self.tool_name},\n"
+                f"  tool_str: {self.tool_str},\n"
                 f"  args: {[arg for arg in self.args]},\n"
                 f"  comment: {self.comment},\n"
                 f")")
@@ -219,13 +215,13 @@ def main():
     # Create a high level tool
     high_level_tool_1 = HighLevelToolItem("find",
                                         tool_str="loop#4 if#low,is_not_in_sight,$1#2 exec#low,turn_left,10 skip#1 break",
-                                        comment="turn around until find the object in sight",
-                                        low_level_toolset=toolset)
+                                        comment="turn around until find the object in sight")
     
-    high_level_toolset = ToolSet(level=ToolSet.ToolSetLevel.HIGH)
+    high_level_toolset = ToolSet(level="high", lower_level_toolset=toolset)
     high_level_toolset.add_tool(high_level_tool_1)
 
-    print(high_level_toolset.execute_tool("find", "apple"))
+    print(toolset)
+    print(high_level_toolset)
 
     # Execute tools by their names
     print(toolset.execute_tool("is_not_in_sight", "Alice"))

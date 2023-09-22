@@ -91,7 +91,7 @@ def camera_capture():
     global controller_state
     global image_width
     global image_height
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     # Check if camera opened successfully
     if (cap.isOpened() == False):
         print("Unable to read camera feed")
@@ -108,6 +108,7 @@ def camera_capture():
             with yolo_results_lock:
                 yolo_results = yolo_client.detect(image)
             YoloClient.plot_results(image, yolo_results)
+            print(yolo_results)
 
             cv2.imshow('Frame', cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR))
             # Press Q on keyboard to exit

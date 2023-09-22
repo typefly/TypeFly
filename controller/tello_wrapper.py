@@ -28,6 +28,7 @@ class TelloWrapper(DroneWrapper):
     def start_stream(self):
         self.streamOn = True
         self.drone.streamon()
+        self.frame_reader = self.drone.get_frame_read()
 
     def stop_stream(self):
         self.streamOn = False
@@ -36,7 +37,7 @@ class TelloWrapper(DroneWrapper):
     def get_image(self):
         if not self.streamOn:
             return None
-        return self.drone.get_frame_read().frame
+        return self.frame_reader.frame
 
     def move_forward(self, distance: int) -> bool:
         self.drone.move_forward(distance)
@@ -63,11 +64,11 @@ class TelloWrapper(DroneWrapper):
         return True
 
     def turn_ccw(self, degree: int) -> bool:
-        self.drone.rotate_ccw(degree)
+        self.drone.rotate_counter_clockwise(degree)
         return True
 
     def turn_cw(self, degree: int) -> bool:
-        self.drone.rotate_cw(degree)
+        self.drone.rotate_clockwise(degree)
         return True
     
     def is_battery_good(self):
