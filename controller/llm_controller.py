@@ -40,16 +40,19 @@ class LLMController():
                                                          args=[ToolArg("object_name", str), ToolArg("compare", str), ToolArg("val", float)]))
 
         self.high_level_toolset = ToolSet(level="high", lower_level_toolset=self.low_level_toolset)
-        self.high_level_toolset.add_tool(HighLevelToolItem("scan", "loop#5 if#low,is_not_in_sight,$1#3 exec#low,turn_ccw,30 delay#300 skip#1 break"))
+        self.high_level_toolset.add_tool(HighLevelToolItem("scan", "loop#5 if#low,is_not_in_sight,$1#3 exec#low,turn_ccw,30 delay#300 skip#1 break",
+                                                           "scan the environment to find the object"))
         self.high_level_toolset.add_tool(HighLevelToolItem("align", "loop#7 if#low,check_location_x,$1,>,0.6#1 exec#low,turn_cw,15 \
                                                             if#low,check_location_x,$1,<,0.4#1 exec#low,turn_ccw,15 \
-                                                            if#low,check_location_x,$1,<,0.6#2 if#low,check_location_x,$1,>,0.4#1 break"))
+                                                            if#low,check_location_x,$1,<,0.6#2 if#low,check_location_x,$1,>,0.4#1 break",
+                                                            "align the object to the center of the frame by rotating the drone"))
         self.high_level_toolset.add_tool(HighLevelToolItem("centering", "loop#13 if#low,check_location_x,$1,>,0.6#1 exec#low,move_right,20 \
                                                             if#low,check_location_x,$1,<,0.4#1 exec#low,move_left,20 \
                                                             if#low,check_location_y,$1,<,0.4#2 exec#low,move_up,20 \
                                                             if#low,check_location_y,$1,>,0.6#2 exec#low,move_down,20 \
                                                             if#low,check_location_x,$1,<,0.6#4 if#low,check_location_x,$1,>,0.4#3 \
-                                                            if#low,check_location_y,$1,>,0.4#2 if#low,check_location_y,$1,<,0.6#1 break"))
+                                                            if#low,check_location_y,$1,>,0.4#2 if#low,check_location_y,$1,<,0.6#1 break",
+                                                            "center the object in the frame by moving the drone"))
 
         self.commands_list = [
             "exec#high,scan,bootle exec#high,centering,bottle exec#low,move_forward,50",
