@@ -6,6 +6,12 @@ class VisionWrapper():
         self.yolo_results_queue = yolo_results_queue
         self.image_size = image_size
 
+    def get_obj_list(self) -> [str]:
+        if not self.yolo_results_queue.empty():
+            yolo_results = self.yolo_results_queue.queue[0]
+            return [item['label'].replace(' ', '_') for item in yolo_results]
+        return []
+
     def get_obj_info(self, object_name: str) -> Optional[dict]:
         if not self.yolo_results_queue.empty():
             yolo_results = self.yolo_results_queue.queue[0]

@@ -117,17 +117,16 @@ class LowLevelToolItem(ToolItem):
             raise ValueError(f"'{self.tool_callable}' is not a callable function.")
 
     def __repr__(self) -> str:
-        return (f"ToolItem(\n"
-                f"  name: {self.tool_name},\n"
-                f"  args: {[arg for arg in self.args]},\n"
-                f"  comment: {self.comment},\n"
-                f")")
+        return (f"ToolItem("
+                f"name: {self.tool_name}, "
+                f"args: {[arg for arg in self.args]}, "
+                f"comment: {self.comment})")
 
 class HighLevelToolItem(ToolItem):
-    def __init__(self, tool_name: str, tool_str: str = None,
+    def __init__(self, tool_name: str, tool_str_list: [str],
                  comment: str = ""):
         self.tool_name = tool_name
-        self.tool_str = tool_str
+        self.tool_str_list = tool_str_list
         self.comment = comment
         self.low_level_toolset = None
         self.args = []
@@ -147,9 +146,8 @@ class HighLevelToolItem(ToolItem):
             if the arguments are valid for the low-level tools."""
         args = []
         positional_args = []
-        for section in self.tool_str.split():
-            segments = section.split("#")
-            for segment in segments:
+        for tool_str in self.tool_str_list:
+            for segment in tool_str.split("#"):
                 if segment.startswith("low,"):
                     split = segment.split(",")
                     tool_name = split[1]
@@ -165,16 +163,16 @@ class HighLevelToolItem(ToolItem):
                             elif args[positional_args.index(arg_index)].arg_type != arg_instance.arg_type:
                                 raise ValueError(f"Argument {arg_index} is used twice with different types.")
         return args
-    
-    def execute_tool_command(self, tool_command) -> bool:
-        split = tool_command.split(",")
-        level = split[0]
-        tool_name = split[1]
-        if level == 'low':
-            tool = self.low_level_toolset.get_tool(tool_name)
-            print(f'> > exec low-level tool: {tool}, {split[2:]}')
-            return tool.execute(split[2:])
-        return False
+
+    # def execute_tool_command(self, tool_command) -> bool:
+    #     split = tool_command.split(",")
+    #     level = split[0]
+    #     tool_name = split[1]
+    #     if level == 'low':
+    #         tool = self.low_level_toolset.get_tool(tool_name)
+    #         print(f'> > exec low-level tool: {tool}, {split[2:]}')
+    #         return tool.execute(split[2:])
+    #     return False
 
     def execute(self, args_str_list: [str]):
         """Executes the tool with the provided arguments."""
@@ -183,18 +181,19 @@ class HighLevelToolItem(ToolItem):
         if len(args_str_list) != len(self.args):
             raise ValueError(f"Expected {len(self.args)} arguments, but got {len(args_str_list)}.")
         # replace all $1, $2, ... with segments
-        tool_str = self.tool_str
-        for i in range(0, len(args_str_list)):
-            tool_str = tool_str.replace(f"${i + 1}", args_str_list[i])
-        return tool_str
+        tool_str_list = self.tool_str_list.copy()
+        for index, tool_str in enumerate(tool_str_list):
+            for i in range(0, len(args_str_list)):
+                tool_str = tool_str.replace(f"${i + 1}", args_str_list[i])
+            tool_str_list[index] = tool_str
+        return tool_str_list
 
     def __repr__(self) -> str:
-        return (f"ToolItem(\n"
-                f"  name: {self.tool_name},\n"
-                f"  tool_str: {self.tool_str},\n"
-                f"  args: {[arg for arg in self.args]},\n"
-                f"  comment: {self.comment},\n"
-                f")")
+        return (f"ToolItem("
+                f"name: {self.tool_name}, "
+                f"tool_str_list: {self.tool_str_list}, "
+                f"args: {[arg for arg in self.args]}, "
+                f"comment: {self.comment})")
 
 ############################################
 def main():
@@ -214,7 +213,7 @@ def main():
 
     # Create a high level tool
     high_level_tool_1 = HighLevelToolItem("find",
-                                        tool_str="loop#4 if#low,is_not_in_sight,$1#2 exec#low,turn_left,10 skip#1 break",
+                                        tool_str_list=["loop#4", "if#low,is_not_in_sight,$1#2", "exec#low,turn_left,10", "skip#1", "break"],
                                         comment="turn around until find the object in sight")
     
     high_level_toolset = ToolSet(level="high", lower_level_toolset=toolset)
