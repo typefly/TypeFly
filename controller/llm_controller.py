@@ -1,7 +1,7 @@
 from PIL import Image
 from threading import Thread
 import numpy as np
-import queue, time
+import queue, time, json
 
 from yolo_client import YoloClient
 from tello_wrapper import TelloWrapper
@@ -122,16 +122,25 @@ class LLMController():
         return False
 
     def execute_user_command(self, user_command: str):
-        while True:
+        if self.controller_wait_takeoff:
+            print("Controller is waiting for takeoff...")
+            return
+        while self.controller_state:
             result = self.planner.request(self.vision.get_obj_list(), user_command)
-            self.execute_commands(result)
+            input_ans = input(f">> result: {json.dumps(result)}, executing?")
+            if input_ans == 'n':
+                break
+            if not self.execute_commands(result):
+                break
 
     def run(self):
         self.drone.connect()
+        print("Drone is taking off...")
         self.drone.takeoff()
         self.drone.move_up(30)
         self.drone.start_stream()
         self.controller_wait_takeoff = False
+        print("Start controller...")
 
         while self.controller_state:
             self.drone.keep_active()

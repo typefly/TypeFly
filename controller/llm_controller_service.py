@@ -1,6 +1,8 @@
 import io, time
 from threading import Thread
 from flask import Flask, request, jsonify, Response
+import logging
+logging.disable(logging.CRITICAL + 1)
 
 from llm_controller import LLMController
 
@@ -15,7 +17,7 @@ def process_command():
     if received_string == "exit":
         llm_controller.stop_controller()
     else:
-        llm_controller.execute_commands(received_string)
+        llm_controller.execute_user_command(received_string)
     return jsonify({'result': 'success'})
 
 def generate_mjpeg_stream():

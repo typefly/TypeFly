@@ -1,4 +1,4 @@
-import os, json
+import os, json, ast
 import openai
 
 from toolset import ToolSet
@@ -75,4 +75,4 @@ class LLMPlanner():
             f.write(prompt + "\n##################################\n")
             f.write(json.dumps(response) + "\n##################################\n")
 
-        return response["choices"][0]["message"]["content"]
+        return ast.literal_eval(response["choices"][0]["message"]["content"])
