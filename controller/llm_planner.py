@@ -24,8 +24,16 @@ class LLMPlanner():
                     "objects": [],
                     "command": "[A] find a chair"
                 },
-                "output": ["exec#high,scan,chair", "exec#high,align,chair"],
-                "explanation": "Since there is no object in the list, the planner will scan the environment to find the object."
+                "output": ["exec#high,scan,chair", "redo"],
+                "explanation": "Chair is a specific object name, so though the list is empty we can scan for it."
+            },
+            {
+                "input": {
+                    "objects": ["chair", "laptop"],
+                    "command": "[A] find a chair"
+                },
+                "output": ["exec#high,align,chair", "exec#low,move_forward,50"],
+                "explanation": "Chair is in the list, align and approach it."
             },
             {
                 "input": {
@@ -41,7 +49,7 @@ class LLMPlanner():
                     "command": "[A] goto the apple"
                 },
                 "output": ["exec#high,align,apple", "exec#low,move_forward,50"],
-                "explanation": "Since the apple is in the list, the planner will align the apple to the center of the frame and move forward."
+                "explanation": "The apple is in the list, the planner will align the apple to the center of the frame and move forward."
             },
             {
                 "input": {
@@ -49,7 +57,7 @@ class LLMPlanner():
                     "command": "[A] find something edible"
                 },
                 "output": ["exec#low,turn_ccw,45", "redo"],
-                "explanation": "Since there is no edible object in the list, the planner will turn around and redo this query."
+                "explanation": "Something edible is not a specific object name, so the planner will turn around and do query with a new object list."
             }
         ]
 
@@ -59,7 +67,13 @@ class LLMPlanner():
 
     def request(self, objects: [str], command: str):
         self.current_query["objects"] = objects
+        # by default, the command is an action
+        if not command.startswith("["):
+            command = "[A] " + command
         self.current_query["command"] = command
+
+        print(f"> Querying {MODEL_NAME} with {self.current_query}...")
+
         prompt = self.prompt.format(high_level_tools=self.high_level_toolset,
                                     low_level_tools=self.low_level_toolset,
                                     examples=self.example_queries,

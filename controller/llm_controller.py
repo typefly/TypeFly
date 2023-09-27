@@ -40,7 +40,7 @@ class LLMController():
                                                          args=[ToolArg("object_name", str), ToolArg("compare", str), ToolArg("val", float)]))
         
         self.high_level_toolset = ToolSet(level="high", lower_level_toolset=self.low_level_toolset)
-        self.high_level_toolset.add_tool(HighLevelToolItem("scan", ["loop#5", "if#low,is_not_in_sight,$1#3", "exec#low,turn_ccw,30", "delay#300", "skip#1", "break"],
+        self.high_level_toolset.add_tool(HighLevelToolItem("scan", ["repeat#5,12", "if#low,is_not_in_sight,$1#3", "exec#low,turn_ccw,30", "delay#300", "skip#1", "break"],
                                                            "scan the environment to find the object"))
         self.high_level_toolset.add_tool(HighLevelToolItem("align",
                                                            ["loop#7", "if#low,check_location_x,$1,>,0.6#1", "exec#low,turn_cw,15",
@@ -82,6 +82,7 @@ class LLMController():
     def execute_commands(self, commands: [str]) -> bool:
         loop_range = (-1, 0)
         loop_index = 0
+        loop_count = 0
         while loop_index < len(commands):
             # check controller state
             if not self.controller_state:
@@ -98,6 +99,10 @@ class LLMController():
                         loop_index += int(segments[2])
                 case 'loop':
                     loop_range = (loop_index + 1, loop_index + int(segments[1]))
+                case 'repeat':
+                    number_split = segments[1].split(",")
+                    loop_range = (loop_index + 1, loop_index + int(number_split[0]))
+                    loop_count = int(number_split[1])
                 case 'exec':
                     execution_result = self.execute_tool_command(segments[1])
                 case 'break':
@@ -118,7 +123,9 @@ class LLMController():
             loop_index += 1
             # check loop range
             if loop_range[0] != -1 and loop_index > loop_range[1]:
-                loop_index = loop_range[0]
+                loop_count -= 1
+                if loop_count > 0:
+                    loop_index = loop_range[0]
         return False
 
     def execute_user_command(self, user_command: str):
@@ -127,9 +134,9 @@ class LLMController():
             return
         while self.controller_state:
             result = self.planner.request(self.vision.get_obj_list(), user_command)
-            input_ans = input(f">> result: {json.dumps(result)}, executing?")
-            if input_ans == 'n':
-                break
+            print(f">> result: {json.dumps(result)}, executing?")
+            # if input_ans == 'n':
+            #     break
             if not self.execute_commands(result):
                 break
 
@@ -155,6 +162,7 @@ class LLMController():
 def main():
     controller = LLMController()
     controller.run()
+    # print(controller.planner.request(['person', 'bottle', 'apple'], '[A] Find something I can eat.'))
 
 if __name__ == "__main__":
     main()
