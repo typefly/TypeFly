@@ -1,7 +1,7 @@
 import os, json, ast
 import openai
 
-from toolset import ToolSet
+from skillset import SkillSet
 
 openai.organization = "org-sAnQwPNnbSrHg1XyR4QYALf7"
 openai.api_key = os.environ.get('OPENAI_API_KEY')
@@ -9,10 +9,10 @@ openai.api_key = os.environ.get('OPENAI_API_KEY')
 MODEL_NAME = "gpt-4"
 
 class LLMPlanner():
-    def __init__(self, high_level_toolset: ToolSet, low_level_toolset: ToolSet):
+    def __init__(self, high_level_skillset: SkillSet, low_level_skillset: SkillSet):
         self.temperture = 0.05
-        self.high_level_toolset = high_level_toolset
-        self.low_level_toolset = low_level_toolset
+        self.high_level_skillset = high_level_skillset
+        self.low_level_skillset = low_level_skillset
         self.current_query = {
             "objects": ["lemon", "chair"],
             "command": "[Q] is there anything edible?"
@@ -74,8 +74,8 @@ class LLMPlanner():
 
         print(f"> Querying {MODEL_NAME} with {self.current_query}...")
 
-        prompt = self.prompt.format(high_level_tools=self.high_level_toolset,
-                                    low_level_tools=self.low_level_toolset,
+        prompt = self.prompt.format(high_level_skills=self.high_level_skillset,
+                                    low_level_skills=self.low_level_skillset,
                                     examples=self.example_queries,
                                     user_command=self.current_query)
         response = openai.ChatCompletion.create(

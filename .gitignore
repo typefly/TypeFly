@@ -164,5 +164,4 @@ cython_debug/
 images/
 .DS_Store
 proto/generated/*.py
-chat_log.txt
 test.py

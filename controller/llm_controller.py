@@ -8,7 +8,7 @@ from tello_wrapper import TelloWrapper
 from drone_wrapper import DroneWrapper
 from vision_wrapper import VisionWrapper
 from llm_planner import LLMPlanner
-from toolset import ToolSet, LowLevelToolItem, HighLevelToolItem, ToolArg
+from skillset import SkillSet, LowLevelSkillItem, HighLevelSkillItem, SkillArg
 
 class LLMController():
     def __init__(self):
@@ -20,34 +20,34 @@ class LLMController():
         self.vision = VisionWrapper(self.yolo_results_queue)
         self.frame_queue = queue.Queue(maxsize=1)
 
-        self.low_level_toolset = ToolSet(level="low")
+        self.low_level_skillset = SkillSet(level="low")
 
-        self.low_level_toolset.add_tool(LowLevelToolItem("move_forward", self.drone.move_forward, "Move drone forward by a distance", args=[ToolArg("distance", int)]))
-        self.low_level_toolset.add_tool(LowLevelToolItem("move_backward", self.drone.move_backward, "Move drone backward by a distance", args=[ToolArg("distance", int)]))
-        self.low_level_toolset.add_tool(LowLevelToolItem("move_left", self.drone.move_left, "Move drone left by a distance", args=[ToolArg("distance", int)]))
-        self.low_level_toolset.add_tool(LowLevelToolItem("move_right", self.drone.move_right, "Move drone right by a distance", args=[ToolArg("distance", int)]))
-        self.low_level_toolset.add_tool(LowLevelToolItem("move_up", self.drone.move_up, "Move drone up by a distance", args=[ToolArg("distance", int)]))
-        self.low_level_toolset.add_tool(LowLevelToolItem("move_down", self.drone.move_down, "Move drone down by a distance", args=[ToolArg("distance", int)]))
-        self.low_level_toolset.add_tool(LowLevelToolItem("turn_ccw", self.drone.turn_ccw, "Turn drone counter clockwise by a degree", args=[ToolArg("degree", int)]))
-        self.low_level_toolset.add_tool(LowLevelToolItem("turn_cw", self.drone.turn_cw, "Turn drone clockwise by a degree", args=[ToolArg("degree", int)]))
-        self.low_level_toolset.add_tool(LowLevelToolItem("is_in_sight", self.vision.is_in_sight, "Check if an object is in sight", args=[ToolArg("object_name", str)]))
-        self.low_level_toolset.add_tool(LowLevelToolItem("is_not_in_sight", self.vision.is_not_in_sight, "Check if an object is not in sight", args=[ToolArg("object_name", str)]))
-        self.low_level_toolset.add_tool(LowLevelToolItem("check_location_x", self.vision.check_location_x, \
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_forward", self.drone.move_forward, "Move drone forward by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_backward", self.drone.move_backward, "Move drone backward by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_left", self.drone.move_left, "Move drone left by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_right", self.drone.move_right, "Move drone right by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_up", self.drone.move_up, "Move drone up by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_down", self.drone.move_down, "Move drone down by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("turn_ccw", self.drone.turn_ccw, "Turn drone counter clockwise by a degree", args=[SkillArg("degree", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("turn_cw", self.drone.turn_cw, "Turn drone clockwise by a degree", args=[SkillArg("degree", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("is_in_sight", self.vision.is_in_sight, "Check if an object is in sight", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("is_not_in_sight", self.vision.is_not_in_sight, "Check if an object is not in sight", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("check_location_x", self.vision.check_location_x, \
                                                          "Check if x location of an object meets the comparison criterion with the value", \
-                                                         args=[ToolArg("object_name", str), ToolArg("compare", str), ToolArg("val", float)]))
-        self.low_level_toolset.add_tool(LowLevelToolItem("check_location_y", self.vision.check_location_y, \
+                                                         args=[SkillArg("object_name", str), SkillArg("compare", str), SkillArg("val", float)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("check_location_y", self.vision.check_location_y, \
                                                          "Check if y location of an object meets the comparison criterion with the value", \
-                                                         args=[ToolArg("object_name", str), ToolArg("compare", str), ToolArg("val", float)]))
+                                                         args=[SkillArg("object_name", str), SkillArg("compare", str), SkillArg("val", float)]))
         
-        self.high_level_toolset = ToolSet(level="high", lower_level_toolset=self.low_level_toolset)
-        self.high_level_toolset.add_tool(HighLevelToolItem("scan", ["repeat#5,12", "if#low,is_not_in_sight,$1#3", "exec#low,turn_ccw,30", "delay#300", "skip#1", "break"],
+        self.high_level_skillset = SkillSet(level="high", lower_level_skillset=self.low_level_skillset)
+        self.high_level_skillset.add_skill(HighLevelSkillItem("scan", ["repeat#5,12", "if#low,is_not_in_sight,$1#3", "exec#low,turn_ccw,30", "delay#300", "skip#1", "break"],
                                                            "scan the environment to find the object"))
-        self.high_level_toolset.add_tool(HighLevelToolItem("align",
+        self.high_level_skillset.add_skill(HighLevelSkillItem("align",
                                                            ["loop#7", "if#low,check_location_x,$1,>,0.6#1", "exec#low,turn_cw,15",
                                                             "if#low,check_location_x,$1,<,0.4#1", "exec#low,turn_ccw,15",
                                                             "if#low,check_location_x,$1,<,0.6#2", "if#low,check_location_x,$1,>,0.4#1", "break"],
                                                             "align the object to the center of the frame by rotating the drone"))
-        self.high_level_toolset.add_tool(HighLevelToolItem("centering",
+        self.high_level_skillset.add_skill(HighLevelSkillItem("centering",
                                                            ["loop#13", "if#low,check_location_x,$1,>,0.6#1", "exec#low,move_right,20",
                                                             "if#low,check_location_x,$1,<,0.4#1", "exec#low,move_left,20",
                                                             "if#low,check_location_y,$1,<,0.4#2", "exec#low,move_up,20",
@@ -56,7 +56,7 @@ class LLMController():
                                                             "if#low,check_location_y,$1,>,0.4#2", "if#low,check_location_y,$1,<,0.6#1", "break"],
                                                             "center the object in the frame by moving the drone"))
 
-        self.planner = LLMPlanner(high_level_toolset=self.high_level_toolset, low_level_toolset=self.low_level_toolset)
+        self.planner = LLMPlanner(high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset)
 
     def stop_controller(self):
         self.controller_state = False
@@ -66,17 +66,17 @@ class LLMController():
             self.frame_queue.get()
         return self.frame_queue.get()
 
-    def execute_tool_command(self, tool_command) -> bool:
-        # parse tool command
-        segments = tool_command.split(",")
+    def execute_skill_command(self, skill_command) -> bool:
+        # parse skill command
+        segments = skill_command.split(",")
         level = segments[0]
-        tool_name = segments[1]
+        skill_name = segments[1]
         if level == 'low':
-            tool = self.low_level_toolset.get_tool(tool_name)
-            return tool.execute(segments[2:])
+            skill = self.low_level_skillset.get_skill(skill_name)
+            return skill.execute(segments[2:])
         elif level == 'high':
-            tool = self.high_level_toolset.get_tool(tool_name)
-            return self.execute_commands(tool.execute(segments[2:]))
+            skill = self.high_level_skillset.get_skill(skill_name)
+            return self.execute_commands(skill.execute(segments[2:]))
         return False
 
     def execute_commands(self, commands: [str]) -> bool:
@@ -94,7 +94,7 @@ class LLMController():
             execution_result = False
             match segments[0]:
                 case 'if':
-                    execution_result = self.execute_tool_command(segments[1])
+                    execution_result = self.execute_skill_command(segments[1])
                     if not execution_result:
                         loop_index += int(segments[2])
                 case 'loop':
@@ -104,7 +104,7 @@ class LLMController():
                     loop_range = (loop_index + 1, loop_index + int(number_split[0]))
                     loop_count = int(number_split[1])
                 case 'exec':
-                    execution_result = self.execute_tool_command(segments[1])
+                    execution_result = self.execute_skill_command(segments[1])
                 case 'break':
                     loop_range = (-1, 0)
                 case 'skip':
@@ -161,8 +161,8 @@ class LLMController():
 
 def main():
     controller = LLMController()
-    controller.run()
-    # print(controller.planner.request(['person', 'bottle', 'apple'], '[A] Find something I can eat.'))
+    # controller.run()
+    print(controller.planner.request(['person', 'bottle', 'apple'], '[A] Find something I can eat.'))
 
 if __name__ == "__main__":
     main()
