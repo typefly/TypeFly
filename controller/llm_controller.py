@@ -5,6 +5,7 @@ import queue, time, json
 
 from yolo_client import YoloClient
 from tello_wrapper import TelloWrapper
+from virtual_drone_wrapper import VirtualDroneWrapper
 from drone_wrapper import DroneWrapper
 from vision_wrapper import VisionWrapper
 from llm_planner import LLMPlanner
@@ -16,7 +17,8 @@ class LLMController():
         self.yolo_client = YoloClient(self.yolo_results_queue)
         self.controller_state = True
         self.controller_wait_takeoff = True
-        self.drone: DroneWrapper = TelloWrapper()
+        self.drone: DroneWrapper = VirtualDroneWrapper()
+        # self.drone: DroneWrapper = TelloWrapper()
         self.vision = VisionWrapper(self.yolo_results_queue)
         self.frame_queue = queue.Queue(maxsize=1)
 
