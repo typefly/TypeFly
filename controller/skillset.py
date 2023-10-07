@@ -1,5 +1,6 @@
 from enum import Enum
 from abc import ABC, abstractmethod
+from typing import Optional
 
 class SkillArg:
     def __init__(self, arg_name: str, arg_type: type):
@@ -36,10 +37,10 @@ class SkillSet():
         self.level = SkillSetLevel(level)
         self.lower_level_skillset = lower_level_skillset
 
-    def get_skill(self, skill_name: str) -> SkillItem:
+    def get_skill(self, skill_name: str) -> Optional[SkillItem]:
         """Returns a SkillItem by its name."""
         if skill_name not in self.skills:
-            raise ValueError(f"No skill found with the name '{skill_name}'.")
+            return None
         return self.skills[skill_name]
     
     def add_skill(self, skill_item: SkillItem):
@@ -63,10 +64,10 @@ class SkillSet():
         return self.skills[skill_name].execute(args_str.split(','))
     
     def __repr__(self) -> str:
-        return (f"SkillSet(\n"
-                f"  level: {self.level.value},\n"
-                f"  skills: {[skill for skill in self.skills.values()]},\n"
-                f")")
+        string = ""
+        for skill in self.skills.values():
+            string += f"{skill}\n"
+        return string
 
 class LowLevelSkillItem(SkillItem):
     def __init__(self, skill_name: str, skill_callable: callable = None,
@@ -117,7 +118,7 @@ class LowLevelSkillItem(SkillItem):
             raise ValueError(f"'{self.skill_callable}' is not a callable function.")
 
     def __repr__(self) -> str:
-        return (f"SkillItem("
+        return (f"Skill("
                 f"name: {self.skill_name}, "
                 f"args: {[arg for arg in self.args]}, "
                 f"comment: {self.comment})")
@@ -148,20 +149,19 @@ class HighLevelSkillItem(SkillItem):
         positional_args = []
         for skill_str in self.skill_str_list:
             for segment in skill_str.split("#"):
-                if segment.startswith("low,"):
-                    split = segment.split(",")
-                    skill_name = split[1]
-                    skill = self.low_level_skillset.get_skill(skill_name)
-                    # append two list into arg_types and arg_names
-                    for i, arg_str in enumerate(split[2:]):
-                        if arg_str.startswith("$"):
-                            arg_instance = skill.args[i]
-                            arg_index = int(arg_str[1:])
-                            if arg_index not in positional_args:
-                                positional_args.append(arg_index)
-                                args.append(arg_instance)
-                            elif args[positional_args.index(arg_index)].arg_type != arg_instance.arg_type:
-                                raise ValueError(f"Argument {arg_index} is used twice with different types.")
+                split = segment.split(",")
+                skill_name = split[0]
+                skill = self.low_level_skillset.get_skill(skill_name)
+                # append two list into arg_types and arg_names
+                for i, arg_str in enumerate(split[1:]):
+                    if arg_str.startswith("$"):
+                        arg_instance = skill.args[i]
+                        arg_index = int(arg_str[1:])
+                        if arg_index not in positional_args:
+                            positional_args.append(arg_index)
+                            args.append(arg_instance)
+                        elif args[positional_args.index(arg_index)].arg_type != arg_instance.arg_type:
+                            raise ValueError(f"Argument {arg_index} is used twice with different types.")
         return args
 
     def execute(self, args_str_list: [str]):
@@ -179,7 +179,7 @@ class HighLevelSkillItem(SkillItem):
         return skill_str_list
 
     def __repr__(self) -> str:
-        return (f"SkillItem("
+        return (f"Skill("
                 f"name: {self.skill_name}, "
                 f"skill_str_list: {self.skill_str_list}, "
                 f"args: {[arg for arg in self.args]}, "
@@ -203,11 +203,19 @@ def main():
 
     # Create a high level skill
     high_level_skill_1 = HighLevelSkillItem("find",
-                                        skill_str_list=["loop#4", "if#low,is_not_in_sight,$1#2", "exec#low,turn_left,10", "skip#1", "break"],
+                                        skill_str_list=["loop#4", "if#is_not_in_sight,$1#2", "exec#turn_left,10", "skip#1", "break"],
                                         comment="turn around until find the object in sight")
+    
+    high_level_skill_2 = HighLevelSkillItem("orienting",
+                                                           ["loop#4#7",
+                                                            "if#is_not_in_sight,$1,>,0.6#1", "exec#turn_cw,15",
+                                                            "if#is_not_in_sight,$1,<,0.4#1", "exec#turn_ccw,15",
+                                                            "if#is_not_in_sight,$1,<,0.6#2", "if#is_not_in_sight,$1,>,0.4#1", "return#true", "return#false"],
+                                                            "align the object to the center of the frame by rotating the drone")
     
     high_level_skillset = SkillSet(level="high", lower_level_skillset=skillset)
     high_level_skillset.add_skill(high_level_skill_1)
+    high_level_skillset.add_skill(high_level_skill_2)
 
     print(skillset)
     print(high_level_skillset)

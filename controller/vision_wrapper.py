@@ -1,49 +1,63 @@
 from queue import Queue
 from typing import Optional
+from llm_wrapper import LLMWrapper
 
 class VisionWrapper():
-    def __init__(self, yolo_results_queue: Queue, image_size: tuple = (960, 720)):
+    def __init__(self, yolo_results_queue: Queue, llm: LLMWrapper):
         self.yolo_results_queue = yolo_results_queue
-        self.image_size = image_size
+        self.llm = llm
+        with open("./assets/query_skill_prompt.txt", "r") as f:
+            self.prompt = f.read()
+
+    def format_results(results):
+        formatted_results = []
+        for result in results:
+            formatted_results.append({
+                'name': result['name'],
+                'loc_x': round((result['x1'] + result['x2']) / 2, 1),
+                'loc_y': round((result['y1'] + result['y2']) / 2, 1),
+                'size_x': round((result['x2'] - result['x1']), 2),
+                'size_y': round((result['y2'] - result['y1']), 2),
+            })
+        return formatted_results
 
     def get_obj_list(self) -> [str]:
         if not self.yolo_results_queue.empty():
             yolo_results = self.yolo_results_queue.queue[0]
-            return [item['label'].replace(' ', '_') for item in yolo_results]
+            return VisionWrapper.format_results(yolo_results)
         return []
 
     def get_obj_info(self, object_name: str) -> Optional[dict]:
         if not self.yolo_results_queue.empty():
             yolo_results = self.yolo_results_queue.queue[0]
             for item in yolo_results:
-                if item['label'].replace(' ', '_') == object_name:
+                if item['name'] == object_name:
                     return item
         return None
 
     def is_in_sight(self, object_name: str) -> bool:
         return self.get_obj_info(object_name) is not None
         
-    def is_not_in_sight(self, object_name: str) -> bool:
-        return self.get_obj_info(object_name) is None
-    
-    def check_location_x(self, object_name: str, compare: str, value: float) -> Optional[bool]:
+    def obj_loc_x(self, object_name: str) -> Optional[float]:
         info = self.get_obj_info(object_name)
         if info is None:
             return None
-        if compare == '<':
-            return (info['x1'] + info['x2']) / 2 / self.image_size[0] < value
-        elif compare == '>':
-            return (info['x1'] + info['x2']) / 2 / self.image_size[0] > value
-        else:
-            return None
+        return (info['x1'] + info['x2']) / 2
     
-    def check_location_y(self, object_name: str, compare: str, value: float) -> Optional[bool]:
+    def obj_loc_y(self, object_name: str) -> Optional[float]:
         info = self.get_obj_info(object_name)
         if info is None:
             return None
-        if compare == '<':
-            return (info['y1'] + info['y2']) / 2 / self.image_size[1] < value
-        elif compare == '>':
-            return (info['y1'] + info['y2']) / 2 / self.image_size[1] > value
-        else:
+        return (info['y1'] + info['y2']) / 2
+
+    def query(self, question: str) -> bool:
+        def parse_value(s):
+            # Check for boolean values
+            if s.lower() == "true":
+                return True
+            elif s.lower() == "false":
+                return False
             return None
+        objects = self.get_obj_list()
+        prompt = self.prompt.format(objects=objects, question=question)
+        return parse_value(self.llm.query(prompt))

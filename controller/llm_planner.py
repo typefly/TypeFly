@@ -2,91 +2,91 @@ import os, json, ast
 import openai
 
 from skillset import SkillSet
-
-openai.organization = "org-sAnQwPNnbSrHg1XyR4QYALf7"
-openai.api_key = os.environ.get('OPENAI_API_KEY')
-# MODEL_NAME = "gpt-3.5-turbo-16k"
-MODEL_NAME = "gpt-4"
+from llm_wrapper import LLMWrapper
 
 class LLMPlanner():
-    def __init__(self, high_level_skillset: SkillSet, low_level_skillset: SkillSet):
-        self.temperture = 0.05
+    def __init__(self, llm: LLMWrapper, high_level_skillset: SkillSet, low_level_skillset: SkillSet):
+        self.llm = llm
         self.high_level_skillset = high_level_skillset
         self.low_level_skillset = low_level_skillset
         self.current_query = {
             "objects": ["lemon", "chair"],
-            "command": "[Q] is there anything edible?"
+            "text": "[Q] is there anything edible?"
         }
-
         self.example_queries = [
             {
-                "input": {
+                "query": {
                     "objects": [],
-                    "command": "[A] find a chair"
+                    "text": "[A] find a chair"
                 },
-                "output": ["exec#high,scan,chair", "redo"],
-                "explanation": "Chair is a specific object name, so though the list is empty we can scan for it."
+                "response": ["if#find,chair,=,True#2", "exec#orienting,chair", "exec#move_forward,50"],
+                "explanation": "Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it."
             },
             {
-                "input": {
+                "query": {
                     "objects": ["chair", "laptop"],
-                    "command": "[A] find a chair"
+                    "text": "[A] find a chair"
                 },
-                "output": ["exec#high,align,chair", "exec#low,move_forward,50"],
-                "explanation": "Chair is in the list, align and approach it."
+                "response": ["exec#orienting,chair", "exec#move_forward,50"],
+                "explanation": "Chair is in the list, just align and approach it."
             },
             {
-                "input": {
+                "query": {
                     "objects": ["apple", "chair", "laptop", "lemon"],
-                    "command": "[Q] is there anything edible?"
+                    "text": "[Q] is there anything edible?"
                 },
-                "output": ["str#Yes, there is an apple and a lemon in sight."],
+                "response": ["str#Yes, there is an apple and a lemon in sight."],
                 "explanation": "This is a query problem, so the planner will return a string to answer the question."
             },
             {
-                "input": {
+                "query": {
                     "objects": ["apple", "chair", "laptop", "lemon"],
-                    "command": "[A] goto the apple"
+                    "text": "[A] goto the apple"
                 },
-                "output": ["exec#high,align,apple", "exec#low,move_forward,50"],
+                "response": ["exec#orienting,apple", "exec#move_forward,50"],
                 "explanation": "The apple is in the list, the planner will align the apple to the center of the frame and move forward."
             },
             {
-                "input": {
+                "query": {
                     "objects": ["chair", "laptop"],
-                    "command": "[A] find something edible"
+                    "text": "[A] find something edible"
                 },
-                "output": ["exec#low,turn_ccw,45", "redo"],
-                "explanation": "Something edible is not a specific object name, so the planner will turn around and do query with a new object list."
+                "response": ["exec#find_edible_obj"],
+                "explanation": "There is no edible object in the list, so the planner will find an edible object first."
             }
         ]
 
         # read prompt from txt
-        with open("./assets/prompt.txt", "r") as f:
-            self.prompt = f.read()
+        with open("./assets/task_prompt.txt", "r") as f:
+            self.task_prompt = f.read()
 
-    def request(self, objects: [str], command: str):
+        with open("./assets/ending_prompt.txt", "r") as f:
+            self.ending_prompt = f.read()
+
+        with open("./assets/rules.txt", "r") as f:
+            self.rules = f.read()
+
+    def request_task(self, objects: [str], command: str):
         self.current_query["objects"] = objects
         # by default, the command is an action
         if not command.startswith("["):
             command = "[A] " + command
-        self.current_query["command"] = command
-
-        print(f"> Querying {MODEL_NAME} with {self.current_query}...")
-
-        prompt = self.prompt.format(high_level_skills=self.high_level_skillset,
+        self.current_query["text"] = command
+        prompt = self.task_prompt.format(high_level_skills=self.high_level_skillset,
                                     low_level_skills=self.low_level_skillset,
+                                    rules=self.rules,
                                     examples=self.example_queries,
-                                    user_command=self.current_query)
-        response = openai.ChatCompletion.create(
-            model=MODEL_NAME,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=self.temperture,
-        )
-
-        # save the message in a txt
-        with open("./assets/chat_log.txt", "a") as f:
-            f.write(prompt + "\n##################################\n")
-            f.write(json.dumps(response) + "\n##################################\n")
-
-        return ast.literal_eval(response["choices"][0]["message"]["content"])
+                                    user_query=self.current_query)
+        print(f"> Task query: {self.current_query}...")
+        return ast.literal_eval(self.llm.query(prompt))
+    
+    def request_ending(self, objects: [str], prev_command: str):
+        prompt = self.ending_prompt.format(high_level_skills=self.high_level_skillset,
+                                    low_level_skills=self.low_level_skillset,
+                                    rules=self.rules,
+                                    examples=self.example_queries,
+                                    user_query=self.current_query,
+                                    response=prev_command,
+                                    feedback=objects)
+        print(f"> Ending query: {self.current_query}...")
+        return ast.literal_eval(self.llm.query(prompt))

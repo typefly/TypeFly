@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 import grpc, json
 import queue
 
-import sys, os
+import sys, cv2
 sys.path.append('../proto/generated')
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
@@ -40,7 +40,16 @@ class YoloClient():
         if self.yolo_results_queue is not None:
             while not self.yolo_results_queue.empty():
                 self.yolo_results_queue.get()
-            self.yolo_results_queue.put(results)
+            relative_results = []
+            for result in results:
+                relative_results.append({
+                    'name': result['label'].replace(' ', '_'),
+                    'x1': result['x1'] / image.width,
+                    'y1': result['y1'] / image.height,
+                    'x2': result['x2'] / image.width,
+                    'y2': result['y2'] / image.height,
+                })
+            self.yolo_results_queue.put(relative_results)
         return results
 
 if __name__ == "__main__":

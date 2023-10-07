@@ -1,0 +1,6 @@
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.

@@ -3,7 +3,6 @@ syntax = "proto3";
 service YoloService {
     rpc DetectStream (stream DetectRequest) returns (stream DetectResponse) {}
     rpc Detect (DetectRequest) returns (DetectResponse) {}
-    rpc Configure (ConfigureRequest) returns (ConfigureResponse) {}
 }
 
 message DetectRequest {
@@ -13,15 +12,6 @@ message DetectRequest {
 message DetectResponse {
     // repeated DetectedObject results = 1;
     string results = 1;
-}
-
-message ConfigureRequest {
-    int32 number = 1;
-}
-
-message ConfigureResponse {
-    bool success = 1;
-    int32 number = 2;
 }
 
 // message DetectedObject {
