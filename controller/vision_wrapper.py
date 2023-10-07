@@ -12,12 +12,13 @@ class VisionWrapper():
     def format_results(results):
         formatted_results = []
         for result in results:
+            box = result['box']
             formatted_results.append({
                 'name': result['name'],
-                'loc_x': round((result['x1'] + result['x2']) / 2, 1),
-                'loc_y': round((result['y1'] + result['y2']) / 2, 1),
-                'size_x': round((result['x2'] - result['x1']), 2),
-                'size_y': round((result['y2'] - result['y1']), 2),
+                'loc_x': round((box['x1'] + box['x2']) / 2, 2),
+                'loc_y': round((box['y1'] + box['y2']) / 2, 2),
+                'size_x': round((box['x2'] - box['x1']), 2),
+                'size_y': round((box['y2'] - box['y1']), 2),
             })
         return formatted_results
 
@@ -42,13 +43,15 @@ class VisionWrapper():
         info = self.get_obj_info(object_name)
         if info is None:
             return None
-        return (info['x1'] + info['x2']) / 2
+        box = info['box']
+        return (box['x1'] + box['x2']) / 2
     
     def obj_loc_y(self, object_name: str) -> Optional[float]:
         info = self.get_obj_info(object_name)
         if info is None:
             return None
-        return (info['y1'] + info['y2']) / 2
+        box = info['box']
+        return (box['y1'] + box['y2']) / 2
 
     def query(self, question: str) -> bool:
         def parse_value(s):

@@ -26,11 +26,15 @@ class YoloClient():
         return imgByteArr.getvalue()
     
     def plot_results(frame, results):
+        def str_float_to_int(value, multiplier):
+            return int(float(value) * multiplier)
         draw = ImageDraw.Draw(frame)
-        font = ImageFont.truetype('Monaco.ttf', 50)
+        w, h = frame.size
         for result in results:
-            draw.rectangle(((int(result['x1']), int(result['y1'])), (int(result['x2']), int(result['y2']))), fill=None, outline='blue', width=2)
-            draw.text((int(result['x1']), int(result['y1']) - 10), result['label'], fill='red', font=font)
+            box = result["box"]
+            draw.rectangle((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h), str_float_to_int(box["x2"], w), str_float_to_int(box["y2"], h)),
+                        fill=None, outline='blue', width=2)
+            draw.text((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h) - 10), result["name"], fill='red')
     
     def detect(self, image):
         image_bytes = YoloClient.image_to_bytes(image)
@@ -40,16 +44,7 @@ class YoloClient():
         if self.yolo_results_queue is not None:
             while not self.yolo_results_queue.empty():
                 self.yolo_results_queue.get()
-            relative_results = []
-            for result in results:
-                relative_results.append({
-                    'name': result['label'].replace(' ', '_'),
-                    'x1': result['x1'] / image.width,
-                    'y1': result['y1'] / image.height,
-                    'x2': result['x2'] / image.width,
-                    'y2': result['y2'] / image.height,
-                })
-            self.yolo_results_queue.put(relative_results)
+            self.yolo_results_queue.put(results)
         return results
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-import io, os
+import io, os, time
 from threading import Thread
 from flask import Flask, request, jsonify, Response
 import logging
@@ -16,7 +16,11 @@ def process_command():
     print(f"Received string: {received_string}")
     if received_string == "exit":
         llm_controller.stop_controller()
-        os._exit(0)
+        def shutdown():
+            print("Shutting down gracefully...")
+            time.sleep(1)
+            os._exit(0)
+        shutdown_thread = Thread(target=shutdown).start()
     else:
         llm_controller.execute_user_command(received_string)
     return jsonify({'result': 'success'})

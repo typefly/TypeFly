@@ -183,7 +183,7 @@ class LLMController():
             self.execute_commands(result)
             ending = self.planner.request_ending(self.vision.get_obj_list(), result)
             print(f">> ending: {ending['feedback']}")
-            if ending['result'] == 'True':
+            if ending['result'] == 'True' or ending['result'] == True:
                 print(">> command executed successfully.")
                 return
             else:

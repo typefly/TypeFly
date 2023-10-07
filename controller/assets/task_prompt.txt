@@ -13,5 +13,5 @@ When generating the plan, please follow these rules:
 Here are some examples of user queries, the ideal generated responses, and their explanations:
 {examples}
 
-Given the user's query, please generate the response string only according to the above information:
+Given the following user's query, please generate the response string only. The response should in the format of "[skill_calls]"
 Query: {user_query}

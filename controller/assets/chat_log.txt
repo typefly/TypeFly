@@ -651,3 +651,396 @@ Is the user's command satisfied? Please answer the question in the following for
 ##################################
 {"id": "chatcmpl-86rqEUncncvI8IGpo0cdaDEw8vmbX", "object": "chat.completion", "created": 1696647626, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "{'result': True, 'feedback': 'The drone successfully executed the command to turn around.'}"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1541, "completion_tokens": 20, "total_tokens": 1561}}
 ##################################
+You are a drone pilot and you should follow the user's command to generate a task plan based on the description of the drone's skills and the user's query.
+The drone's skills have two types, low-level and high-level. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using low-level skills and logic blocks, provide complex functionalities.
+
+Description of the two skill sets:
+- High-level tools: Skill(name: find, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,True#1', 'return#true', 'exec#turn_ccw,45', 'delay#300', 'return#false'], args: [obj_name: str], comment: rotate to find a certain object)
+Skill(name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'return#true', 'return#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone)
+Skill(name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'return#true', 'return#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down)
+Skill(name: find_edible_obj, skill_str_list: ['loop#8#3', 'exec#turn_ccw,45', "if#query,'is there anything edible?',=,True#2", 'return#true', 'return#false'], args: [], comment: find an edible object)
+,
+- Low-level tools: Skill(name: move_forward, args: [distance: int], comment: Move drone forward by a distance)
+Skill(name: move_backward, args: [distance: int], comment: Move drone backward by a distance)
+Skill(name: move_left, args: [distance: int], comment: Move drone left by a distance)
+Skill(name: move_right, args: [distance: int], comment: Move drone right by a distance)
+Skill(name: move_up, args: [distance: int], comment: Move drone up by a distance)
+Skill(name: move_down, args: [distance: int], comment: Move drone down by a distance)
+Skill(name: turn_ccw, args: [degree: int], comment: Turn drone counter clockwise by a degree)
+Skill(name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree)
+Skill(name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight)
+Skill(name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object)
+Skill(name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object)
+Skill(name: query, args: [question: str], comment: Query the LLM to check the environment state)
+.
+
+The user's query consists of the environment description and a text command. The environment description is an object list. You can further use low-level skills to get their binding boxes and colors. The text command is a natural language string that may start with "[A]" or "[Q]". "[A]" strings mean you should generate an execution plan for the drone. "[Q]" strings mean you should give a literal answer.
+
+When generating the plan, please follow these rules:
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.
+
+Here are some examples of user queries, the ideal generated responses, and their explanations:
+[{'query': {'objects': [], 'text': '[A] find a chair'}, 'response': ['if#find,chair,=,True#2', 'exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find a chair'}, 'response': ['exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is in the list, just align and approach it.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[Q] is there anything edible?'}, 'response': ['str#Yes, there is an apple and a lemon in sight.'], 'explanation': 'This is a query problem, so the planner will return a string to answer the question.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[A] goto the apple'}, 'response': ['exec#orienting,apple', 'exec#move_forward,50'], 'explanation': 'The apple is in the list, the planner will align the apple to the center of the frame and move forward.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find something edible'}, 'response': ['exec#find_edible_obj'], 'explanation': 'There is no edible object in the list, so the planner will find an edible object first.'}]
+
+Given the user's query, please generate the response string only according to the above information:
+Query: {'objects': [{'name': 'person', 'loc_x': 0.52, 'loc_y': 0.57, 'size_x': 0.64, 'size_y': 0.84}], 'text': '[A] turn around'}
+##################################
+{"id": "chatcmpl-872faqM7GRFdFy5qH1wEHlM6P7COj", "object": "chat.completion", "created": 1696689250, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "Response: ['exec#turn_ccw,180']"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1456, "completion_tokens": 11, "total_tokens": 1467}}
+##################################
+You are a drone pilot and you should follow the user's command to generate a task plan based on the description of the drone's skills and the user's query.
+The drone's skills have two types, low-level and high-level. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using low-level skills and logic blocks, provide complex functionalities.
+
+Description of the two skill sets:
+- High-level tools: Skill(name: find, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,True#1', 'return#true', 'exec#turn_ccw,45', 'delay#300', 'return#false'], args: [obj_name: str], comment: rotate to find a certain object)
+Skill(name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'return#true', 'return#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone)
+Skill(name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'return#true', 'return#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down)
+Skill(name: find_edible_obj, skill_str_list: ['loop#8#3', 'exec#turn_ccw,45', "if#query,'is there anything edible?',=,True#2", 'return#true', 'return#false'], args: [], comment: find an edible object)
+,
+- Low-level tools: Skill(name: move_forward, args: [distance: int], comment: Move drone forward by a distance)
+Skill(name: move_backward, args: [distance: int], comment: Move drone backward by a distance)
+Skill(name: move_left, args: [distance: int], comment: Move drone left by a distance)
+Skill(name: move_right, args: [distance: int], comment: Move drone right by a distance)
+Skill(name: move_up, args: [distance: int], comment: Move drone up by a distance)
+Skill(name: move_down, args: [distance: int], comment: Move drone down by a distance)
+Skill(name: turn_ccw, args: [degree: int], comment: Turn drone counter clockwise by a degree)
+Skill(name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree)
+Skill(name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight)
+Skill(name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object)
+Skill(name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object)
+Skill(name: query, args: [question: str], comment: Query the LLM to check the environment state)
+.
+
+The user's query consists of the environment description and a text command. The environment description is an object list. You can further use low-level skills to get their binding boxes and colors. The text command is a natural language string that may start with "[A]" or "[Q]". "[A]" strings mean you should generate an execution plan for the drone. "[Q]" strings mean you should give a literal answer.
+
+When generating the plan, please follow these rules:
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.
+
+Here are some examples of user queries, the ideal generated responses, and their explanations:
+[{'query': {'objects': [], 'text': '[A] find a chair'}, 'response': ['if#find,chair,=,True#2', 'exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find a chair'}, 'response': ['exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is in the list, just align and approach it.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[Q] is there anything edible?'}, 'response': ['str#Yes, there is an apple and a lemon in sight.'], 'explanation': 'This is a query problem, so the planner will return a string to answer the question.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[A] goto the apple'}, 'response': ['exec#orienting,apple', 'exec#move_forward,50'], 'explanation': 'The apple is in the list, the planner will align the apple to the center of the frame and move forward.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find something edible'}, 'response': ['exec#find_edible_obj'], 'explanation': 'There is no edible object in the list, so the planner will find an edible object first.'}]
+
+Given the user's query, please generate the response string only according to the above information:
+Query: {'objects': [{'name': 'person', 'loc_x': 0.52, 'loc_y': 0.57, 'size_x': 0.64, 'size_y': 0.83}], 'text': '[A] turn around'}
+##################################
+{"id": "chatcmpl-872fpbU34TQcCnX3AvO2SYI70MiUk", "object": "chat.completion", "created": 1696689265, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "['exec#turn_ccw,180']"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1456, "completion_tokens": 9, "total_tokens": 1465}}
+##################################
+You are a drone pilot and you should follow the user's command to generate a task plan based on the description of the drone's skills and the user's query.
+The drone's skills have two types, low-level and high-level. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using low-level skills and logic blocks, provide complex functionalities.
+
+Description of the two skill sets:
+- High-level tools: Skill(name: find, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,True#1', 'return#true', 'exec#turn_ccw,45', 'delay#300', 'return#false'], args: [obj_name: str], comment: rotate to find a certain object)
+Skill(name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'return#true', 'return#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone)
+Skill(name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'return#true', 'return#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down)
+Skill(name: find_edible_obj, skill_str_list: ['loop#8#3', 'exec#turn_ccw,45', "if#query,'is there anything edible?',=,True#2", 'return#true', 'return#false'], args: [], comment: find an edible object)
+,
+- Low-level tools: Skill(name: move_forward, args: [distance: int], comment: Move drone forward by a distance)
+Skill(name: move_backward, args: [distance: int], comment: Move drone backward by a distance)
+Skill(name: move_left, args: [distance: int], comment: Move drone left by a distance)
+Skill(name: move_right, args: [distance: int], comment: Move drone right by a distance)
+Skill(name: move_up, args: [distance: int], comment: Move drone up by a distance)
+Skill(name: move_down, args: [distance: int], comment: Move drone down by a distance)
+Skill(name: turn_ccw, args: [degree: int], comment: Turn drone counter clockwise by a degree)
+Skill(name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree)
+Skill(name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight)
+Skill(name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object)
+Skill(name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object)
+Skill(name: query, args: [question: str], comment: Query the LLM to check the environment state)
+.
+
+The user's query consists of the environment description and a text command. The environment description is an object list. You can further use low-level skills to get their binding boxes and colors. The text command is a natural language string that may start with "[A]" or "[Q]". "[A]" strings mean you should generate an execution plan for the drone. "[Q]" strings mean you should give a literal answer.
+
+When generating the plan, please follow these rules:
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.
+
+Here are some examples of user queries, the ideal generated responses, and their explanations:
+[{'query': {'objects': [], 'text': '[A] find a chair'}, 'response': ['if#find,chair,=,True#2', 'exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find a chair'}, 'response': ['exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is in the list, just align and approach it.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[Q] is there anything edible?'}, 'response': ['str#Yes, there is an apple and a lemon in sight.'], 'explanation': 'This is a query problem, so the planner will return a string to answer the question.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[A] goto the apple'}, 'response': ['exec#orienting,apple', 'exec#move_forward,50'], 'explanation': 'The apple is in the list, the planner will align the apple to the center of the frame and move forward.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find something edible'}, 'response': ['exec#find_edible_obj'], 'explanation': 'There is no edible object in the list, so the planner will find an edible object first.'}]
+
+Here is the user's query and your generated response:
+Query: {'objects': [{'name': 'person', 'loc_x': 0.52, 'loc_y': 0.57, 'size_x': 0.64, 'size_y': 0.83}], 'text': '[A] turn around'}
+Response: ['exec#turn_ccw,180']
+
+Here is the current environment description:
+[{'name': 'person', 'loc_x': 0.52, 'loc_y': 0.57, 'size_x': 0.62, 'size_y': 0.83}]
+
+Is the user's command satisfied? Please answer the question in the following format:
+{'result': True/False, 'feedback': 'your feedback'}
+
+##################################
+{"id": "chatcmpl-872fuUeBB151Jc855yfHjmPiZcJaP", "object": "chat.completion", "created": 1696689270, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "{'result': True, 'feedback': 'The drone successfully executed the command to turn around.'}"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1541, "completion_tokens": 20, "total_tokens": 1561}}
+##################################
+You are a drone pilot and you should follow the user's command to generate a task plan based on the description of the drone's skills and the user's query.
+The drone's skills have two types, low-level and high-level. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using low-level skills and logic blocks, provide complex functionalities.
+
+Description of the two skill sets:
+- High-level tools: Skill(name: find, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,True#1', 'return#true', 'exec#turn_ccw,45', 'delay#300', 'return#false'], args: [obj_name: str], comment: rotate to find a certain object)
+Skill(name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'return#true', 'return#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone)
+Skill(name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'return#true', 'return#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down)
+Skill(name: find_edible_obj, skill_str_list: ['loop#8#3', 'exec#turn_ccw,45', "if#query,'is there anything edible?',=,True#2", 'return#true', 'return#false'], args: [], comment: find an edible object)
+,
+- Low-level tools: Skill(name: move_forward, args: [distance: int], comment: Move drone forward by a distance)
+Skill(name: move_backward, args: [distance: int], comment: Move drone backward by a distance)
+Skill(name: move_left, args: [distance: int], comment: Move drone left by a distance)
+Skill(name: move_right, args: [distance: int], comment: Move drone right by a distance)
+Skill(name: move_up, args: [distance: int], comment: Move drone up by a distance)
+Skill(name: move_down, args: [distance: int], comment: Move drone down by a distance)
+Skill(name: turn_ccw, args: [degree: int], comment: Turn drone counter clockwise by a degree)
+Skill(name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree)
+Skill(name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight)
+Skill(name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object)
+Skill(name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object)
+Skill(name: query, args: [question: str], comment: Query the LLM to check the environment state)
+.
+
+The user's query consists of the environment description and a text command. The environment description is an object list. You can further use low-level skills to get their binding boxes and colors. The text command is a natural language string that may start with "[A]" or "[Q]". "[A]" strings mean you should generate an execution plan for the drone. "[Q]" strings mean you should give a literal answer.
+
+When generating the plan, please follow these rules:
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.
+
+Here are some examples of user queries, the ideal generated responses, and their explanations:
+[{'query': {'objects': [], 'text': '[A] find a chair'}, 'response': ['if#find,chair,=,True#2', 'exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find a chair'}, 'response': ['exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is in the list, just align and approach it.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[Q] is there anything edible?'}, 'response': ['str#Yes, there is an apple and a lemon in sight.'], 'explanation': 'This is a query problem, so the planner will return a string to answer the question.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[A] goto the apple'}, 'response': ['exec#orienting,apple', 'exec#move_forward,50'], 'explanation': 'The apple is in the list, the planner will align the apple to the center of the frame and move forward.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find something edible'}, 'response': ['exec#find_edible_obj'], 'explanation': 'There is no edible object in the list, so the planner will find an edible object first.'}]
+
+Given the user's query, please generate the response string only according to the above information:
+Query: {'objects': [{'name': 'person', 'loc_x': 0.52, 'loc_y': 0.57, 'size_x': 0.62, 'size_y': 0.83}], 'text': '[A] turn around'}
+##################################
+{"id": "chatcmpl-872fwF4nI4wUfpqw8D9X6hi5TG7S5", "object": "chat.completion", "created": 1696689272, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "Response: ['exec#turn_ccw,180']"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1456, "completion_tokens": 11, "total_tokens": 1467}}
+##################################
+You are a drone pilot and you should follow the user's command to generate a task plan based on the description of the drone's skills and the user's query.
+The drone's skills have two types, low-level and high-level. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using low-level skills and logic blocks, provide complex functionalities.
+
+Description of the two skill sets:
+- High-level tools: Skill(name: find, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,True#1', 'return#true', 'exec#turn_ccw,45', 'delay#300', 'return#false'], args: [obj_name: str], comment: rotate to find a certain object)
+Skill(name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'return#true', 'return#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone)
+Skill(name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'return#true', 'return#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down)
+Skill(name: find_edible_obj, skill_str_list: ['loop#8#3', 'exec#turn_ccw,45', "if#query,'is there anything edible?',=,True#2", 'return#true', 'return#false'], args: [], comment: find an edible object)
+,
+- Low-level tools: Skill(name: move_forward, args: [distance: int], comment: Move drone forward by a distance)
+Skill(name: move_backward, args: [distance: int], comment: Move drone backward by a distance)
+Skill(name: move_left, args: [distance: int], comment: Move drone left by a distance)
+Skill(name: move_right, args: [distance: int], comment: Move drone right by a distance)
+Skill(name: move_up, args: [distance: int], comment: Move drone up by a distance)
+Skill(name: move_down, args: [distance: int], comment: Move drone down by a distance)
+Skill(name: turn_ccw, args: [degree: int], comment: Turn drone counter clockwise by a degree)
+Skill(name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree)
+Skill(name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight)
+Skill(name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object)
+Skill(name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object)
+Skill(name: query, args: [question: str], comment: Query the LLM to check the environment state)
+.
+
+The user's query consists of the environment description and a text command. The environment description is an object list. You can further use low-level skills to get their binding boxes and colors. The text command is a natural language string that may start with "[A]" or "[Q]". "[A]" strings mean you should generate an execution plan for the drone. "[Q]" strings mean you should give a literal answer.
+
+When generating the plan, please follow these rules:
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.
+
+Here are some examples of user queries, the ideal generated responses, and their explanations:
+[{'query': {'objects': [], 'text': '[A] find a chair'}, 'response': ['if#find,chair,=,True#2', 'exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find a chair'}, 'response': ['exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is in the list, just align and approach it.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[Q] is there anything edible?'}, 'response': ['str#Yes, there is an apple and a lemon in sight.'], 'explanation': 'This is a query problem, so the planner will return a string to answer the question.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[A] goto the apple'}, 'response': ['exec#orienting,apple', 'exec#move_forward,50'], 'explanation': 'The apple is in the list, the planner will align the apple to the center of the frame and move forward.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find something edible'}, 'response': ['exec#find_edible_obj'], 'explanation': 'There is no edible object in the list, so the planner will find an edible object first.'}]
+
+Given the following user's query, please generate the response string only. The response should in the format of "[skill_calls]"
+Query: {'objects': [{'name': 'person', 'loc_x': 0.53, 'loc_y': 0.6, 'size_x': 0.59, 'size_y': 0.8}, {'name': 'chair', 'loc_x': 0.73, 'loc_y': 0.93, 'size_x': 0.2, 'size_y': 0.15}], 'text': '[A] turn around'}
+##################################
+{"id": "chatcmpl-872ioio7A9BAptMQToN6m7wGENcs2", "object": "chat.completion", "created": 1696689450, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "['exec#turn_ccw,180']"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1505, "completion_tokens": 9, "total_tokens": 1514}}
+##################################
+You are a drone pilot and you should follow the user's command to generate a task plan based on the description of the drone's skills and the user's query.
+The drone's skills have two types, low-level and high-level. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using low-level skills and logic blocks, provide complex functionalities.
+
+Description of the two skill sets:
+- High-level tools: Skill(name: find, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,True#1', 'return#true', 'exec#turn_ccw,45', 'delay#300', 'return#false'], args: [obj_name: str], comment: rotate to find a certain object)
+Skill(name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'return#true', 'return#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone)
+Skill(name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'return#true', 'return#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down)
+Skill(name: find_edible_obj, skill_str_list: ['loop#8#3', 'exec#turn_ccw,45', "if#query,'is there anything edible?',=,True#2", 'return#true', 'return#false'], args: [], comment: find an edible object)
+,
+- Low-level tools: Skill(name: move_forward, args: [distance: int], comment: Move drone forward by a distance)
+Skill(name: move_backward, args: [distance: int], comment: Move drone backward by a distance)
+Skill(name: move_left, args: [distance: int], comment: Move drone left by a distance)
+Skill(name: move_right, args: [distance: int], comment: Move drone right by a distance)
+Skill(name: move_up, args: [distance: int], comment: Move drone up by a distance)
+Skill(name: move_down, args: [distance: int], comment: Move drone down by a distance)
+Skill(name: turn_ccw, args: [degree: int], comment: Turn drone counter clockwise by a degree)
+Skill(name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree)
+Skill(name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight)
+Skill(name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object)
+Skill(name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object)
+Skill(name: query, args: [question: str], comment: Query the LLM to check the environment state)
+.
+
+The user's query consists of the environment description and a text command. The environment description is an object list. You can further use low-level skills to get their binding boxes and colors. The text command is a natural language string that may start with "[A]" or "[Q]". "[A]" strings mean you should generate an execution plan for the drone. "[Q]" strings mean you should give a literal answer.
+
+When generating the plan, please follow these rules:
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.
+
+Here are some examples of user queries, the ideal generated responses, and their explanations:
+[{'query': {'objects': [], 'text': '[A] find a chair'}, 'response': ['if#find,chair,=,True#2', 'exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find a chair'}, 'response': ['exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is in the list, just align and approach it.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[Q] is there anything edible?'}, 'response': ['str#Yes, there is an apple and a lemon in sight.'], 'explanation': 'This is a query problem, so the planner will return a string to answer the question.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[A] goto the apple'}, 'response': ['exec#orienting,apple', 'exec#move_forward,50'], 'explanation': 'The apple is in the list, the planner will align the apple to the center of the frame and move forward.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find something edible'}, 'response': ['exec#find_edible_obj'], 'explanation': 'There is no edible object in the list, so the planner will find an edible object first.'}]
+
+Here is the user's query and your generated response:
+Query: {'objects': [{'name': 'person', 'loc_x': 0.53, 'loc_y': 0.6, 'size_x': 0.59, 'size_y': 0.8}, {'name': 'chair', 'loc_x': 0.73, 'loc_y': 0.93, 'size_x': 0.2, 'size_y': 0.15}], 'text': '[A] turn around'}
+Response: ['exec#turn_ccw,180']
+
+Here is the current environment description:
+[{'name': 'person', 'loc_x': 0.53, 'loc_y': 0.59, 'size_x': 0.57, 'size_y': 0.79}, {'name': 'chair', 'loc_x': 0.73, 'loc_y': 0.93, 'size_x': 0.2, 'size_y': 0.15}]
+
+Is the user's command satisfied? Please answer the question in the following format:
+{'result': True/False, 'feedback': 'your feedback'}
+
+##################################
+{"id": "chatcmpl-872iunldQHdOnFYMwKTTUoXp6pyCS", "object": "chat.completion", "created": 1696689456, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "{'result': True, 'feedback': 'The drone successfully executed the command to turn around.'}"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1625, "completion_tokens": 20, "total_tokens": 1645}}
+##################################
+You are a drone pilot and you should follow the user's command to generate a task plan based on the description of the drone's skills and the user's query.
+The drone's skills have two types, low-level and high-level. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using low-level skills and logic blocks, provide complex functionalities.
+
+Description of the two skill sets:
+- High-level tools: Skill(name: find, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,True#1', 'return#true', 'exec#turn_ccw,45', 'delay#300', 'return#false'], args: [obj_name: str], comment: rotate to find a certain object)
+Skill(name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'return#true', 'return#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone)
+Skill(name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'return#true', 'return#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down)
+Skill(name: find_edible_obj, skill_str_list: ['loop#8#3', 'exec#turn_ccw,45', "if#query,'is there anything edible?',=,True#2", 'return#true', 'return#false'], args: [], comment: find an edible object)
+,
+- Low-level tools: Skill(name: move_forward, args: [distance: int], comment: Move drone forward by a distance)
+Skill(name: move_backward, args: [distance: int], comment: Move drone backward by a distance)
+Skill(name: move_left, args: [distance: int], comment: Move drone left by a distance)
+Skill(name: move_right, args: [distance: int], comment: Move drone right by a distance)
+Skill(name: move_up, args: [distance: int], comment: Move drone up by a distance)
+Skill(name: move_down, args: [distance: int], comment: Move drone down by a distance)
+Skill(name: turn_ccw, args: [degree: int], comment: Turn drone counter clockwise by a degree)
+Skill(name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree)
+Skill(name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight)
+Skill(name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object)
+Skill(name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object)
+Skill(name: query, args: [question: str], comment: Query the LLM to check the environment state)
+.
+
+The user's query consists of the environment description and a text command. The environment description is an object list. You can further use low-level skills to get their binding boxes and colors. The text command is a natural language string that may start with "[A]" or "[Q]". "[A]" strings mean you should generate an execution plan for the drone. "[Q]" strings mean you should give a literal answer.
+
+When generating the plan, please follow these rules:
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.
+
+Here are some examples of user queries, the ideal generated responses, and their explanations:
+[{'query': {'objects': [], 'text': '[A] find a chair'}, 'response': ['if#find,chair,=,True#2', 'exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find a chair'}, 'response': ['exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is in the list, just align and approach it.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[Q] is there anything edible?'}, 'response': ['str#Yes, there is an apple and a lemon in sight.'], 'explanation': 'This is a query problem, so the planner will return a string to answer the question.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[A] goto the apple'}, 'response': ['exec#orienting,apple', 'exec#move_forward,50'], 'explanation': 'The apple is in the list, the planner will align the apple to the center of the frame and move forward.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find something edible'}, 'response': ['exec#find_edible_obj'], 'explanation': 'There is no edible object in the list, so the planner will find an edible object first.'}]
+
+Given the following user's query, please generate the response string only. The response should in the format of "[skill_calls]"
+Query: {'objects': [{'name': 'person', 'loc_x': 0.53, 'loc_y': 0.59, 'size_x': 0.58, 'size_y': 0.79}, {'name': 'chair', 'loc_x': 0.73, 'loc_y': 0.93, 'size_x': 0.2, 'size_y': 0.15}, {'name': 'person', 'loc_x': 0.69, 'loc_y': 0.79, 'size_x': 0.05, 'size_y': 0.06}], 'text': '[A] turn around'}
+##################################
+{"id": "chatcmpl-872iwIzeMsFs6NtnGr6YOVGWgYUAQ", "object": "chat.completion", "created": 1696689458, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "['exec#turn_ccw,180']"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1547, "completion_tokens": 9, "total_tokens": 1556}}
+##################################
+You are a drone pilot and you should follow the user's command to generate a task plan based on the description of the drone's skills and the user's query.
+The drone's skills have two types, low-level and high-level. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using low-level skills and logic blocks, provide complex functionalities.
+
+Description of the two skill sets:
+- High-level tools: Skill(name: find, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,True#1', 'return#true', 'exec#turn_ccw,45', 'delay#300', 'return#false'], args: [obj_name: str], comment: rotate to find a certain object)
+Skill(name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'return#true', 'return#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone)
+Skill(name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'return#true', 'return#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down)
+Skill(name: find_edible_obj, skill_str_list: ['loop#8#3', 'exec#turn_ccw,45', "if#query,'is there anything edible?',=,True#2", 'return#true', 'return#false'], args: [], comment: find an edible object)
+,
+- Low-level tools: Skill(name: move_forward, args: [distance: int], comment: Move drone forward by a distance)
+Skill(name: move_backward, args: [distance: int], comment: Move drone backward by a distance)
+Skill(name: move_left, args: [distance: int], comment: Move drone left by a distance)
+Skill(name: move_right, args: [distance: int], comment: Move drone right by a distance)
+Skill(name: move_up, args: [distance: int], comment: Move drone up by a distance)
+Skill(name: move_down, args: [distance: int], comment: Move drone down by a distance)
+Skill(name: turn_ccw, args: [degree: int], comment: Turn drone counter clockwise by a degree)
+Skill(name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree)
+Skill(name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight)
+Skill(name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object)
+Skill(name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object)
+Skill(name: query, args: [question: str], comment: Query the LLM to check the environment state)
+.
+
+The user's query consists of the environment description and a text command. The environment description is an object list. You can further use low-level skills to get their binding boxes and colors. The text command is a natural language string that may start with "[A]" or "[Q]". "[A]" strings mean you should generate an execution plan for the drone. "[Q]" strings mean you should give a literal answer.
+
+When generating the plan, please follow these rules:
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.
+
+Here are some examples of user queries, the ideal generated responses, and their explanations:
+[{'query': {'objects': [], 'text': '[A] find a chair'}, 'response': ['if#find,chair,=,True#2', 'exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find a chair'}, 'response': ['exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is in the list, just align and approach it.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[Q] is there anything edible?'}, 'response': ['str#Yes, there is an apple and a lemon in sight.'], 'explanation': 'This is a query problem, so the planner will return a string to answer the question.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[A] goto the apple'}, 'response': ['exec#orienting,apple', 'exec#move_forward,50'], 'explanation': 'The apple is in the list, the planner will align the apple to the center of the frame and move forward.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find something edible'}, 'response': ['exec#find_edible_obj'], 'explanation': 'There is no edible object in the list, so the planner will find an edible object first.'}]
+
+Given the following user's query, please generate the response string only. The response should in the format of "[skill_calls]"
+Query: {'objects': [{'name': 'person', 'loc_x': 0.53, 'loc_y': 0.6, 'size_x': 0.6, 'size_y': 0.8}, {'name': 'chair', 'loc_x': 0.73, 'loc_y': 0.92, 'size_x': 0.2, 'size_y': 0.14}], 'text': '[A] turn around'}
+##################################
+{"id": "chatcmpl-872kXq0FAlLvSLFa3llxdmSRMexdU", "object": "chat.completion", "created": 1696689557, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "['exec#turn_ccw,180']"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1505, "completion_tokens": 9, "total_tokens": 1514}}
+##################################
+You are a drone pilot and you should follow the user's command to generate a task plan based on the description of the drone's skills and the user's query.
+The drone's skills have two types, low-level and high-level. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using low-level skills and logic blocks, provide complex functionalities.
+
+Description of the two skill sets:
+- High-level tools: Skill(name: find, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,True#1', 'return#true', 'exec#turn_ccw,45', 'delay#300', 'return#false'], args: [obj_name: str], comment: rotate to find a certain object)
+Skill(name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'return#true', 'return#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone)
+Skill(name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'return#true', 'return#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down)
+Skill(name: find_edible_obj, skill_str_list: ['loop#8#3', 'exec#turn_ccw,45', "if#query,'is there anything edible?',=,True#2", 'return#true', 'return#false'], args: [], comment: find an edible object)
+,
+- Low-level tools: Skill(name: move_forward, args: [distance: int], comment: Move drone forward by a distance)
+Skill(name: move_backward, args: [distance: int], comment: Move drone backward by a distance)
+Skill(name: move_left, args: [distance: int], comment: Move drone left by a distance)
+Skill(name: move_right, args: [distance: int], comment: Move drone right by a distance)
+Skill(name: move_up, args: [distance: int], comment: Move drone up by a distance)
+Skill(name: move_down, args: [distance: int], comment: Move drone down by a distance)
+Skill(name: turn_ccw, args: [degree: int], comment: Turn drone counter clockwise by a degree)
+Skill(name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree)
+Skill(name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight)
+Skill(name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object)
+Skill(name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object)
+Skill(name: query, args: [question: str], comment: Query the LLM to check the environment state)
+.
+
+The user's query consists of the environment description and a text command. The environment description is an object list. You can further use low-level skills to get their binding boxes and colors. The text command is a natural language string that may start with "[A]" or "[Q]". "[A]" strings mean you should generate an execution plan for the drone. "[Q]" strings mean you should give a literal answer.
+
+When generating the plan, please follow these rules:
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.
+
+Here are some examples of user queries, the ideal generated responses, and their explanations:
+[{'query': {'objects': [], 'text': '[A] find a chair'}, 'response': ['if#find,chair,=,True#2', 'exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find a chair'}, 'response': ['exec#orienting,chair', 'exec#move_forward,50'], 'explanation': 'Chair is in the list, just align and approach it.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[Q] is there anything edible?'}, 'response': ['str#Yes, there is an apple and a lemon in sight.'], 'explanation': 'This is a query problem, so the planner will return a string to answer the question.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[A] goto the apple'}, 'response': ['exec#orienting,apple', 'exec#move_forward,50'], 'explanation': 'The apple is in the list, the planner will align the apple to the center of the frame and move forward.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find something edible'}, 'response': ['exec#find_edible_obj'], 'explanation': 'There is no edible object in the list, so the planner will find an edible object first.'}]
+
+Here is the user's query and your generated response:
+Query: {'objects': [{'name': 'person', 'loc_x': 0.53, 'loc_y': 0.6, 'size_x': 0.6, 'size_y': 0.8}, {'name': 'chair', 'loc_x': 0.73, 'loc_y': 0.92, 'size_x': 0.2, 'size_y': 0.14}], 'text': '[A] turn around'}
+Response: ['exec#turn_ccw,180']
+
+Here is the current environment description:
+[{'name': 'person', 'loc_x': 0.53, 'loc_y': 0.59, 'size_x': 0.57, 'size_y': 0.79}, {'name': 'chair', 'loc_x': 0.73, 'loc_y': 0.93, 'size_x': 0.2, 'size_y': 0.15}]
+
+Is the user's command satisfied? Please answer the question in the following format:
+{'result': True/False, 'feedback': 'your feedback'}
+
+##################################
+{"id": "chatcmpl-872kalbEvBxXogBfEVxzQJW2j2Jbd", "object": "chat.completion", "created": 1696689560, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "{'result': True, 'feedback': 'The drone successfully executed the command to turn around.'}"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1625, "completion_tokens": 20, "total_tokens": 1645}}
+##################################
