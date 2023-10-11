@@ -10,19 +10,8 @@ message DetectRequest {
 }
 
 message DetectResponse {
-    // repeated DetectedObject results = 1;
     string results = 1;
 }
-
-// message DetectedObject {
-//     float x1 = 1;
-//     float y1 = 2;
-//     float x2 = 3;
-//     float y2 = 4;
-//     float confidence = 5;
-//     int32 class_ = 6;
-//     string label = 7;
-// }
 
 service Llama2Service {
     rpc ChatRequest (PromptRequest) returns (PromptResponse) {}
@@ -30,8 +19,13 @@ service Llama2Service {
 
 message PromptRequest {
     string json_data = 1; // prompt
+    optional bytes image_data = 2; // Encoded image data
 }
 
 message PromptResponse {
     string json_data = 1; // response
+}
+
+service LlavaService {
+    rpc VisionRequest (PromptRequest) returns (PromptResponse) {}
 }

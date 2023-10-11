@@ -41,7 +41,7 @@ class LLMController():
         self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.vision.query, "Query the LLM to check the environment state", args=[SkillArg("question", str)]))
         
         self.high_level_skillset = SkillSet(level="high", lower_level_skillset=self.low_level_skillset)
-        self.high_level_skillset.add_skill(HighLevelSkillItem("find", ["loop#8#4", "if#is_in_sight,$1,=,True#1", "return#true", "exec#turn_ccw,45", "delay#300", "return#false"],
+        self.high_level_skillset.add_skill(HighLevelSkillItem("scan", ["loop#8#4", "if#is_in_sight,$1,=,True#1", "return#true", "exec#turn_ccw,45", "delay#300", "return#false"],
                                                            "rotate to find a certain object"))
         self.high_level_skillset.add_skill(HighLevelSkillItem("orienting",
                                                            ["loop#4#7",
@@ -56,7 +56,7 @@ class LLMController():
                                                             "if#obj_loc_y,$1,>,0.4#2", "if#obj_loc_y,$1,<,0.6#1", "return#true", "return#false"],
                                                             "center the object's y location in the frame by moving the drone up or down"))
         self.high_level_skillset.add_skill(HighLevelSkillItem("find_edible_obj",
-                                                           ["loop#8#3", "exec#turn_ccw,45", "if#query,'is there anything edible?',=,True#2", "return#true", "return#false"],
+                                                           ["loop#8#3", "exec#turn_ccw,45", "if#query,'is there anything edible?',=,True#1", "return#true", "return#false"],
                                                             "find an edible object"))
 
         self.planner = LLMPlanner(llm=self.llm, high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset)
@@ -71,6 +71,7 @@ class LLMController():
 
     def execute_skill_command(self, segments) -> Optional[bool]:
         # skill_command: skill_name,kwargs
+        print(f">> executing skill command: {segments}")
         skill_name = segments[0]
 
         skill_instance = self.low_level_skillset.get_skill(skill_name)
@@ -101,7 +102,7 @@ class LLMController():
         loop_count = 0
         loop_range = (-1, 0)
         while loop_index < len(commands):
-            input(f">> executing: {loop_index} {commands[loop_index]}")
+            print(f">> executing: {loop_index} {commands[loop_index]}")
             # check controller state
             if not self.controller_state:
                 break
@@ -144,7 +145,11 @@ class LLMController():
                 case 'delay':
                     time.sleep(int(segments[1]) / 1000.0)
                 case 'str':
-                    print('Response: ' + segments[1])
+                    if segments[1].startswith("'") and segments[1].endswith("'"):
+                        print('Response: ' + segments[1])
+                    else:
+                        result = self.execute_skill_command(segments[1].split(','))
+                        print(f'Response: {result}')
                 case 'return':
                     return parse_value(segments[1])
 
@@ -173,21 +178,22 @@ class LLMController():
             print("Controller is waiting for takeoff...")
             return
         
-        for _ in range(3):
+        for _ in range(1):
             result = self.planner.request_task(self.vision.get_obj_list(), user_command)
             # json_result = json.dumps(result)
-            consent = input(f">> result: {json.dumps(result)}, executing?")
-            if consent == 'n':
-                print(">> command rejected.")
-                return
+            print(f">> result: {json.dumps(result)}, executing...")
+            # consent = input(f">> result: {json.dumps(result)}, executing?")
+            # if consent == 'n':
+            #     print(">> command rejected.")
+            #     return
             self.execute_commands(result)
-            ending = self.planner.request_ending(self.vision.get_obj_list(), result)
-            print(f">> ending: {ending['feedback']}")
-            if ending['result'] == 'True' or ending['result'] == True:
-                print(">> command executed successfully.")
-                return
-            else:
-                print(">> command failed, try again.")
+            # ending = self.planner.request_ending(self.vision.get_obj_list(), result)
+            # print(f">> ending: {ending['feedback']}")
+            # if ending['result'] == 'True' or ending['result'] == True:
+            #     print(">> command executed successfully.")
+            #     return
+            # else:
+            #     print(">> command failed, try again.")
 
     def run(self):
         self.drone.connect()

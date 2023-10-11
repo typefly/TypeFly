@@ -29,12 +29,13 @@ class YoloClient():
         def str_float_to_int(value, multiplier):
             return int(float(value) * multiplier)
         draw = ImageDraw.Draw(frame)
+        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", size=50)
         w, h = frame.size
         for result in results:
             box = result["box"]
             draw.rectangle((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h), str_float_to_int(box["x2"], w), str_float_to_int(box["y2"], h)),
                         fill=None, outline='blue', width=2)
-            draw.text((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h) - 10), result["name"], fill='red')
+            draw.text((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h) - 10), result["name"], fill='red', font=font)
     
     def detect(self, image):
         image_bytes = YoloClient.image_to_bytes(image)

@@ -60,7 +60,7 @@ class VisionWrapper():
                 return True
             elif s.lower() == "false":
                 return False
-            return None
+            return s
         objects = self.get_obj_list()
         prompt = self.prompt.format(objects=objects, question=question)
         return parse_value(self.llm.query(prompt))
