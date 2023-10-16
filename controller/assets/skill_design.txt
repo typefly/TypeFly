@@ -1,7 +1,7 @@
 High-level skill design:
 "exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
 "if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
-"loop#count#nbr": Loop the next `nbr` commands for `count` times. If `count` is -1, then loop forever.
+"loop#count#nbr": Loop the next `nbr` commands for `count` times.
 "skip#nbr": Skip the next `nbr` commands.
 "delay#time": Delay the next command for `time` microseconds.
 "break": Break the current `loop` execution.

@@ -20,8 +20,8 @@ class LLMController():
         self.controller_state = True
         self.controller_wait_takeoff = True
         self.llm = LLMWrapper()
-        self.drone: DroneWrapper = VirtualDroneWrapper()
-        # self.drone: DroneWrapper = TelloWrapper()
+        # self.drone: DroneWrapper = VirtualDroneWrapper()
+        self.drone: DroneWrapper = TelloWrapper()
         self.vision = VisionWrapper(self.yolo_results_queue, self.llm)
         self.frame_queue = queue.Queue(maxsize=1)
 
@@ -41,8 +41,9 @@ class LLMController():
         self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.vision.query, "Query the LLM to check the environment state", args=[SkillArg("question", str)]))
         
         self.high_level_skillset = SkillSet(level="high", lower_level_skillset=self.low_level_skillset)
-        self.high_level_skillset.add_skill(HighLevelSkillItem("scan", ["loop#8#4", "if#is_in_sight,$1,=,True#1", "return#true", "exec#turn_ccw,45", "delay#300", "return#false"],
+        self.high_level_skillset.add_skill(HighLevelSkillItem("scan", ["loop#8#4", "if#is_in_sight,$1,=,True#1", "return#true", "exec#turn_cw,45", "delay#300", "return#false"],
                                                            "rotate to find a certain object"))
+        self.high_level_skillset.add_skill(HighLevelSkillItem("approach", ["exec#move_forward,60"]))
         self.high_level_skillset.add_skill(HighLevelSkillItem("orienting",
                                                            ["loop#4#7",
                                                             "if#obj_loc_x,$1,>,0.6#1", "exec#turn_cw,15",
@@ -55,9 +56,12 @@ class LLMController():
                                                             "if#obj_loc_y,$1,>,0.6#1", "exec#move_down,20",
                                                             "if#obj_loc_y,$1,>,0.4#2", "if#obj_loc_y,$1,<,0.6#1", "return#true", "return#false"],
                                                             "center the object's y location in the frame by moving the drone up or down"))
-        self.high_level_skillset.add_skill(HighLevelSkillItem("find_edible_obj",
-                                                           ["loop#8#3", "exec#turn_ccw,45", "if#query,'is there anything edible?',=,True#1", "return#true", "return#false"],
-                                                            "find an edible object"))
+        self.high_level_skillset.add_skill(HighLevelSkillItem("find_fruit_obj",
+                                                           ["loop#8#3", "exec#turn_cw,45", "if#query,'is there any fruit?',=,True#1", "return#true", "return#false"],
+                                                            "find an object that is fruit"))
+        self.high_level_skillset.add_skill(HighLevelSkillItem("find_drink_obj",
+                                                           ["loop#8#3", "exec#turn_cw,45", "if#query,'is there anything for drink?',=,True#1", "return#true", "return#false"],
+                                                            "find a drinkable object"))
 
         self.planner = LLMPlanner(llm=self.llm, high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset)
 
@@ -80,6 +84,8 @@ class LLMController():
 
         skill_instance = self.high_level_skillset.get_skill(skill_name)
         if skill_instance is not None:
+            if skill_name == 'orienting':
+                return self.execute_commands(skill_instance.execute(['bottle']))
             return self.execute_commands(skill_instance.execute(segments[1:]))
         
         print(f"Skill '{skill_name}' not found.")
@@ -102,7 +108,7 @@ class LLMController():
         loop_count = 0
         loop_range = (-1, 0)
         while loop_index < len(commands):
-            print(f">> executing: {loop_index} {commands[loop_index]}")
+            # print(f">> executing: {loop_index} {commands[loop_index]}")
             # check controller state
             if not self.controller_state:
                 break
@@ -118,22 +124,22 @@ class LLMController():
                     compare = params[-2]
                     val = params[-1]
                     execution_result = self.execute_skill_command(params[0:-2])
-                    print(f"Execution result: {params[0:-2]} {execution_result}")
+                    # print(f"Execution result: {params[0:-2]} {execution_result}")
                     condition = False
                     if compare == '=':
                         condition = execution_result == parse_value(val)
-                        print(f"Comparing {execution_result} and {val} if =. {condition}")
+                        # print(f"Comparing {execution_result} and {val} if =. {condition}")
                     elif compare == '<':
                         condition = execution_result < parse_value(val)
-                        print(f"Comparing {execution_result} and {val} if <. {condition}")
+                        # print(f"Comparing {execution_result} and {val} if <. {condition}")
                     elif compare == '>':
                         condition = execution_result > parse_value(val)
-                        print(f"Comparing {execution_result} and {val} if >. {condition}")
+                        # print(f"Comparing {execution_result} and {val} if >. {condition}")
                     else:
                         raise ValueError(f"Unrecognized comparison operator: {compare}")
 
                     if not condition:
-                        print("Condition not met.")
+                        # print("Condition not met.")
                         loop_index += int(segments[-1])
                 case 'loop':
                     loop_count = int(segments[1])
@@ -180,12 +186,15 @@ class LLMController():
         
         for _ in range(1):
             result = self.planner.request_task(self.vision.get_obj_list(), user_command)
-            # json_result = json.dumps(result)
-            print(f">> result: {json.dumps(result)}, executing...")
-            # consent = input(f">> result: {json.dumps(result)}, executing?")
-            # if consent == 'n':
-            #     print(">> command rejected.")
-            #     return
+            # print(f">> result: {json.dumps(result)}, executing...")
+            # result = ["loop#8#5", "if#query,'is there anything I can eat?',=,True#3", "exec#orienting,$target", "exec#approach", "return#true", "exec#turn_cw,45",
+            #                  "loop#8#5", "if#query,'is there anything I can drink?',=,True#3", "exec#orienting,$target", "exec#approach", "return#true", "exec#turn_cw,45",
+            #                  "str#'no edible and drinkable item can be found'", "return#false"]
+            print(f">> result: {result}, executing...")
+            consent = input(f">> result: {json.dumps(result)}, executing?")
+            if consent == 'n':
+                print(">> command rejected.")
+                return
             self.execute_commands(result)
             # ending = self.planner.request_ending(self.vision.get_obj_list(), result)
             # print(f">> ending: {ending['feedback']}")

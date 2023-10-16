@@ -19,7 +19,7 @@ class LLMPlanner():
                     "objects": [],
                     "text": "[A] find a chair"
                 },
-                "response": ["if#scan,chair,=,True#2", "exec#orienting,chair", "exec#move_forward,50"],
+                "response": ["if#scan,chair,=,True#2", "exec#orienting,chair", "exec#approach,chair"],
                 "explanation": "Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it."
             },
             {
@@ -27,7 +27,7 @@ class LLMPlanner():
                     "objects": ["chair", "laptop"],
                     "text": "[A] find a chair"
                 },
-                "response": ["exec#orienting,chair", "exec#move_forward,50"],
+                "response": ["exec#orienting,chair", "exec#approach,chair"],
                 "explanation": "Chair is in the list, just align and approach it."
             },
             {
@@ -51,7 +51,7 @@ class LLMPlanner():
                     "objects": ["apple", "chair", "laptop", "lemon"],
                     "text": "[A] goto the apple"
                 },
-                "response": ["exec#orienting,apple", "exec#move_forward,50"],
+                "response": ["exec#orienting,apple", "exec#approach,apple"],
                 "explanation": "The apple is in the list, the planner will align the apple to the center of the frame and move forward."
             },
             {
@@ -59,7 +59,17 @@ class LLMPlanner():
                     "objects": ["chair", "laptop"],
                     "text": "[A] Turn around until you can see some animal."
                 },
-                "response": ["loop#8#3", "if#query,'is there any animal?',=,True#1", "return#true", "exec#turn_ccw,45", "return#false"],
+                "response": ["loop#8#3", "if#query,'is there any animal?',=,True#1", "return#true", "exec#turn_cw,45", "return#false"],
+                "explanation": "Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees counter-clockwise. If the loop is finished, return false."
+            },
+            {
+                "query": {
+                    "objects": ["chair", "laptop"],
+                    "text": "[A] Find something edible, if you can't, then find something to drink."
+                },
+                "response": ["loop#8#4", "if#query,'is there anything edible?',=,True#2", "exec#approach", "return#true", "exec#turn_cw,45",
+                             "loop#8#4", "if#query,'is there anything drinkable?',=,True#2", "exec#approach", "return#true", "exec#turn_cw,45",
+                             "str#'no edible and drinkable item can be found'", "return#false"],
                 "explanation": "Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees counter-clockwise. If the loop is finished, return false."
             }
         ]

@@ -7,13 +7,12 @@ openai.api_key = os.environ.get('OPENAI_API_KEY')
 MODEL_NAME = "gpt-4"
 
 class LLMWrapper:
-    def __init__(self, temperature=0.05, model_name=MODEL_NAME):
+    def __init__(self, temperature=0.05):
         self.temperature = temperature
-        self.model_name = model_name
 
-    def query(self, prompt):
+    def query(self, prompt, model_name=MODEL_NAME):
         response = openai.ChatCompletion.create(
-            model=self.model_name,
+            model=model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=self.temperature,
         )

@@ -2,6 +2,7 @@ import io, os, time
 from threading import Thread
 from flask import Flask, request, jsonify, Response
 import logging
+
 logging.disable(logging.CRITICAL + 1)
 
 from llm_controller import LLMController

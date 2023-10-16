@@ -42,42 +42,42 @@ class TelloWrapper(DroneWrapper):
 
     def move_forward(self, distance: int) -> bool:
         self.drone.move_forward(distance)
-        time.sleep(1)
+        time.sleep(0.5)
         return True
 
     def move_backward(self, distance: int) -> bool:
         self.drone.move_back(distance)
-        time.sleep(1)
+        time.sleep(0.5)
         return True
 
     def move_left(self, distance: int) -> bool:
         self.drone.move_left(distance)
-        time.sleep(1)
+        time.sleep(0.5)
         return True
 
     def move_right(self, distance: int) -> bool:
         self.drone.move_right(distance)
-        time.sleep(1)
+        time.sleep(0.5)
         return True
 
     def move_up(self, distance: int) -> bool:
         self.drone.move_up(distance)
-        time.sleep(1)
+        time.sleep(0.5)
         return True
 
     def move_down(self, distance: int) -> bool:
         self.drone.move_down(distance)
-        time.sleep(1)
+        time.sleep(0.5)
         return True
 
     def turn_ccw(self, degree: int) -> bool:
         self.drone.rotate_counter_clockwise(degree)
-        time.sleep(3)
+        time.sleep(1.5)
         return True
 
     def turn_cw(self, degree: int) -> bool:
         self.drone.rotate_clockwise(degree)
-        time.sleep(3)
+        time.sleep(1.5)
         return True
     
     def is_battery_good(self):
