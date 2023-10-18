@@ -10,7 +10,7 @@ class LLMWrapper:
     def __init__(self, temperature=0.05):
         self.temperature = temperature
 
-    def query(self, prompt, model_name=MODEL_NAME):
+    def request(self, prompt, model_name=MODEL_NAME):
         response = openai.ChatCompletion.create(
             model=model_name,
             messages=[{"role": "user", "content": prompt}],

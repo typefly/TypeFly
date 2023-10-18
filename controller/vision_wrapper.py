@@ -1,13 +1,9 @@
 from queue import Queue
 from typing import Optional
-from llm_wrapper import LLMWrapper
 
 class VisionWrapper():
-    def __init__(self, yolo_results_queue: Queue, llm: LLMWrapper):
+    def __init__(self, yolo_results_queue: Queue):
         self.yolo_results_queue = yolo_results_queue
-        self.llm = llm
-        with open("./assets/query_skill_prompt.txt", "r") as f:
-            self.prompt = f.read()
 
     def format_results(results):
         formatted_results = []
@@ -52,15 +48,3 @@ class VisionWrapper():
             return None
         box = info['box']
         return (box['y1'] + box['y2']) / 2
-
-    def query(self, question: str) -> bool:
-        def parse_value(s):
-            # Check for boolean values
-            if s.lower() == "true":
-                return True
-            elif s.lower() == "false":
-                return False
-            return s
-        objects = self.get_obj_list()
-        prompt = self.prompt.format(objects=objects, question=question)
-        return parse_value(self.llm.query(prompt))

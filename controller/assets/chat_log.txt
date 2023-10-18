@@ -5877,3 +5877,183 @@ Question: 'is there anything I can drink?'
 ##################################
 {"id": "chatcmpl-89K2gDETH4MGuosb63eYTa1cYE37f", "object": "chat.completion", "created": 1697232686, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "True"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 145, "completion_tokens": 1, "total_tokens": 146}}
 ##################################
+You are a drone pilot and you should follow the user's instruction to generate a task plan for the drone. You response should carefully consider the `system skills description`, the `scene description` and the `task description`.
+The `system skills description` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using low-level skills and logic blocks, provide complex functionalities.
+
+The high-level skill design is provided in:
+High-level skill design:
+"exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
+"if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
+"loop#count#nbr": Loop the next `nbr` commands for `count` times.
+"skip#nbr": Skip the next `nbr` commands.
+"delay#time": Delay the next command for `time` microseconds.
+"break": Break the current `loop` execution.
+"str#text": Print the `text` to the console.
+"ret#val": Return `val` as the return value of the current skill..
+
+Description of the two skill sets:
+- High-level skills:
+Skill(name: scan, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,true#1', 'ret#true', 'exec#turn_cw,45', 'delay#300', 'ret#false'], args: [obj_name: str], comment: rotate to find a certain object)
+Skill(name: approach, skill_str_list: ['exec#move_forward,60'], args: [], comment: )
+Skill(name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone)
+Skill(name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down)
+Skill(name: find_fruit_obj, skill_str_list: ['loop#8#3', 'exec#turn_cw,45', "if#query,'is there any fruit?',=,true#1", 'ret#true', 'ret#false'], args: [], comment: find an object that is fruit)
+Skill(name: find_drink_obj, skill_str_list: ['loop#8#3', 'exec#turn_cw,45', "if#query,'is there anything for drink?',=,true#1", 'ret#true', 'ret#false'], args: [], comment: find a drinkable object)
+;
+
+- Low-level skills:
+Skill(name: move_forward, args: [distance: int], comment: Move drone forward by a distance)
+Skill(name: move_backward, args: [distance: int], comment: Move drone backward by a distance)
+Skill(name: move_left, args: [distance: int], comment: Move drone left by a distance)
+Skill(name: move_right, args: [distance: int], comment: Move drone right by a distance)
+Skill(name: move_up, args: [distance: int], comment: Move drone up by a distance)
+Skill(name: move_down, args: [distance: int], comment: Move drone down by a distance)
+Skill(name: turn_ccw, args: [degree: int], comment: Turn drone counter clockwise by a degree)
+Skill(name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree)
+Skill(name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight)
+Skill(name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object)
+Skill(name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object)
+Skill(name: query, args: [question: str], comment: Query the LLM to check the environment state)
+.
+
+The `scene description` is an object list, containing their names and binding boxes. 
+
+The `task description` is a natural language sentence, describing the user's instruction. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task description` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.
+
+Here are some examples responses for different `scene description` and `task description`, and their explanations:
+[{'query': {'objects': [], 'text': '[A] find a chair'}, 'response': ['if#scan,chair,=,True#2', 'exec#orienting,chair', 'exec#approach,chair'], 'explanation': 'Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find a chair'}, 'response': ['exec#orienting,chair', 'exec#approach,chair'], 'explanation': 'Chair is in the list, just align and approach it.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[Q] is there anything edible?'}, 'response': ["str#'Yes, there is an apple and a lemon in sight.'"], 'explanation': 'This is a query problem, so the planner will return a string to answer the question.'}, {'query': {'objects': ['laptop', 'lemon'], 'text': '[Q] is there anything edible behind you?'}, 'response': ['exec#turn_ccw,180', "str#query,'is there anything edible?'"], 'explanation': 'This is a query problem but requires the drone to turn around first. So the planner will first turn around and then print the query result.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[A] goto the apple'}, 'response': ['exec#orienting,apple', 'exec#approach,apple'], 'explanation': 'The apple is in the list, the planner will align the apple to the center of the frame and move forward.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] Turn around until you can see some animal.'}, 'response': ['loop#8#3', "if#query,'is there any animal?',=,true#1", 'ret#true', 'exec#turn_cw,45', 'ret#false'], 'explanation': 'Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees counter-clockwise. If the loop is finished, return false.'}, {'query': {'objects': ['chair', 'laptop'], 'text': "[A] Find something edible, if you can't, then find something to drink."}, 'response': ['loop#8#4', "if#query,'is there anything edible?',=,true#2", 'exec#approach', 'ret#true', 'exec#turn_cw,45', 'loop#8#4', "if#query,'is there anything drinkable?',=,true#2", 'exec#approach', 'ret#true', 'exec#turn_cw,45', "str#'no edible and drinkable item can be found'", 'ret#false'], 'explanation': 'Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees counter-clockwise. If the loop is finished, return false.'}]
+
+Now given the following `scene description` and `task description`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
+`scene description`:
+[{'name': 'person', 'loc_x': 0.53, 'loc_y': 0.64, 'size_x': 0.53, 'size_y': 0.71}],
+`task description`:
+[A] turn around.
+##################################
+{"id": "chatcmpl-8B0z6etDR3TslOewwYM9AOeOYy5lH", "object": "chat.completion", "created": 1697636084, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "['exec#turn_cw,360']"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2129, "completion_tokens": 9, "total_tokens": 2138}}
+##################################
+You are a drone pilot and you should follow the user's instruction to generate a task plan for the drone. You response should carefully consider the `system skills description`, the `scene description` and the `task description`.
+The `system skills description` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using low-level skills and logic blocks, provide complex functionalities.
+
+The high-level skill design is provided in:
+High-level skill design:
+"exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
+"if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
+"loop#count#nbr": Loop the next `nbr` commands for `count` times.
+"skip#nbr": Skip the next `nbr` commands.
+"delay#time": Delay the next command for `time` microseconds.
+"break": Break the current `loop` execution.
+"str#text": Print the `text` to the console.
+"ret#val": Return `val` as the return value of the current skill..
+
+Description of the two skill sets:
+- High-level skills:
+Skill(name: scan, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,true#1', 'ret#true', 'exec#turn_cw,45', 'delay#300', 'ret#false'], args: [obj_name: str], comment: rotate to find a certain object)
+Skill(name: approach, skill_str_list: ['exec#move_forward,60'], args: [], comment: )
+Skill(name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone)
+Skill(name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down)
+Skill(name: find_fruit_obj, skill_str_list: ['loop#8#3', 'exec#turn_cw,45', "if#query,'is there any fruit?',=,true#1", 'ret#true', 'ret#false'], args: [], comment: find an object that is fruit)
+Skill(name: find_drink_obj, skill_str_list: ['loop#8#3', 'exec#turn_cw,45', "if#query,'is there anything for drink?',=,true#1", 'ret#true', 'ret#false'], args: [], comment: find a drinkable object)
+;
+
+- Low-level skills:
+Skill(name: move_forward, args: [distance: int], comment: Move drone forward by a distance)
+Skill(name: move_backward, args: [distance: int], comment: Move drone backward by a distance)
+Skill(name: move_left, args: [distance: int], comment: Move drone left by a distance)
+Skill(name: move_right, args: [distance: int], comment: Move drone right by a distance)
+Skill(name: move_up, args: [distance: int], comment: Move drone up by a distance)
+Skill(name: move_down, args: [distance: int], comment: Move drone down by a distance)
+Skill(name: turn_ccw, args: [degree: int], comment: Turn drone counter clockwise by a degree)
+Skill(name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree)
+Skill(name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight)
+Skill(name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object)
+Skill(name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object)
+Skill(name: query, args: [question: str], comment: Query the LLM to check the environment state)
+.
+
+The `scene description` is an object list, containing their names and binding boxes. 
+
+The `task description` is a natural language sentence, describing the user's instruction. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task description` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.
+
+Here are some examples responses for different `scene description` and `task description`, and their explanations:
+[{'query': {'objects': [], 'text': '[A] find a chair'}, 'response': ['if#scan,chair,=,True#2', 'exec#orienting,chair', 'exec#approach,chair'], 'explanation': 'Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find a chair'}, 'response': ['exec#orienting,chair', 'exec#approach,chair'], 'explanation': 'Chair is in the list, just align and approach it.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[Q] is there anything edible?'}, 'response': ["str#'Yes, there is an apple and a lemon in sight.'"], 'explanation': 'This is a query problem, so the planner will return a string to answer the question.'}, {'query': {'objects': ['laptop', 'lemon'], 'text': '[Q] is there anything edible behind you?'}, 'response': ['exec#turn_ccw,180', "str#query,'is there anything edible?'"], 'explanation': 'This is a query problem but requires the drone to turn around first. So the planner will first turn around and then print the query result.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[A] goto the apple'}, 'response': ['exec#orienting,apple', 'exec#approach,apple'], 'explanation': 'The apple is in the list, the planner will align the apple to the center of the frame and move forward.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] Turn around until you can see some animal.'}, 'response': ['loop#8#3', "if#query,'is there any animal?',=,true#1", 'ret#true', 'exec#turn_cw,45', 'ret#false'], 'explanation': 'Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees counter-clockwise. If the loop is finished, return false.'}, {'query': {'objects': ['chair', 'laptop'], 'text': "[A] Find something edible, if you can't, then find something to drink."}, 'response': ['loop#8#4', "if#query,'is there anything edible?',=,true#2", 'exec#approach', 'ret#true', 'exec#turn_cw,45', 'loop#8#4', "if#query,'is there anything drinkable?',=,true#2", 'exec#approach', 'ret#true', 'exec#turn_cw,45', "str#'no edible and drinkable item can be found'", 'ret#false'], 'explanation': 'Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees counter-clockwise. If the loop is finished, return false.'}]
+
+Now given the following `scene description` and `task description`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
+`scene description`:
+[{'name': 'person', 'loc_x': 0.53, 'loc_y': 0.64, 'size_x': 0.52, 'size_y': 0.7}],
+`task description`:
+[A] turn back.
+##################################
+{"id": "chatcmpl-8B0zHgX4kjbn7Uhfw29EeM8SDBVkP", "object": "chat.completion", "created": 1697636095, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "['exec#turn_ccw,180']"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2129, "completion_tokens": 9, "total_tokens": 2138}}
+##################################
+You are a drone pilot and you should follow the user's instruction to generate a task plan for the drone. You response should carefully consider the `system skills description`, the `scene description` and the `task description`.
+The `system skills description` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using low-level skills and logic blocks, provide complex functionalities.
+
+The high-level skill design is provided in:
+High-level skill design:
+"exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
+"if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
+"loop#count#nbr": Loop the next `nbr` commands for `count` times.
+"skip#nbr": Skip the next `nbr` commands.
+"delay#time": Delay the next command for `time` microseconds.
+"break": Break the current `loop` execution.
+"str#text": Print the `text` to the console.
+"ret#val": Return `val` as the return value of the current skill..
+
+Description of the two skill sets:
+- High-level skills:
+Skill(name: scan, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,true#1', 'ret#true', 'exec#turn_cw,45', 'delay#300', 'ret#false'], args: [obj_name: str], comment: rotate to find a certain object)
+Skill(name: approach, skill_str_list: ['exec#move_forward,60'], args: [], comment: )
+Skill(name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone)
+Skill(name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down)
+Skill(name: find_fruit_obj, skill_str_list: ['loop#8#3', 'exec#turn_cw,45', "if#query,'is there any fruit?',=,true#1", 'ret#true', 'ret#false'], args: [], comment: find an object that is fruit)
+Skill(name: find_drink_obj, skill_str_list: ['loop#8#3', 'exec#turn_cw,45', "if#query,'is there anything for drink?',=,true#1", 'ret#true', 'ret#false'], args: [], comment: find a drinkable object)
+;
+
+- Low-level skills:
+Skill(name: move_forward, args: [distance: int], comment: Move drone forward by a distance)
+Skill(name: move_backward, args: [distance: int], comment: Move drone backward by a distance)
+Skill(name: move_left, args: [distance: int], comment: Move drone left by a distance)
+Skill(name: move_right, args: [distance: int], comment: Move drone right by a distance)
+Skill(name: move_up, args: [distance: int], comment: Move drone up by a distance)
+Skill(name: move_down, args: [distance: int], comment: Move drone down by a distance)
+Skill(name: turn_ccw, args: [degree: int], comment: Turn drone counter clockwise by a degree)
+Skill(name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree)
+Skill(name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight)
+Skill(name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object)
+Skill(name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object)
+Skill(name: query, args: [question: str], comment: Query the LLM to check the environment state)
+.
+
+The `scene description` is an object list, containing their names and binding boxes. 
+
+The `task description` is a natural language sentence, describing the user's instruction. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task description` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
+1. Carefully consider every object in the environment description, they are highly related to the user's command.
+2. Use high-level skills as much as possible.
+3. If no proper high-level skill is available, try to generate a new high-level skill.
+3. If you need more clarification, ask the user.
+4. The `object_name` argument of skill should be obtained from the object list.
+5. Carefully consider user's command, for example, "teddy" and "teddy bear" are the same object, however, something for drink and something for eat are different objects.
+
+Here are some examples responses for different `scene description` and `task description`, and their explanations:
+[{'query': {'objects': [], 'text': '[A] find a chair'}, 'response': ['if#scan,chair,=,True#2', 'exec#orienting,chair', 'exec#approach,chair'], 'explanation': 'Chair is not in the list, so the planner first try to find a chair. If it is found, align and approach it.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] find a chair'}, 'response': ['exec#orienting,chair', 'exec#approach,chair'], 'explanation': 'Chair is in the list, just align and approach it.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[Q] is there anything edible?'}, 'response': ["str#'Yes, there is an apple and a lemon in sight.'"], 'explanation': 'This is a query problem, so the planner will return a string to answer the question.'}, {'query': {'objects': ['laptop', 'lemon'], 'text': '[Q] is there anything edible behind you?'}, 'response': ['exec#turn_ccw,180', "str#query,'is there anything edible?'"], 'explanation': 'This is a query problem but requires the drone to turn around first. So the planner will first turn around and then print the query result.'}, {'query': {'objects': ['apple', 'chair', 'laptop', 'lemon'], 'text': '[A] goto the apple'}, 'response': ['exec#orienting,apple', 'exec#approach,apple'], 'explanation': 'The apple is in the list, the planner will align the apple to the center of the frame and move forward.'}, {'query': {'objects': ['chair', 'laptop'], 'text': '[A] Turn around until you can see some animal.'}, 'response': ['loop#8#3', "if#query,'is there any animal?',=,true#1", 'ret#true', 'exec#turn_cw,45', 'ret#false'], 'explanation': 'Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees counter-clockwise. If the loop is finished, return false.'}, {'query': {'objects': ['chair', 'laptop'], 'text': "[A] Find something edible, if you can't, then find something to drink."}, 'response': ['loop#8#4', "if#query,'is there anything edible?',=,true#2", 'exec#approach', 'ret#true', 'exec#turn_cw,45', 'loop#8#4', "if#query,'is there anything drinkable?',=,true#2", 'exec#approach', 'ret#true', 'exec#turn_cw,45', "str#'no edible and drinkable item can be found'", 'ret#false'], 'explanation': 'Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees counter-clockwise. If the loop is finished, return false.'}]
+
+Now given the following `scene description` and `task description`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
+`scene description`:
+[{'name': 'person', 'loc_x': 0.51, 'loc_y': 0.54, 'size_x': 0.64, 'size_y': 0.91}],
+`task description`:
+[A] Find an apple and go to it..
+##################################
+{"id": "chatcmpl-8B0zrqWUYu1O8ECkfm6d9QWi4vCkz", "object": "chat.completion", "created": 1697636131, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "['if#scan,apple,=,True#2', 'exec#orienting,apple', 'exec#approach']"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2134, "completion_tokens": 27, "total_tokens": 2161}}
+##################################

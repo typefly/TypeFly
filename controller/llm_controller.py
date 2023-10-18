@@ -1,7 +1,5 @@
 from PIL import Image
-from threading import Thread
-import numpy as np
-import queue, time, json
+import queue, time
 from typing import Optional
 
 from yolo_client import YoloClient
@@ -19,11 +17,11 @@ class LLMController():
         self.yolo_client = YoloClient(self.yolo_results_queue)
         self.controller_state = True
         self.controller_wait_takeoff = True
-        self.llm = LLMWrapper()
-        # self.drone: DroneWrapper = VirtualDroneWrapper()
-        self.drone: DroneWrapper = TelloWrapper()
-        self.vision = VisionWrapper(self.yolo_results_queue, self.llm)
+        self.drone: DroneWrapper = VirtualDroneWrapper()
+        # self.drone: DroneWrapper = TelloWrapper()
+        self.vision = VisionWrapper(self.yolo_results_queue)
         self.frame_queue = queue.Queue(maxsize=1)
+        self.planner = LLMPlanner()
 
         self.low_level_skillset = SkillSet(level="low")
 
@@ -38,7 +36,7 @@ class LLMController():
         self.low_level_skillset.add_skill(LowLevelSkillItem("is_in_sight", self.vision.is_in_sight, "Check if an object is in sight", args=[SkillArg("obj_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("obj_loc_x", self.vision.obj_loc_x, "Get x location of an object", args=[SkillArg("obj_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("obj_loc_y", self.vision.obj_loc_y, "Get y location of an object", args=[SkillArg("obj_name", str)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.vision.query, "Query the LLM to check the environment state", args=[SkillArg("question", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.planner.request_execution, "Query the LLM to check the environment state", args=[SkillArg("question", str)]))
         
         self.high_level_skillset = SkillSet(level="high", lower_level_skillset=self.low_level_skillset)
         self.high_level_skillset.add_skill(HighLevelSkillItem("scan", ["loop#8#4", "if#is_in_sight,$1,=,true#1", "ret#true", "exec#turn_cw,45", "delay#300", "ret#false"],
@@ -63,7 +61,7 @@ class LLMController():
                                                            ["loop#8#3", "exec#turn_cw,45", "if#query,'is there anything for drink?',=,true#1", "ret#true", "ret#false"],
                                                             "find a drinkable object"))
 
-        self.planner = LLMPlanner(llm=self.llm, high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset)
+        self.planner.init(high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset, vision_skill=self.vision)
 
     def stop_controller(self):
         self.controller_state = False
@@ -77,16 +75,19 @@ class LLMController():
         # skill_command: skill_name,kwargs
         print(f">> executing skill command: {segments}")
         skill_name = segments[0]
+        kwargs = segments[1:]
+        # replace $? with self.last_execution_result
+        for index, arg in enumerate(kwargs):
+            if arg == '$?':
+                kwargs[index] = str(self.last_execution_result)
 
         skill_instance = self.low_level_skillset.get_skill(skill_name)
         if skill_instance is not None:
-            return skill_instance.execute(segments[1:])
+            return skill_instance.execute(kwargs)
 
         skill_instance = self.high_level_skillset.get_skill(skill_name)
         if skill_instance is not None:
-            if skill_name == 'orienting':
-                return self.execute_commands(skill_instance.execute(['bottle']))
-            return self.execute_commands(skill_instance.execute(segments[1:]))
+            return self.execute_commands(skill_instance.execute(kwargs))
         
         print(f"Skill '{skill_name}' not found.")
         return None
@@ -115,26 +116,25 @@ class LLMController():
             # parse command
             segments = commands[loop_index].split("#")
             # get command name
-            execution_result = False
             match segments[0]:
                 case 'exec':
-                    execution_result = self.execute_skill_command(segments[1].split(','))
+                    self.last_execution_result = self.execute_skill_command(segments[1].split(','))
                 case 'if':
                     params = segments[1].split(',')
                     compare = params[-2]
                     val = params[-1]
-                    execution_result = self.execute_skill_command(params[0:-2])
+                    local_execution_result = self.execute_skill_command(params[0:-2])
                     # print(f"Execution result: {params[0:-2]} {execution_result}")
                     condition = False
                     if compare == '=':
-                        condition = execution_result == parse_value(val)
-                        # print(f"Comparing {execution_result} and {val} if =. {condition}")
+                        condition = local_execution_result == parse_value(val)
+                        # print(f"Comparing {local_execution_result} and {val} if =. {condition}")
                     elif compare == '<':
-                        condition = execution_result < parse_value(val)
-                        # print(f"Comparing {execution_result} and {val} if <. {condition}")
+                        condition = local_execution_result < parse_value(val)
+                        # print(f"Comparing {local_execution_result} and {val} if <. {condition}")
                     elif compare == '>':
-                        condition = execution_result > parse_value(val)
-                        # print(f"Comparing {execution_result} and {val} if >. {condition}")
+                        condition = local_execution_result > parse_value(val)
+                        # print(f"Comparing {local_execution_result} and {val} if >. {condition}")
                     else:
                         raise ValueError(f"Unrecognized comparison operator: {compare}")
 
@@ -153,13 +153,13 @@ class LLMController():
                 case 'str':
                     if segments[1].startswith("'") and segments[1].endswith("'"):
                         print('Response: ' + segments[1])
-                    else:
-                        result = self.execute_skill_command(segments[1].split(','))
-                        print(f'Response: {result}')
+                    elif segments[1] == '$?':
+                        print('Response: ' + str(self.last_execution_result))
+
                 case 'ret':
                     return parse_value(segments[1])
 
-            if execution_result is None:
+            if self.last_execution_result is None:
                 # if error occurs, break
                 return False
 
@@ -179,20 +179,20 @@ class LLMController():
                     loop_index = loop_range[0]
         return True
 
-    def execute_user_command(self, user_command: str):
+    def execute_user_command(self, task_description: str):
         if self.controller_wait_takeoff:
             print("Controller is waiting for takeoff...")
             return
         
         for _ in range(1):
-            result = self.planner.request_task(self.vision.get_obj_list(), user_command)
-            print(f">> result: {result}, executing...")
-            consent = input(f">> result: {json.dumps(result)}, executing?")
+            result = self.planner.request_planning(task_description)
+            # print(f">> result: {result}, executing...")
+            consent = input(f">> result: {result}, executing?")
             if consent == 'n':
                 print(">> command rejected.")
                 return
             self.execute_commands(result)
-            # ending = self.planner.request_ending(self.vision.get_obj_list(), result)
+            # ending = self.planner.request_verification(task_description, result)
             # print(f">> ending: {ending['feedback']}")
             # if ending['result'] == 'True' or ending['result'] == True:
             #     print(">> command executed successfully.")

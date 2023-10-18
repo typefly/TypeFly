@@ -57,5 +57,5 @@ def llm_run():
 if __name__ == "__main__":
     llm_thread = Thread(target=llm_run)
     llm_thread.start()
-    app.run(host='localhost', port=50001)
+    app.run(host='localhost', port=50001, debug=True)
     llm_thread.join()

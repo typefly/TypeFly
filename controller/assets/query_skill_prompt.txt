@@ -1,4 +1,0 @@
-I will provide you with a list of object details, and you must respond to the subsequent question using the information provided.
-Kindly ensure your answer is either 'True' or 'False' for yes-or-no question, and object names for object identification questions.
-Object info: {objects}
-Question: {question}

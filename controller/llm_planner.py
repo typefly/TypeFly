@@ -1,19 +1,14 @@
 import os, json, ast
-import openai
+from typing import Union
 
 from skillset import SkillSet
 from llm_wrapper import LLMWrapper
+from vision_wrapper import VisionWrapper
 
 class LLMPlanner():
-    def __init__(self, llm: LLMWrapper, high_level_skillset: SkillSet, low_level_skillset: SkillSet):
-        self.llm = llm
-        self.high_level_skillset = high_level_skillset
-        self.low_level_skillset = low_level_skillset
-        self.current_query = {
-            "objects": ["lemon", "chair"],
-            "text": "[Q] is there anything edible?"
-        }
-        self.example_queries = [
+    def __init__(self):
+        self.llm = LLMWrapper()
+        self.example_requests = [
             {
                 "query": {
                     "objects": [],
@@ -75,40 +70,57 @@ class LLMPlanner():
         ]
 
         # read prompt from txt
-        with open("./assets/task_prompt.txt", "r") as f:
-            self.task_prompt = f.read()
+        with open("./assets/planning_prompt.txt", "r") as f:
+            self.planning_prompt = f.read()
 
-        with open("./assets/ending_prompt.txt", "r") as f:
-            self.ending_prompt = f.read()
+        with open("./assets/verification_prompt.txt", "r") as f:
+            self.verification_prompt = f.read()
+
+        with open("./assets/execution_prompt.txt", "r") as f:
+            self.execution_prompt = f.read()
 
         with open("./assets/rules.txt", "r") as f:
             self.rules = f.read()
 
-        with open("./assets/skill_design.txt", "r") as f:
-            self.skill_design = f.read()
+        with open("./assets/minispec_syntax.txt", "r") as f:
+            self.minispec_syntax = f.read()
 
-    def request_task(self, objects: [str], command: str):
-        self.current_query["objects"] = objects
-        # by default, the command is an action
-        if not command.startswith("["):
-            command = "[A] " + command
-        self.current_query["text"] = command
-        prompt = self.task_prompt.format(high_level_skills=self.high_level_skillset,
-                                    low_level_skills=self.low_level_skillset,
-                                    skill_design=self.skill_design,
-                                    rules=self.rules,
-                                    examples=self.example_queries,
-                                    user_query=self.current_query)
-        print(f"> Task query: {self.current_query}...")
-        return ast.literal_eval(self.llm.query(prompt))
+    def init(self, high_level_skillset: SkillSet, low_level_skillset: SkillSet, vision_skill: VisionWrapper):
+        self.high_level_skillset = high_level_skillset
+        self.low_level_skillset = low_level_skillset
+        self.vision_skill = vision_skill
+
+    def request_planning(self, task_description: str):
+        # by default, the task_description is an action
+        if not task_description.startswith("["):
+            task_description = "[A] " + task_description
+
+        prompt = self.planning_prompt.format(system_skill_description_high=self.high_level_skillset,
+                                             system_skill_description_low=self.low_level_skillset,
+                                             minispec_syntax=self.minispec_syntax,
+                                             rules=self.rules,
+                                             examples=self.example_requests,
+                                             scene_description=self.vision_skill.get_obj_list(),
+                                             task_description=task_description)
+        print(f"> Planning request: {task_description}...")
+        return ast.literal_eval(self.llm.request(prompt))
+
+    def request_verification(self, prev_task_description: str, prev_task_response: str):
+        prompt = self.verification_prompt.format(rules=self.rules,
+                                                 scene_description=self.vision_skill.get_obj_list(),
+                                                 task_description=prev_task_description,
+                                                 plan=prev_task_response)
+        print(f"> Verification request: {prev_task_description}...")
+        return ast.literal_eval(self.llm.request(prompt))
     
-    def request_ending(self, objects: [str], prev_command: str):
-        prompt = self.ending_prompt.format(high_level_skills=self.high_level_skillset,
-                                    low_level_skills=self.low_level_skillset,
-                                    rules=self.rules,
-                                    examples=self.example_queries,
-                                    user_query=self.current_query,
-                                    response=prev_command,
-                                    feedback=objects)
-        print(f"> Ending query: {self.current_query}...")
-        return ast.literal_eval(self.llm.query(prompt))
+    def request_execution(self, question: str) -> Union[bool, str]:
+        def parse_value(s):
+            # Check for boolean values
+            if s.lower() == "true":
+                return True
+            elif s.lower() == "false":
+                return False
+            return s
+        prompt = self.execution_prompt.format(scene_description=self.vision_skill.get_obj_list(), question=question)
+        print(f"> Execution request: {question}...")
+        return parse_value(self.llm.request(prompt))
