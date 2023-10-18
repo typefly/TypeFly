@@ -20,6 +20,10 @@ class SkillItem(ABC):
         pass
 
     @abstractmethod
+    def get_argument(self) -> [SkillArg]:
+        pass
+
+    @abstractmethod
     def __repr__(self) -> str:
         pass
 
@@ -83,6 +87,9 @@ class LowLevelSkillItem(SkillItem):
     def get_comment(self) -> str:
         return self.comment
     
+    def get_argument(self) -> [SkillArg]:
+        return self.args
+    
     def is_args_valid(self, args_str: str) -> bool:
         """Checks if the provided arguments are valid for the skill."""
         try:
@@ -137,6 +144,9 @@ class HighLevelSkillItem(SkillItem):
     
     def get_comment(self) -> str:
         return self.comment
+    
+    def get_argument(self) -> [SkillArg]:
+        return self.args
 
     def set_low_level_skillset(self, low_level_skillset: SkillSet):
         self.low_level_skillset = low_level_skillset

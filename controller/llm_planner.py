@@ -59,7 +59,7 @@ class LLMPlanner():
                     "objects": ["chair", "laptop"],
                     "text": "[A] Turn around until you can see some animal."
                 },
-                "response": ["loop#8#3", "if#query,'is there any animal?',=,True#1", "return#true", "exec#turn_cw,45", "return#false"],
+                "response": ["loop#8#3", "if#query,'is there any animal?',=,true#1", "ret#true", "exec#turn_cw,45", "ret#false"],
                 "explanation": "Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees counter-clockwise. If the loop is finished, return false."
             },
             {
@@ -67,9 +67,9 @@ class LLMPlanner():
                     "objects": ["chair", "laptop"],
                     "text": "[A] Find something edible, if you can't, then find something to drink."
                 },
-                "response": ["loop#8#4", "if#query,'is there anything edible?',=,True#2", "exec#approach", "return#true", "exec#turn_cw,45",
-                             "loop#8#4", "if#query,'is there anything drinkable?',=,True#2", "exec#approach", "return#true", "exec#turn_cw,45",
-                             "str#'no edible and drinkable item can be found'", "return#false"],
+                "response": ["loop#8#4", "if#query,'is there anything edible?',=,true#2", "exec#approach", "ret#true", "exec#turn_cw,45",
+                             "loop#8#4", "if#query,'is there anything drinkable?',=,true#2", "exec#approach", "ret#true", "exec#turn_cw,45",
+                             "str#'no edible and drinkable item can be found'", "ret#false"],
                 "explanation": "Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees counter-clockwise. If the loop is finished, return false."
             }
         ]

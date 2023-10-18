@@ -41,26 +41,26 @@ class LLMController():
         self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.vision.query, "Query the LLM to check the environment state", args=[SkillArg("question", str)]))
         
         self.high_level_skillset = SkillSet(level="high", lower_level_skillset=self.low_level_skillset)
-        self.high_level_skillset.add_skill(HighLevelSkillItem("scan", ["loop#8#4", "if#is_in_sight,$1,=,True#1", "return#true", "exec#turn_cw,45", "delay#300", "return#false"],
+        self.high_level_skillset.add_skill(HighLevelSkillItem("scan", ["loop#8#4", "if#is_in_sight,$1,=,true#1", "ret#true", "exec#turn_cw,45", "delay#300", "ret#false"],
                                                            "rotate to find a certain object"))
         self.high_level_skillset.add_skill(HighLevelSkillItem("approach", ["exec#move_forward,60"]))
         self.high_level_skillset.add_skill(HighLevelSkillItem("orienting",
                                                            ["loop#4#7",
                                                             "if#obj_loc_x,$1,>,0.6#1", "exec#turn_cw,15",
                                                             "if#obj_loc_x,$1,<,0.4#1", "exec#turn_ccw,15",
-                                                            "if#obj_loc_x,$1,<,0.6#2", "if#obj_loc_x,$1,>,0.4#1", "return#true", "return#false"],
+                                                            "if#obj_loc_x,$1,<,0.6#2", "if#obj_loc_x,$1,>,0.4#1", "ret#true", "ret#false"],
                                                             "align the object to the center of the frame by rotating the drone"))
         self.high_level_skillset.add_skill(HighLevelSkillItem("centering_y",
                                                            ["loop#4#7",
                                                             "if#obj_loc_y,$1,<,0.4#1", "exec#move_up,20",
                                                             "if#obj_loc_y,$1,>,0.6#1", "exec#move_down,20",
-                                                            "if#obj_loc_y,$1,>,0.4#2", "if#obj_loc_y,$1,<,0.6#1", "return#true", "return#false"],
+                                                            "if#obj_loc_y,$1,>,0.4#2", "if#obj_loc_y,$1,<,0.6#1", "ret#true", "ret#false"],
                                                             "center the object's y location in the frame by moving the drone up or down"))
         self.high_level_skillset.add_skill(HighLevelSkillItem("find_fruit_obj",
-                                                           ["loop#8#3", "exec#turn_cw,45", "if#query,'is there any fruit?',=,True#1", "return#true", "return#false"],
+                                                           ["loop#8#3", "exec#turn_cw,45", "if#query,'is there any fruit?',=,true#1", "ret#true", "ret#false"],
                                                             "find an object that is fruit"))
         self.high_level_skillset.add_skill(HighLevelSkillItem("find_drink_obj",
-                                                           ["loop#8#3", "exec#turn_cw,45", "if#query,'is there anything for drink?',=,True#1", "return#true", "return#false"],
+                                                           ["loop#8#3", "exec#turn_cw,45", "if#query,'is there anything for drink?',=,true#1", "ret#true", "ret#false"],
                                                             "find a drinkable object"))
 
         self.planner = LLMPlanner(llm=self.llm, high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset)
@@ -156,7 +156,7 @@ class LLMController():
                     else:
                         result = self.execute_skill_command(segments[1].split(','))
                         print(f'Response: {result}')
-                case 'return':
+                case 'ret':
                     return parse_value(segments[1])
 
             if execution_result is None:
@@ -186,10 +186,6 @@ class LLMController():
         
         for _ in range(1):
             result = self.planner.request_task(self.vision.get_obj_list(), user_command)
-            # print(f">> result: {json.dumps(result)}, executing...")
-            # result = ["loop#8#5", "if#query,'is there anything I can eat?',=,True#3", "exec#orienting,$target", "exec#approach", "return#true", "exec#turn_cw,45",
-            #                  "loop#8#5", "if#query,'is there anything I can drink?',=,True#3", "exec#orienting,$target", "exec#approach", "return#true", "exec#turn_cw,45",
-            #                  "str#'no edible and drinkable item can be found'", "return#false"]
             print(f">> result: {result}, executing...")
             consent = input(f">> result: {json.dumps(result)}, executing?")
             if consent == 'n':
