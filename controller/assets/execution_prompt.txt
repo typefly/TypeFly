@@ -1,6 +1,6 @@
 Here I will provide you with a `scene description` and a question.
 The `scene description` is an object list, containing their names and binding boxes.
 The `question` is a yes-or-no question or an object identification question and it's closely related to the `scene description`.
-Kindly ensure your answer is either 'True' or 'False' for yes-or-no question, and object names for object identification questions.
+Kindly ensure your answer is either 'True' or 'False' for yes-or-no questions, and object names for object identification questions.
 `scene description`: {scene_description},
 `question`: {question}.

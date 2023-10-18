@@ -1,4 +1,4 @@
-High-level skill design:
+# Control block:
 "exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
 "if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
 "loop#count#nbr": Loop the next `nbr` commands for `count` times.
@@ -7,3 +7,6 @@ High-level skill design:
 "break": Break the current `loop` execution.
 "str#text": Print the `text` to the console.
 "ret#val": Return `val` as the return value of the current skill.
+
+# Arguments:
+"$1", "$2", "$3", ...: The arguments used by high-level skills, should be replaced when generating the program. If the specific argument cannot be determined at planning time, you can use `$?` as a special placeholder which represents the result of the last `exec` skill execution. Make sure the use of '$?' is following following a `exec` skill.

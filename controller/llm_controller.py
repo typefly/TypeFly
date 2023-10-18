@@ -31,7 +31,7 @@ class LLMController():
         self.low_level_skillset.add_skill(LowLevelSkillItem("move_right", self.drone.move_right, "Move drone right by a distance", args=[SkillArg("distance", int)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("move_up", self.drone.move_up, "Move drone up by a distance", args=[SkillArg("distance", int)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("move_down", self.drone.move_down, "Move drone down by a distance", args=[SkillArg("distance", int)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("turn_ccw", self.drone.turn_ccw, "Turn drone counter clockwise by a degree", args=[SkillArg("degree", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("turn_ccw", self.drone.turn_ccw, "Turn drone counterclockwise by a degree", args=[SkillArg("degree", int)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("turn_cw", self.drone.turn_cw, "Turn drone clockwise by a degree", args=[SkillArg("degree", int)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("is_in_sight", self.vision.is_in_sight, "Check if an object is in sight", args=[SkillArg("obj_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("obj_loc_x", self.vision.obj_loc_x, "Get x location of an object", args=[SkillArg("obj_name", str)]))
@@ -41,7 +41,7 @@ class LLMController():
         self.high_level_skillset = SkillSet(level="high", lower_level_skillset=self.low_level_skillset)
         self.high_level_skillset.add_skill(HighLevelSkillItem("scan", ["loop#8#4", "if#is_in_sight,$1,=,true#1", "ret#true", "exec#turn_cw,45", "delay#300", "ret#false"],
                                                            "rotate to find a certain object"))
-        self.high_level_skillset.add_skill(HighLevelSkillItem("approach", ["exec#move_forward,60"]))
+        self.high_level_skillset.add_skill(HighLevelSkillItem("approach", ["exec#move_forward,60"], comment="approach the object"))
         self.high_level_skillset.add_skill(HighLevelSkillItem("orienting",
                                                            ["loop#4#7",
                                                             "if#obj_loc_x,$1,>,0.6#1", "exec#turn_cw,15",
@@ -54,12 +54,9 @@ class LLMController():
                                                             "if#obj_loc_y,$1,>,0.6#1", "exec#move_down,20",
                                                             "if#obj_loc_y,$1,>,0.4#2", "if#obj_loc_y,$1,<,0.6#1", "ret#true", "ret#false"],
                                                             "center the object's y location in the frame by moving the drone up or down"))
-        self.high_level_skillset.add_skill(HighLevelSkillItem("find_fruit_obj",
-                                                           ["loop#8#3", "exec#turn_cw,45", "if#query,'is there any fruit?',=,true#1", "ret#true", "ret#false"],
-                                                            "find an object that is fruit"))
-        self.high_level_skillset.add_skill(HighLevelSkillItem("find_drink_obj",
-                                                           ["loop#8#3", "exec#turn_cw,45", "if#query,'is there anything for drink?',=,true#1", "ret#true", "ret#false"],
-                                                            "find a drinkable object"))
+        # self.high_level_skillset.add_skill(HighLevelSkillItem("find_drink_obj",
+        #                                                    ["loop#8#3", "exec#turn_cw,45", "if#query,'is there anything for drink?',=,true#1", "ret#true", "ret#false"],
+        #                                                     "find a drinkable object"))
 
         self.planner.init(high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset, vision_skill=self.vision)
 
@@ -186,6 +183,9 @@ class LLMController():
         
         for _ in range(1):
             result = self.planner.request_planning(task_description)
+            # ["loop#8#4", "if#query,'is there anything edible?',=,true#2", "exec#approach", "ret#true", "exec#turn_cw,45",
+            #          "loop#8#4", "if#query,'is there anything drinkable?',=,true#2", "exec#approach", "ret#true", "exec#turn_cw,45",
+            #          "str#'no edible and drinkable item can be found'", "ret#false"]
             # print(f">> result: {result}, executing...")
             consent = input(f">> result: {result}, executing?")
             if consent == 'n':

@@ -125,10 +125,9 @@ class LowLevelSkillItem(SkillItem):
             raise ValueError(f"'{self.skill_callable}' is not a callable function.")
 
     def __repr__(self) -> str:
-        return (f"Skill("
-                f"name: {self.skill_name}, "
+        return (f"name: {self.skill_name}, "
                 f"args: {[arg for arg in self.args]}, "
-                f"comment: {self.comment})")
+                f"comment: {self.comment}")
 
 class HighLevelSkillItem(SkillItem):
     def __init__(self, skill_name: str, skill_str_list: [str],
@@ -189,11 +188,10 @@ class HighLevelSkillItem(SkillItem):
         return skill_str_list
 
     def __repr__(self) -> str:
-        return (f"Skill("
-                f"name: {self.skill_name}, "
+        return (f"name: {self.skill_name}, "
                 f"skill_str_list: {self.skill_str_list}, "
                 f"args: {[arg for arg in self.args]}, "
-                f"comment: {self.comment})")
+                f"comment: {self.comment}")
 
 ############################################
 def main():
