@@ -37,6 +37,7 @@ class LLMController():
         self.low_level_skillset.add_skill(LowLevelSkillItem("obj_loc_x", self.vision.obj_loc_x, "Get x location of an object", args=[SkillArg("obj_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("obj_loc_y", self.vision.obj_loc_y, "Get y location of an object", args=[SkillArg("obj_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.planner.request_execution, "Query the LLM to check the environment state", args=[SkillArg("question", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("verification", self.verification, "Restart plan if task description has not been met", args=[SkillArg("retry", int)]))
         
         self.high_level_skillset = SkillSet(level="high", lower_level_skillset=self.low_level_skillset)
         self.high_level_skillset.add_skill(HighLevelSkillItem("scan", ["loop#8#4", "if#is_in_sight,$1,=,true#1", "ret#true", "exec#turn_cw,45", "delay#300", "ret#false"],
@@ -59,6 +60,9 @@ class LLMController():
         #                                                     "find a drinkable object"))
 
         self.planner.init(high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset, vision_skill=self.vision)
+
+    def verification(self, retry: int):
+        pass
 
     def stop_controller(self):
         self.controller_state = False
@@ -147,7 +151,7 @@ class LLMController():
                     loop_index += int(segments[-1])
                 case 'delay':
                     time.sleep(int(segments[1]) / 1000.0)
-                case 'str':
+                case 'print':
                     if segments[1].startswith("'") and segments[1].endswith("'"):
                         print('Response: ' + segments[1])
                     elif segments[1] == '$?':
@@ -185,7 +189,7 @@ class LLMController():
             result = self.planner.request_planning(task_description)
             # ["loop#8#4", "if#query,'is there anything edible?',=,true#2", "exec#approach", "ret#true", "exec#turn_cw,45",
             #          "loop#8#4", "if#query,'is there anything drinkable?',=,true#2", "exec#approach", "ret#true", "exec#turn_cw,45",
-            #          "str#'no edible and drinkable item can be found'", "ret#false"]
+            #          "print#'no edible and drinkable item can be found'", "ret#false"]
             # print(f">> result: {result}, executing...")
             consent = input(f">> result: {result}, executing?")
             if consent == 'n':

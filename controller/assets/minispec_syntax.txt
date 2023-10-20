@@ -5,7 +5,7 @@
 "skip#nbr": Skip the next `nbr` commands.
 "delay#time": Delay the next command for `time` microseconds.
 "break": Break the current `loop` execution.
-"str#text": Print the `text` to the console.
+"print#text": Print the `text` to the console.
 "ret#val": Return `val` as the return value of the current skill.
 
 # Arguments:

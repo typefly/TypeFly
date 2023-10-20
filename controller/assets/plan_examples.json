@@ -6,9 +6,9 @@
 },
 {
     "scene_desc": ["chair", "laptop"],
-    "task_desc": "[A] find a chair",
-    "response": ["exec#orienting,chair", "exec#approach"],
-    "explanation": "Chair is in the scene, just orient and approach it."
+    "task_desc": "[A] find a chair, please verify the chair is in the scene and retry up to 3 times",
+    "response": ["exec#orienting,chair", "exec#approach", "exec#verification,3"],
+    "explanation": "Chair is in the scene, just orient and approach it. Then do the verification with 3 retries."
 },
 {
     "scene_desc": ["apple", "lemon", "bottle"],
@@ -25,7 +25,7 @@
 {
     "scene_desc": ["laptop", "lemon"],
     "task_desc": "[Q] is there anything edible behind you?",
-    "response": ["exec#turn_ccw,180", "exec#query,'is there anything edible?'", "str#$?"],
+    "response": ["exec#turn_ccw,180", "exec#query,'is there anything edible?'", "print#$?"],
     "explanation": "The query problem cannot be decided currently, turn around and execute the query, then call `str` with `$?` to output the result."
 },
 {
