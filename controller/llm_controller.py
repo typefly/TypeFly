@@ -181,12 +181,15 @@ class LLMController():
         return True
 
     def execute_user_command(self, task_description: str):
-        if self.controller_wait_takeoff:
-            print("Controller is waiting for takeoff...")
-            return
+        # if self.controller_wait_takeoff:
+        #     print("Controller is waiting for takeoff...")
+        #     return
         
         for _ in range(1):
+            t1 = time.time()
             result = self.planner.request_planning(task_description)
+            t2 = time.time()
+            print(f">> planning time: {t2 - t1}")
             # ["loop#8#4", "if#query,'is there anything edible?',=,true#2", "exec#approach", "ret#true", "exec#turn_cw,45",
             #          "loop#8#4", "if#query,'is there anything drinkable?',=,true#2", "exec#approach", "ret#true", "exec#turn_cw,45",
             #          "print#'no edible and drinkable item can be found'", "ret#false"]
@@ -213,6 +216,10 @@ class LLMController():
         self.controller_wait_takeoff = False
         print("Start controller...")
 
+        # count fps
+        fps = 0
+        start_time = time.time()
+
         while self.controller_state:
             self.drone.keep_active()
             frame = self.drone.get_image()
@@ -220,13 +227,20 @@ class LLMController():
             results = self.yolo_client.detect(image)
             YoloClient.plot_results(image, results)
             self.frame_queue.put(image)
+            fps += 1
+            if time.time() - start_time >= 1:
+                print(f"FPS: {fps}")
+                fps = 0
+                start_time = time.time()
         self.drone.land()
         self.drone.stop_stream()
 
 def main():
     controller = LLMController()
     # controller.run()
-    controller.execute_commands(["exec#orienting,person"])
+    with open("./assets/test.txt", "r") as f:
+        text = f.read()
+    controller.execute_user_command(f"please generate the following plan: {text}")
 
 if __name__ == "__main__":
     main()

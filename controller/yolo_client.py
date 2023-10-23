@@ -18,6 +18,7 @@ class YoloClient():
         channel = grpc.insecure_channel(f'{YOLO_SERVICE_IP}:{YOLO_SERVICE_PORT}')
         self.stub = hyrch_serving_pb2_grpc.YoloServiceStub(channel)
         self.yolo_results_queue = yolo_results_queue
+        self.image_size = (640, 352)
 
     def image_to_bytes(image):
         # compress and convert the image to bytes
@@ -38,7 +39,7 @@ class YoloClient():
             draw.text((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h) - 10), result["name"], fill='red', font=font)
     
     def detect(self, image):
-        image_bytes = YoloClient.image_to_bytes(image)
+        image_bytes = YoloClient.image_to_bytes(image.resize(self.image_size))
         request = hyrch_serving_pb2.DetectRequest(image_data=image_bytes)
         results = json.loads(self.stub.Detect(request).results)
 
