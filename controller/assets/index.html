@@ -1,0 +1,41 @@
+<html>
+<head>
+    <title>Drone POV</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        #videoFrame {
+            border: 5px solid black; /* Responsive border */
+            width: 90vw; /* 80% of the viewport width */
+            height: 60vh; /* 60% of the viewport height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        #videoFeed {
+            width: 100%; 
+            height: 100%;
+            object-fit: contain; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Drone POV</h1>
+    <div id="videoFrame">
+        <img id="videoFeed" src="/video_feed" />
+    </div>
+</body>
+</html>

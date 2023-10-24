@@ -44,15 +44,8 @@ def video_feed():
 
 @app.route('/')
 def index():
-    return '''<html>
-                <head>
-                    <title>Drone POV</title>
-                </head>
-                <body>
-                    <h1>Drone POV</h1>
-                    <img src="/video_feed" width="960" height="720" />
-                </body>
-              </html>'''
+    with open('./assets/index.html', 'r') as f:
+        return f.read()
 
 # asyncio functions
 global asyncio_loop
