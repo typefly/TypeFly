@@ -1,28 +1,39 @@
 import cv2
-import numpy as np
+from ultralytics import YOLO
 
-def main():
-    # Create a VideoCapture object
-    cap = cv2.VideoCapture(1)
+# Load the YOLOv8 model
+model = YOLO('yolov8n.pt')
 
-    camera_matrix = np.array([[336.58743799, 0, 324.59565213], [0, 339.37433598, 257.48248038], [0, 0, 1]])
-    distortion_coeffs = np.array([5.63659207e-01, -1.47846360e+00, -1.21659229e-03,  6.56542001e-04, 8.67351081e-01])
+kitchen = cv2.imread("./images/kitchen.webp")
 
-    # Check if camera opened successfully
-    if (cap.isOpened() == False):
-        print("Unable to read camera feed")
+# Open the video file
+cap = cv2.VideoCapture(0)
 
-    while True:
-        ret, frame = cap.read()
-        if ret == True:
-            # Display the resulting frame
-            frame = cv2.undistort(frame, camera_matrix, distortion_coeffs)
-            cv2.imshow('Frame', frame)
-            
-            # Press Q on keyboard to exit
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+# Loop through the video frames
+while cap.isOpened():
+    # Read a frame from the video
+    success, frame = cap.read()
 
+    if success:
+        # Run YOLOv8 tracking on the frame, persisting tracks between frames
+        results = model.track(frame, persist=True)[0]
 
-if __name__ == '__main__':
-    main()
+        # Visualize the results on the frame
+        annotated_frame = results.plot()
+
+        # Display the annotated frame
+        cv2.imshow("YOLOv8 Tracking", annotated_frame)
+
+        # Break the loop if 'q' is pressed
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
+            break
+        elif key == ord("t"):
+            result = model(kitchen)
+    else:
+        # Break the loop if the end of the video is reached
+        break
+
+# Release the video capture object and close the display window
+cap.release()
+cv2.destroyAllWindows()

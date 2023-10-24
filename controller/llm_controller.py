@@ -4,6 +4,7 @@ from typing import Optional
 import asyncio
 
 from yolo_client import YoloClient, SharedYoloResults
+from yolo_grpc_client import YoloGRPCClient
 from tello_wrapper import TelloWrapper
 from virtual_drone_wrapper import VirtualDroneWrapper
 from drone_wrapper import DroneWrapper
@@ -16,7 +17,7 @@ class LLMController():
     def __init__(self):
         self.yolo_results_image_queue = queue.Queue(maxsize=30)
         self.yolo_results = SharedYoloResults()
-        self.yolo_client = YoloClient(self.yolo_results)
+        self.yolo_client = YoloGRPCClient(is_local_service=False, shared_yolo_results=self.yolo_results)
         self.controller_state = True
         self.controller_wait_takeoff = True
         self.drone: DroneWrapper = VirtualDroneWrapper()
@@ -227,8 +228,12 @@ class LLMController():
             self.drone.keep_active()
             frame = self.drone.get_image()
             image = Image.fromarray(frame)
-            # asynchronously send image to yolo server
-            asyncio_loop.call_soon_threadsafe(asyncio.create_task, self.yolo_client.detect(image))
+
+            if self.yolo_client.local_service():
+                self.yolo_client.detect_local(image)
+            else:
+                # asynchronously send image to yolo server
+                asyncio_loop.call_soon_threadsafe(asyncio.create_task, self.yolo_client.detect(image))
 
             latest_result = self.yolo_client.retrieve()
             if latest_result is not None:

@@ -1,4 +1,4 @@
-import io, os, time
+import io, os, time, signal
 from threading import Thread
 from flask import Flask, request, jsonify, Response
 import logging
@@ -16,7 +16,7 @@ main_page = open('./assets/index.html', 'r').read()
 def shutdown():
     print("Shutting down gracefully...")
     time.sleep(0.5)
-    os._exit(0)
+    os.kill(os.getpid(), signal.SIGINT)
 
 def process_command(command: str):
     print(f"Received command: {command}")

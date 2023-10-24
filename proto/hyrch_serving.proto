@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 service YoloService {
-    rpc DetectStream (stream DetectRequest) returns (stream DetectResponse) {}
+    rpc DetectStream (DetectRequest) returns (DetectResponse) {}
     rpc Detect (DetectRequest) returns (DetectResponse) {}
 }
 
@@ -10,7 +10,7 @@ message DetectRequest {
 }
 
 message DetectResponse {
-    string results = 1;
+    string json_data = 1;
 }
 
 service Llama2Service {

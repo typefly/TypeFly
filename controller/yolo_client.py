@@ -4,9 +4,7 @@ from typing import Optional, Tuple
 
 import json
 import queue
-import requests
 import asyncio, aiohttp
-import cv2, time
 import threading
 
 # YOLO_SERVICE_IP = 'localhost'
@@ -36,6 +34,9 @@ class YoloClient():
         self.latest_result_with_image = None
         self.latest_result_with_image_lock = asyncio.Lock()
 
+    def local_service(self):
+        return YOLO_SERVICE_IP == 'localhost'
+
     def image_to_bytes(image):
         # compress and convert the image to bytes
         imgByteArr = BytesIO()
@@ -51,8 +52,11 @@ class YoloClient():
         for result in results:
             box = result["box"]
             draw.rectangle((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h), str_float_to_int(box["x2"], w), str_float_to_int(box["y2"], h)),
-                        fill=None, outline='blue', width=2)
-            draw.text((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h) - 10), result["name"], fill='red', font=font)
+                        fill=None, outline='blue', width=4)
+            text = result["name"]
+            if "track_id" in result:
+                text += " " + str(result["track_id"])
+            draw.text((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h) - 50), text, fill='red', font=font)
 
     def retrieve(self) -> Optional[Tuple[Image.Image, str]]:
         return self.latest_result_with_image
@@ -63,7 +67,7 @@ class YoloClient():
 
         files = {
             'image': image_bytes,
-            'json_data': json.dumps({'service': 'yolo'})
+            'json_data': json.dumps({'user_name': 'yolo', 'stream_mode': True})
         }
 
         async with aiohttp.ClientSession() as session:
