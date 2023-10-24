@@ -1,9 +1,10 @@
 from queue import Queue
 from typing import Optional
+from yolo_client import SharedYoloResults
 
 class VisionWrapper():
-    def __init__(self, yolo_results_queue: Queue):
-        self.yolo_results_queue = yolo_results_queue
+    def __init__(self, shared_yolo_results: SharedYoloResults):
+        self.shared_yolo_results = shared_yolo_results
 
     def format_results(results):
         formatted_results = []
@@ -19,17 +20,13 @@ class VisionWrapper():
         return formatted_results
 
     def get_obj_list(self) -> [str]:
-        if not self.yolo_results_queue.empty():
-            yolo_results = self.yolo_results_queue.queue[0]
-            return VisionWrapper.format_results(yolo_results)
-        return []
+        return VisionWrapper.format_results(self.shared_yolo_results.get())
 
     def get_obj_info(self, object_name: str) -> Optional[dict]:
-        if not self.yolo_results_queue.empty():
-            yolo_results = self.yolo_results_queue.queue[0]
-            for item in yolo_results:
-                if item['name'] == object_name:
-                    return item
+        yolo_results = self.shared_yolo_results.get()
+        for item in yolo_results:
+            if item['name'] == object_name:
+                return item
         return None
 
     def is_in_sight(self, object_name: str) -> bool:

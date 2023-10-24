@@ -1,8 +1,9 @@
 from PIL import Image
 import queue, time
 from typing import Optional
+import asyncio
 
-from yolo_client import YoloClient
+from yolo_client import YoloClient, SharedYoloResults
 from tello_wrapper import TelloWrapper
 from virtual_drone_wrapper import VirtualDroneWrapper
 from drone_wrapper import DroneWrapper
@@ -13,14 +14,14 @@ from skillset import SkillSet, LowLevelSkillItem, HighLevelSkillItem, SkillArg
 
 class LLMController():
     def __init__(self):
-        self.yolo_results_queue = queue.Queue(maxsize=1)
-        self.yolo_client = YoloClient(self.yolo_results_queue)
+        self.yolo_results_image_queue = queue.Queue(maxsize=30)
+        self.yolo_results = SharedYoloResults()
+        self.yolo_client = YoloClient(self.yolo_results)
         self.controller_state = True
         self.controller_wait_takeoff = True
         self.drone: DroneWrapper = VirtualDroneWrapper()
         # self.drone: DroneWrapper = TelloWrapper()
-        self.vision = VisionWrapper(self.yolo_results_queue)
-        self.frame_queue = queue.Queue(maxsize=1)
+        self.vision = VisionWrapper(self.yolo_results)
         self.planner = LLMPlanner()
 
         self.low_level_skillset = SkillSet(level="low")
@@ -68,9 +69,7 @@ class LLMController():
         self.controller_state = False
 
     def get_latest_frame(self):
-        if not self.frame_queue.empty():
-            self.frame_queue.get()
-        return self.frame_queue.get()
+        return self.yolo_results_image_queue.get()
 
     def execute_skill_command(self, segments) -> Optional[bool]:
         # skill_command: skill_name,kwargs
@@ -207,33 +206,36 @@ class LLMController():
             # else:
             #     print(">> command failed, try again.")
 
-    def run(self):
-        self.drone.connect()
+    def start_robot(self):
         print("Drone is taking off...")
+        self.drone.connect()
         self.drone.takeoff()
         self.drone.move_up(30)
         self.drone.start_stream()
         self.controller_wait_takeoff = False
         print("Start controller...")
 
-        # count fps
-        fps = 0
-        start_time = time.time()
+    def stop_robot(self):
+        print("Drone is landing...")
+        self.drone.land()
+        self.drone.stop_stream()
+        self.controller_wait_takeoff = True
+        print("Stop controller...")
 
+    def capture_loop(self, asyncio_loop):
         while self.controller_state:
             self.drone.keep_active()
             frame = self.drone.get_image()
             image = Image.fromarray(frame)
-            results = self.yolo_client.detect(image)
-            YoloClient.plot_results(image, results)
-            self.frame_queue.put(image)
-            fps += 1
-            if time.time() - start_time >= 1:
-                print(f"FPS: {fps}")
-                fps = 0
-                start_time = time.time()
-        self.drone.land()
-        self.drone.stop_stream()
+            # asynchronously send image to yolo server
+            asyncio_loop.call_soon_threadsafe(asyncio.create_task, self.yolo_client.detect(image))
+
+            latest_result = self.yolo_client.retrieve()
+            if latest_result is not None:
+                YoloClient.plot_results(latest_result[0], latest_result[1])
+                self.yolo_results_image_queue.put(latest_result[0])
+
+            time.sleep(0.050)
 
 def main():
     controller = LLMController()
