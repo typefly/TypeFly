@@ -3,6 +3,7 @@ from threading import Thread
 from flask import Flask, request, jsonify, Response
 import logging
 import asyncio
+import fire
 
 from llm_controller import LLMController
 
@@ -10,7 +11,7 @@ logging.disable(logging.CRITICAL + 1)
 app = Flask(__name__)
 FRAME_RATE = 30
 
-llm_controller = LLMController()
+global llm_controller
 main_page = open('./assets/index.html', 'r').read()
 
 def shutdown():
@@ -73,7 +74,12 @@ def stop_loop_from_thread():
     # Schedule the stopping function to run on the loop
     asyncio_loop.call_soon_threadsafe(asyncio_loop.create_task, stop_async_loop())
 
+def init_llm_controller(v=False):
+    global llm_controller
+    llm_controller = LLMController(v)
+
 if __name__ == "__main__":
+    fire.Fire(init_llm_controller)
     # Start the asyncio loop in a separate thread
     async_thread = Thread(target=start_async_loop)
     async_thread.start()

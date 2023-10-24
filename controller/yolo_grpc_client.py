@@ -25,7 +25,7 @@ class YoloGRPCClient():
     def __init__(self, is_local_service=False, shared_yolo_results: SharedYoloResults=None):
         self.is_local_service = is_local_service
         if is_local_service:
-            channel = grpc.insecure_channel(f'localhost:{YOLO_SERVICE_PORT}')
+            channel = grpc.insecure_channel(f'{YOLO_SERVICE_IP}:{YOLO_SERVICE_PORT}')
         else:
             channel = grpc.aio.insecure_channel(f'{YOLO_SERVICE_IP}:{YOLO_SERVICE_PORT}')
         self.stub = hyrch_serving_pb2_grpc.YoloServiceStub(channel)

@@ -7,15 +7,16 @@ class VisionWrapper():
         self.shared_yolo_results = shared_yolo_results
 
     def format_results(results):
+        (image, json_data) = results
         formatted_results = []
-        for result in results:
-            box = result['box']
+        for item in json_data:
+            box = item['box']
             formatted_results.append({
-                'name': result['name'],
+                'name': item['name'],
                 'loc_x': round((box['x1'] + box['x2']) / 2, 2),
                 'loc_y': round((box['y1'] + box['y2']) / 2, 2),
                 'size_x': round((box['x2'] - box['x1']), 2),
-                'size_y': round((box['y2'] - box['y1']), 2),
+                'size_y': round((box['y2'] - box['y1']), 2)
             })
         return formatted_results
 
@@ -24,9 +25,9 @@ class VisionWrapper():
 
     def get_obj_info(self, object_name: str) -> Optional[dict]:
         yolo_results = self.shared_yolo_results.get()
-        for item in yolo_results:
-            if item['name'] == object_name:
-                return item
+        for (_, json_data) in yolo_results:
+            if json_data['name'] == object_name:
+                return json_data
         return None
 
     def is_in_sight(self, object_name: str) -> bool:

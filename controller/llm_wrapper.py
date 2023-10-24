@@ -9,6 +9,8 @@ MODEL_NAME = "gpt-4"
 class LLMWrapper:
     def __init__(self, temperature=0.05):
         self.temperature = temperature
+        # clean chat_log
+        open("./assets/chat_log.txt", "w").close()
 
     def request(self, prompt, model_name=MODEL_NAME):
         response = openai.ChatCompletion.create(

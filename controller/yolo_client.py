@@ -14,16 +14,16 @@ ROUTER_SERVICE_PORT = '50049'
 
 class SharedYoloResults():
     def __init__(self) -> None:
-        self.json_data = None
+        self.result_with_image = None
         self.lock = threading.Lock()
 
     def get(self):
         with self.lock:
-            return self.json_data
+            return self.result_with_image
         
-    def set(self, json_data):
+    def set(self, val):
         with self.lock:
-            self.json_data = json_data
+            self.result_with_image = val
 
 class YoloClient():
     def __init__(self, shared_yolo_results: SharedYoloResults=None):
@@ -53,10 +53,7 @@ class YoloClient():
             box = result["box"]
             draw.rectangle((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h), str_float_to_int(box["x2"], w), str_float_to_int(box["y2"], h)),
                         fill=None, outline='blue', width=4)
-            text = result["name"]
-            if "track_id" in result:
-                text += " " + str(result["track_id"])
-            draw.text((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h) - 50), text, fill='red', font=font)
+            draw.text((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h) - 50), result["name"], fill='red', font=font)
 
     def retrieve(self) -> Optional[Tuple[Image.Image, str]]:
         return self.latest_result_with_image
@@ -77,4 +74,4 @@ class YoloClient():
                     json_results = json.loads(results)
                     self.latest_result_with_image = (self.image_queue.get(), json_results)
                     if self.shared_yolo_results is not None:
-                        self.shared_yolo_results.set(json_results)
+                        self.shared_yolo_results.set(self.latest_result_with_image)
