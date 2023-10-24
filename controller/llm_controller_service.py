@@ -11,21 +11,26 @@ app = Flask(__name__)
 FRAME_RATE = 30
 
 llm_controller = LLMController()
+main_page = open('./assets/index.html', 'r').read()
 
-@app.route('/send_command', methods=['POST'])
-def process_command():
+def shutdown():
+    print("Shutting down gracefully...")
+    time.sleep(0.5)
+    os._exit(0)
+
+def process_command(command: str):
+    print(f"Received command: {command}")
+    if command == "exit":
+        llm_controller.stop_controller()
+        Thread(target=shutdown).start()
+    else:
+        llm_controller.execute_user_command(command)
+
+@app.route('/command', methods=['POST'])
+def command():
     data = request.json
     received_string = data.get('command')
-    print(f"Received string: {received_string}")
-    if received_string == "exit":
-        llm_controller.stop_controller()
-        def shutdown():
-            print("Shutting down gracefully...")
-            time.sleep(1)
-            os._exit(0)
-        shutdown_thread = Thread(target=shutdown).start()
-    else:
-        llm_controller.execute_user_command(received_string)
+    process_command(received_string)
     return jsonify({'result': 'success'})
 
 def generate_mjpeg_stream():
@@ -44,8 +49,13 @@ def video_feed():
 
 @app.route('/')
 def index():
-    with open('./assets/index.html', 'r') as f:
-        return f.read()
+    return main_page
+    
+@app.route('/submit', methods=['POST'])
+def submit():
+    user_input = request.form['user_input']
+    process_command(user_input)
+    return jsonify({'result': 'success'})
 
 # asyncio functions
 global asyncio_loop

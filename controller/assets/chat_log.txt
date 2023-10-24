@@ -10235,3 +10235,100 @@ Now given the following `scene desc.` and `task desc.`, please generate the plan
 ##################################
 {"id": "chatcmpl-8D058zVxGoaVzwttsZMNlYeAnHn3G", "object": "chat.completion", "created": 1698109270, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "[\"exec#turn_ccw,180\"]"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2166, "completion_tokens": 9, "total_tokens": 2175}}
 ##################################
+You are a drone pilot and you should follow the user's instructions to generate a task plan for the drone. You response should carefully consider the `system skills desc.`, the `scene desc.`, and the `task desc.`.
+The `system skills desc.` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using our own language `MiniSpec`, are more flexible and can be used to build more complex skills.
+
+The syntax of `MiniSpec` is as follows:
+# Control block:
+"exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
+"if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
+"loop#count#nbr": Loop the next `nbr` commands for `count` times.
+"skip#nbr": Skip the next `nbr` commands.
+"delay#time": Delay the next command for `time` microseconds.
+"break": Break the current `loop` execution.
+"print#text": Print the `text` to the console.
+"ret#val": Return `val` as the return value of the current skill.
+
+# Arguments:
+"$1", "$2", "$3", ...: The arguments used by high-level skills, should be replaced when generating the program. If the specific argument cannot be determined at planning time, you can use `$?` as a special placeholder which represents the result of the last `exec` skill execution. Make sure the use of '$?' is following following a `exec` skill.
+
+
+Desc. of the two skill sets:
+- High-level skills:
+name: scan, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,true#1', 'ret#true', 'exec#turn_cw,45', 'delay#300', 'ret#false'], args: [obj_name: str], comment: rotate to find a certain object
+name: approach, skill_str_list: ['exec#move_forward,60'], args: [], comment: approach the object
+name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone
+name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down
+
+
+- Low-level skills:
+name: move_forward, args: [distance: int], comment: Move drone forward by a distance
+name: move_backward, args: [distance: int], comment: Move drone backward by a distance
+name: move_left, args: [distance: int], comment: Move drone left by a distance
+name: move_right, args: [distance: int], comment: Move drone right by a distance
+name: move_up, args: [distance: int], comment: Move drone up by a distance
+name: move_down, args: [distance: int], comment: Move drone down by a distance
+name: turn_ccw, args: [degree: int], comment: Turn drone counterclockwise by a degree
+name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree
+name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight
+name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object
+name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object
+name: query, args: [question: str], comment: Query the LLM to check the environment state
+name: verification, args: [retry: int], comment: Restart plan if task description has not been met
+
+
+The `scene desc.` is an object list, containing their names and binding boxes. 
+The `task desc.` is a natural language sentence, describing the user's instructions. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task desc.` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
+1. You should not generate any aggressive drone control.
+2. Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
+3. Derive the `object_name` arguments from the `scene description`. If unavailable, use `$?` and `exec#query,'question'` during execution.
+4. Prioritize the employment of high-level skills whenever feasible.
+5. If no proper high-level skill is available, try to generate a new high-level skill.
+6. Assume `task description` uses common interpretation. E.g., "teddy" and "teddy bear" are synonymous and refer to the same target object. "something is a fruit" can be categorized under "something edible". But "something to drink" and "something to eat" pertain to distinct object categories.
+
+Here is a list of example `response` for different `scene desc.` and `task desc.`, and their explanations:
+{
+    "scene_desc": [],
+    "task_desc": "[A] find a chair",
+    "response": ["if#scan,chair,=,True#2", "exec#orienting,chair", "exec#approach"],
+    "explanation": "Chair is not in the scene, so the you first try to find a chair. If it is found, orient and approach it."
+},
+{
+    "scene_desc": ["chair", "laptop"],
+    "task_desc": "[A] find a chair, please verify the chair is in the scene and retry up to 3 times",
+    "response": ["exec#orienting,chair", "exec#approach", "exec#verification,3"],
+    "explanation": "Chair is in the scene, just orient and approach it. Then do the verification with 3 retries."
+},
+{
+    "scene_desc": ["apple", "lemon", "bottle"],
+    "task_desc": "[A] go to the yellow object",
+    "response": ["exec#query,'which object is yellow?'", "exec#orienting,$?", "exec#approach"],
+    "explanation": "Use the first command to query the yellow object, then orient and approach it."
+},
+{
+    "scene_desc": ["chair", "laptop", "bottle"],
+    "task_desc": "[A] Find and go any edible object",
+    "response": ["loop#8#6", "if#query,'is there anything edible?',=,true#4", "exec#query,'what's the name of the edible object'", "exec#orienting,$?", "exec#approach", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "No edible object in the scene, so using query in the loop to check the condition. Return immediately when the condition is satisfied and approach the object."
+},
+{
+    "scene_desc": ["laptop", "lemon"],
+    "task_desc": "[Q] is there anything edible behind you?",
+    "response": ["exec#turn_ccw,180", "exec#query,'is there anything edible?'", "print#$?"],
+    "explanation": "The query problem cannot be decided currently, turn around and execute the query, then call `str` with `$?` to output the result."
+},
+{
+    "scene_desc": ["chair", "laptop"],
+    "task_desc": "[A] Turn around until you can see some animal.",
+    "response": ["loop#8#3", "if#query,'is there any animal?',=,true#1", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees clockwise. If the loop is finished, return false."
+}
+
+Now given the following `scene desc.` and `task desc.`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
+`scene desc.`:
+[{'name': 'person', 'loc_x': 0.56, 'loc_y': 0.5, 'size_x': 0.88, 'size_y': 1.0}]
+`task desc.`:
+[A] turn around
+##################################
+{"id": "chatcmpl-8DD69rJOg2iHGc2PXNUHeFXQYfZHX", "object": "chat.completion", "created": 1698159305, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "[\"exec#turn_ccw,180\"]"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2081, "completion_tokens": 9, "total_tokens": 2090}}
+##################################
