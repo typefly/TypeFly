@@ -28,13 +28,6 @@ def process_command(command: str):
     else:
         llm_controller.execute_user_command(command)
 
-@app.route('/command', methods=['POST'])
-def command():
-    data = request.json
-    received_string = data.get('command')
-    process_command(received_string)
-    return jsonify({'result': 'success'})
-
 def generate_mjpeg_stream():
     while True:
         image_data = llm_controller.get_latest_frame()
