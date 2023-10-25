@@ -8,7 +8,7 @@ from .yolo_grpc_client import YoloGRPCClient
 from .tello_wrapper import TelloWrapper
 from .virtual_drone_wrapper import VirtualDroneWrapper
 from .drone_wrapper import DroneWrapper
-from .vision_wrapper import VisionWrapper
+from .vision_wrapper import VisionSkillWrapper
 from .llm_wrapper import LLMWrapper
 from .llm_planner import LLMPlanner
 from .skillset import SkillSet, LowLevelSkillItem, HighLevelSkillItem, SkillArg
@@ -24,7 +24,7 @@ class LLMController():
             self.drone: DroneWrapper = VirtualDroneWrapper()
         else:
             self.drone: DroneWrapper = TelloWrapper()
-        self.vision = VisionWrapper(self.yolo_results)
+        self.vision = VisionSkillWrapper(self.yolo_results)
         self.planner = LLMPlanner()
 
         self.low_level_skillset = SkillSet(level="low")

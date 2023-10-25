@@ -2,7 +2,7 @@ from queue import Queue
 from typing import Optional
 from .yolo_client import SharedYoloResults
 
-class VisionWrapper():
+class VisionSkillWrapper():
     def __init__(self, shared_yolo_results: SharedYoloResults):
         self.shared_yolo_results = shared_yolo_results
 
@@ -21,7 +21,7 @@ class VisionWrapper():
         return formatted_results
 
     def get_obj_list(self) -> [str]:
-        return VisionWrapper.format_results(self.shared_yolo_results.get())
+        return VisionSkillWrapper.format_results(self.shared_yolo_results.get())
 
     def get_obj_info(self, object_name: str) -> Optional[dict]:
         yolo_results = self.shared_yolo_results.get()

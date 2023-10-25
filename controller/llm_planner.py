@@ -3,7 +3,7 @@ from typing import Union
 
 from .skillset import SkillSet
 from .llm_wrapper import LLMWrapper
-from .vision_wrapper import VisionWrapper
+from .vision_wrapper import VisionSkillWrapper
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 
@@ -30,7 +30,7 @@ class LLMPlanner():
         with open(os.path.join(current_directory, "./assets/plan_examples.json"), "r") as f:
             self.plan_examples = f.read()
 
-    def init(self, high_level_skillset: SkillSet, low_level_skillset: SkillSet, vision_skill: VisionWrapper):
+    def init(self, high_level_skillset: SkillSet, low_level_skillset: SkillSet, vision_skill: VisionSkillWrapper):
         self.high_level_skillset = high_level_skillset
         self.low_level_skillset = low_level_skillset
         self.vision_skill = vision_skill
