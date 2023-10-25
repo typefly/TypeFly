@@ -5,27 +5,29 @@ from skillset import SkillSet
 from llm_wrapper import LLMWrapper
 from vision_wrapper import VisionWrapper
 
+current_directory = os.path.dirname(os.path.abspath(__file__))
+
 class LLMPlanner():
     def __init__(self):
         self.llm = LLMWrapper()
 
         # read prompt from txt
-        with open("./assets/planning_prompt.txt", "r") as f:
+        with open(os.path.join(current_directory, "./assets/planning_prompt.txt"), "r") as f:
             self.planning_prompt = f.read()
 
-        with open("./assets/verification_prompt.txt", "r") as f:
+        with open(os.path.join(current_directory, "./assets/verification_prompt.txt"), "r") as f:
             self.verification_prompt = f.read()
 
-        with open("./assets/execution_prompt.txt", "r") as f:
+        with open(os.path.join(current_directory, "./assets/execution_prompt.txt"), "r") as f:
             self.execution_prompt = f.read()
 
-        with open("./assets/rules.txt", "r") as f:
+        with open(os.path.join(current_directory, "./assets/rules.txt"), "r") as f:
             self.rules = f.read()
 
-        with open("./assets/minispec_syntax.txt", "r") as f:
+        with open(os.path.join(current_directory, "./assets/minispec_syntax.txt"), "r") as f:
             self.minispec_syntax = f.read()
 
-        with open("./assets/plan_examples.json", "r") as f:
+        with open(os.path.join(current_directory, "./assets/plan_examples.json"), "r") as f:
             self.plan_examples = f.read()
 
     def init(self, high_level_skillset: SkillSet, low_level_skillset: SkillSet, vision_skill: VisionWrapper):

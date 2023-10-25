@@ -3,8 +3,9 @@ from threading import Thread
 from flask import Flask, request, jsonify, Response
 import logging
 import asyncio
-import fire
+import fire, sys
 
+sys.path.append("../controller")
 from llm_controller import LLMController
 
 logging.disable(logging.CRITICAL + 1)
@@ -12,7 +13,7 @@ app = Flask(__name__)
 FRAME_RATE = 30
 
 global llm_controller
-main_page = open('./assets/index.html', 'r').read()
+main_page = open('./index.html', 'r').read()
 
 def shutdown():
     print("Shutting down gracefully...")

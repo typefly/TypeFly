@@ -3,6 +3,7 @@ import requests
 from io import BytesIO
 from PIL import Image
 from yolo_grpc_client import YoloGRPCClient
+from yolo_client import YoloClient
 
 class VLMWrapper:
     def __init__(self):
@@ -21,6 +22,8 @@ class VLMWrapper:
     def request(self, question, image):
         self.yolo.detect_local(image)
         detect_result = self.yolo.retrieve()[1]
+        YoloClient.plot_results(image, detect_result)
+        image.show()
 
         image_bytes = VLMWrapper.image_to_bytes(image)
         prompt = self.vlm_prompt.format(task_descrption=question, detection_results=detect_result)
