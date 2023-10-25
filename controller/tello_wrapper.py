@@ -1,6 +1,7 @@
-from djitellopy import Tello
-from drone_wrapper import DroneWrapper
 import time
+from djitellopy import Tello
+
+from .drone_wrapper import DroneWrapper
 
 class TelloWrapper(DroneWrapper):
     def __init__(self):

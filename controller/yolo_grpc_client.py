@@ -7,7 +7,7 @@ import queue
 import grpc
 import asyncio
 
-from yolo_client import SharedYoloResults
+from .yolo_client import SharedYoloResults
 
 sys.path.append("../proto/generated")
 import hyrch_serving_pb2

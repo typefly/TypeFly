@@ -1,9 +1,9 @@
 import os, json, ast
 from typing import Union
 
-from skillset import SkillSet
-from llm_wrapper import LLMWrapper
-from vision_wrapper import VisionWrapper
+from .skillset import SkillSet
+from .llm_wrapper import LLMWrapper
+from .vision_wrapper import VisionWrapper
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 

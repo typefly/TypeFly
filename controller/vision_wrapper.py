@@ -1,6 +1,6 @@
 from queue import Queue
 from typing import Optional
-from yolo_client import SharedYoloResults
+from .yolo_client import SharedYoloResults
 
 class VisionWrapper():
     def __init__(self, shared_yolo_results: SharedYoloResults):

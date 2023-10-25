@@ -2,8 +2,8 @@ import os, json
 import requests
 from io import BytesIO
 from PIL import Image
-from yolo_grpc_client import YoloGRPCClient
-from yolo_client import YoloClient
+from .yolo_grpc_client import YoloGRPCClient
+from .yolo_client import YoloClient
 
 class VLMWrapper:
     def __init__(self):

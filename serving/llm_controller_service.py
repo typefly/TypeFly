@@ -5,8 +5,8 @@ import logging
 import asyncio
 import fire, sys
 
-sys.path.append("../controller")
-from llm_controller import LLMController
+sys.path.append("..")
+from controller.llm_controller import LLMController
 
 logging.disable(logging.CRITICAL + 1)
 app = Flask(__name__)

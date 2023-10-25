@@ -1,5 +1,5 @@
-from drone_wrapper import DroneWrapper
 import cv2
+from .drone_wrapper import DroneWrapper
 
 class VirtualDroneWrapper(DroneWrapper):
     def __init__(self):
