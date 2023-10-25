@@ -3,7 +3,7 @@ from typing import Union
 
 from .skillset import SkillSet
 from .llm_wrapper import LLMWrapper
-from .vision_wrapper import VisionSkillWrapper
+from .vision_skill_wrapper import VisionSkillWrapper
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 
