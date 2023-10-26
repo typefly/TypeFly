@@ -81,12 +81,18 @@ class YoloClient():
         async with YoloClient.get_aiohttp_session_response(self.service_url, files) as response:
             results = await response.text()
 
-        json_results = json.loads(results)
+        try:
+            json_results = json.loads(results)
+        except:
+            print(f"Invalid json results: {results}")
+            return
         async with self.latest_result_with_image_lock:
             # discard old images
+            if self.image_queue.empty():
+                return
             while self.image_queue.queue[0][0] < json_results['image_id']:
                 self.image_queue.get()
-
+            # discard old results
             if self.image_queue.queue[0][0] > json_results['image_id']:
                 return
 

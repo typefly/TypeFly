@@ -17,7 +17,7 @@ class LLMController():
     def __init__(self, use_virtual_drone=False):
         self.yolo_results_image_queue = queue.Queue(maxsize=30)
         self.yolo_results = SharedYoloResults()
-        self.yolo_client = YoloClient(shared_yolo_results=self.yolo_results)
+        self.yolo_client = YoloGRPCClient(shared_yolo_results=self.yolo_results)
         self.controller_state = True
         self.controller_wait_takeoff = True
         if use_virtual_drone:

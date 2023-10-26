@@ -5,11 +5,13 @@ from PIL import Image
 from .yolo_grpc_client import YoloGRPCClient
 from .yolo_client import YoloClient
 
+current_directory = os.path.dirname(os.path.abspath(__file__))
+
 class VLMWrapper:
     def __init__(self):
         self.url = 'http://172.29.249.77:50049/llava'
-        with open("./assets/vlm_prompt.txt", "r") as f:
-            self.vlm_prompt = f.read()
+        with open(os.path.join(current_directory, "./assets/vlm_prompt.txt"), "r") as f:
+             self.vlm_prompt = f.read()
 
         self.yolo = YoloGRPCClient(True)
 
@@ -22,8 +24,6 @@ class VLMWrapper:
     def request(self, question, image):
         self.yolo.detect_local(image)
         detect_result = self.yolo.retrieve()[1]['result']
-        YoloClient.plot_results(image, detect_result)
-        image.show()
 
         image_bytes = VLMWrapper.image_to_bytes(image)
         prompt = self.vlm_prompt.format(task_descrption=question, detection_results=detect_result)
@@ -35,8 +35,3 @@ class VLMWrapper:
         response = requests.post(self.url, files=files)
         print(response)
         return response.text
-    
-if __name__ == "__main__":
-    vlm_wrapper = VLMWrapper()
-    result = vlm_wrapper.request("which person wears the blue shirt", Image.open("../test/images/people.webp"))
-    print(result)

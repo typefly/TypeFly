@@ -77,11 +77,12 @@ class YoloGRPCClient():
 
         async with self.latest_result_with_image_lock:
             json_results = json.loads(response.json_data)
-
-            # remove the image from the queue if it's not the latest one
+            if self.image_queue.empty():
+                return
+            # discard old images
             while self.image_queue.queue[0][0] < json_results['image_id']:
                 self.image_queue.get()
-
+            # discard old results
             if self.image_queue.queue[0][0] > json_results['image_id']:
                 return
             self.latest_result_with_image = (self.image_queue.get()[1], json_results)

@@ -92,7 +92,14 @@
             <img id="videoFeed" src="/video_feed" />
         </div>
         <form id="input_combo" method="post" action="/submit" autocomplete="off">
-            <input type="text" id="textInput" name="user_input" placeholder="Enter text here..." onkeydown="handleKeyPress(event)">
+            <!-- <input type="text" id="textInput" name="user_input" placeholder="Enter text here..." onkeydown="handleKeyPress(event)"> -->
+            <input type="text" id="textInput" name="user_input" placeholder="Enter text here..." list="suggestions" autocomplete="off" onkeydown="handleKeyPress(event)">
+            <datalist id="suggestions">
+                <option value="Could you try to find something for me to eat?">
+                <option value="Go to the bottle on the left.">
+                <option value="[Q] How many people are in sight?">
+                <!-- Add more options as needed -->
+            </datalist>
             <button id="submitButton" type="button" onclick="submitInput(); clearInput();">Submit</button>
         </form>
     </body>

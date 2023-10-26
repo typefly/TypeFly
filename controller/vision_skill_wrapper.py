@@ -1,10 +1,37 @@
-from queue import Queue
 from typing import Optional
+from io import BytesIO
+from colorthief import ColorThief
+import webcolors
+
 from .yolo_client import SharedYoloResults
 
 class VisionSkillWrapper():
     def __init__(self, shared_yolo_results: SharedYoloResults):
         self.shared_yolo_results = shared_yolo_results
+
+    def get_colour_name(requested_colour):
+        def closest_colour(requested_colour):
+            min_colours = {}
+            for key, name in webcolors.CSS3_HEX_TO_NAMES.items():
+                r_c, g_c, b_c = webcolors.hex_to_rgb(key)
+                rd = (r_c - requested_colour[0]) ** 2
+                gd = (g_c - requested_colour[1]) ** 2
+                bd = (b_c - requested_colour[2]) ** 2
+                min_colours[(rd + gd + bd)] = name
+            return min_colours[min(min_colours.keys())]
+        try:
+            name = webcolors.rgb_to_name(requested_colour)
+        except ValueError:
+            name = closest_colour(requested_colour)
+        return name
+
+    def get_dominant_color(image, box):
+        cropped_image = image.crop((box['x1'], box['y1'], box['x2'], box['y2']))
+        imgByteArr = BytesIO()
+        cropped_image.save(imgByteArr, format='WEBP')
+        color_thief = ColorThief(imgByteArr)
+        dominant_color = color_thief.get_color(quality=1)
+        return dominant_color
 
     def format_results(results):
         (image, json_data) = results
@@ -16,7 +43,8 @@ class VisionSkillWrapper():
                 'loc_x': round((box['x1'] + box['x2']) / 2, 2),
                 'loc_y': round((box['y1'] + box['y2']) / 2, 2),
                 'size_x': round((box['x2'] - box['x1']), 2),
-                'size_y': round((box['y2'] - box['y1']), 2)
+                'size_y': round((box['y2'] - box['y1']), 2),
+                'color': VisionSkillWrapper.get_colour_name(VisionSkillWrapper.get_dominant_color(image, box))
             }).replace("'", ''))
         return formatted_results
 
