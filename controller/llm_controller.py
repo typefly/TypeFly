@@ -17,7 +17,7 @@ class LLMController():
     def __init__(self, use_virtual_drone=False):
         self.yolo_results_image_queue = queue.Queue(maxsize=30)
         self.yolo_results = SharedYoloResults()
-        self.yolo_client = YoloClient(shared_yolo_results=self.yolo_results)
+        self.yolo_client = YoloGRPCClient(shared_yolo_results=self.yolo_results)
         self.controller_state = True
         self.controller_wait_takeoff = True
         if use_virtual_drone:
@@ -28,7 +28,6 @@ class LLMController():
         self.planner = LLMPlanner()
 
         self.low_level_skillset = SkillSet(level="low")
-
         self.low_level_skillset.add_skill(LowLevelSkillItem("move_forward", self.drone.move_forward, "Move drone forward by a distance", args=[SkillArg("distance", int)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("move_backward", self.drone.move_backward, "Move drone backward by a distance", args=[SkillArg("distance", int)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("move_left", self.drone.move_left, "Move drone left by a distance", args=[SkillArg("distance", int)]))
@@ -239,7 +238,7 @@ class LLMController():
 
             latest_result = self.yolo_client.retrieve()
             if latest_result is not None:
-                YoloClient.plot_results(latest_result[0], latest_result[1])
+                YoloClient.plot_results(latest_result[0], latest_result[1]['result'])
                 self.yolo_results_image_queue.put(latest_result[0])
 
             time.sleep(0.050)

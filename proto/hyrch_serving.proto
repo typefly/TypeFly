@@ -6,7 +6,8 @@ service YoloService {
 }
 
 message DetectRequest {
-    bytes image_data = 1; // Encoded image data
+    optional int32 image_id = 1;
+    bytes image_data = 2; // Encoded image data
 }
 
 message DetectResponse {

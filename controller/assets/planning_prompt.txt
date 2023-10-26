@@ -11,7 +11,7 @@ Desc. of the two skill sets:
 - Low-level skills:
 {system_skill_description_low}
 
-The `scene desc.` is an object list, containing their names and binding boxes. 
+The `scene desc.` is an object list, containing their names with id, location and box size.
 The `task desc.` is a natural language sentence, describing the user's instructions. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task desc.` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
 {rules}
 

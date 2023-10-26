@@ -21,7 +21,7 @@ class VLMWrapper:
 
     def request(self, question, image):
         self.yolo.detect_local(image)
-        detect_result = self.yolo.retrieve()[1]
+        detect_result = self.yolo.retrieve()[1]['result']
         YoloClient.plot_results(image, detect_result)
         image.show()
 

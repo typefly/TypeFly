@@ -8,7 +8,7 @@ import fire, sys
 sys.path.append("..")
 from controller.llm_controller import LLMController
 
-logging.disable(logging.CRITICAL + 1)
+# logging.disable(logging.CRITICAL + 1)
 app = Flask(__name__)
 FRAME_RATE = 30
 

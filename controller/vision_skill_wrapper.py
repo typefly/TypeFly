@@ -9,7 +9,7 @@ class VisionSkillWrapper():
     def format_results(results):
         (image, json_data) = results
         formatted_results = []
-        for item in json_data:
+        for item in json_data['result']:
             box = item['box']
             formatted_results.append({
                 'name': item['name'],
@@ -25,8 +25,9 @@ class VisionSkillWrapper():
 
     def get_obj_info(self, object_name: str) -> Optional[dict]:
         yolo_results = self.shared_yolo_results.get()
-        for (_, json_data) in yolo_results:
-            if json_data['name'] == object_name:
+        for (_, json_data) in yolo_results['result']:
+            # change this to start_with
+            if json_data['name'].startswith(object_name):
                 return json_data
         return None
 
