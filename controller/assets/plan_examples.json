@@ -5,6 +5,12 @@
     "explanation": "Apple is not in the scene, so the you first try to find an apple. If it is found, orient and approach it."
 },
 {
+    "scene_desc": ["apple_5"],
+    "task_desc": "[A] find an apple",
+    "response": ["exec#orienting,apple_5", "exec#approach"],
+    "explanation": "Apple is in the scene, just orient and approach it."
+},
+{
     "scene_desc": ["apple_3"],
     "task_desc": "[Q] is there an apple",
     "response": ["print#'Yes, there is an apple.'"],
@@ -25,8 +31,8 @@
 {
     "scene_desc": ["apple_1", "lemon_3", "bottle_2"],
     "task_desc": "[A] go to the yellow object",
-    "response": ["exec#query,'which object is yellow?'", "exec#orienting,$?", "exec#approach"],
-    "explanation": "Use the first command to query the yellow object, then orient and approach it."
+    "response": ["exec#orienting,lemon_3", "exec#approach"],
+    "explanation": "Lemon is yellow, just orient and approach it."
 },
 {
     "scene_desc": ["chair_3", "laptop_1", "bottle_5"],

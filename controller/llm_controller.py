@@ -17,7 +17,7 @@ class LLMController():
     def __init__(self, use_virtual_drone=False):
         self.yolo_results_image_queue = queue.Queue(maxsize=30)
         self.yolo_results = SharedYoloResults()
-        self.yolo_client = YoloGRPCClient(shared_yolo_results=self.yolo_results)
+        self.yolo_client = YoloClient(shared_yolo_results=self.yolo_results)
         self.controller_state = True
         self.controller_wait_takeoff = True
         if use_virtual_drone:
@@ -110,6 +110,7 @@ class LLMController():
         loop_index = 0
         loop_count = 0
         loop_range = (-1, 0)
+        self.last_execution_result = None
         while loop_index < len(commands):
             # print(f">> executing: {loop_index} {commands[loop_index]}")
             # check controller state
@@ -142,21 +143,30 @@ class LLMController():
 
                     if not condition:
                         # print("Condition not met.")
+                        self.last_execution_result = False
                         loop_index += int(segments[-1])
+
+                    self.last_execution_result = True
                 case 'loop':
                     loop_count = int(segments[1])
                     loop_range = (loop_index + 1, loop_index + int(segments[-1]))
+                    self.last_execution_result = True
                 case 'break':
                     loop_count = 0
+                    self.last_execution_result = True
                 case 'skip':
                     loop_index += int(segments[-1])
+                    self.last_execution_result = True
                 case 'delay':
                     time.sleep(int(segments[1]) / 1000.0)
+                    self.last_execution_result = True
                 case 'print':
                     if segments[1].startswith("'") and segments[1].endswith("'"):
                         print('Response: ' + segments[1])
                     elif segments[1] == '$?':
                         print('Response: ' + str(self.last_execution_result))
+
+                    self.last_execution_result = True
 
                 case 'ret':
                     return parse_value(segments[1])

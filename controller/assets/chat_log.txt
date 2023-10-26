@@ -1,0 +1,814 @@
+You are a drone pilot and you should follow the user's instructions to generate a task plan for the drone. You response should carefully consider the `system skills desc.`, the `scene desc.`, and the `task desc.`.
+The `system skills desc.` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using our own language `MiniSpec`, are more flexible and can be used to build more complex skills.
+
+The syntax of `MiniSpec` is as follows:
+# Control block:
+"exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
+"if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
+"loop#count#nbr": Loop the next `nbr` commands for `count` times.
+"skip#nbr": Skip the next `nbr` commands.
+"delay#time": Delay the next command for `time` microseconds.
+"break": Break the current `loop` execution.
+"print#text": Print the `text` to the console.
+"ret#val": Return `val` as the return value of the current skill.
+
+# Arguments:
+"$1", "$2", "$3", ...: The arguments used by high-level skills, should be replaced when generating the program. If the specific argument cannot be determined at planning time, you can use `$?` as a special placeholder which represents the result of the last `exec` skill execution. Make sure the use of '$?' is following following a `exec` skill.
+
+
+Desc. of the two skill sets:
+- High-level skills:
+name: scan, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,true#1', 'ret#true', 'exec#turn_cw,45', 'delay#300', 'ret#false'], args: [obj_name: str], comment: rotate to find a certain object
+name: approach, skill_str_list: ['exec#move_forward,60'], args: [], comment: approach the object
+name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone
+name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down
+
+
+- Low-level skills:
+name: move_forward, args: [distance: int], comment: Move drone forward by a distance
+name: move_backward, args: [distance: int], comment: Move drone backward by a distance
+name: move_left, args: [distance: int], comment: Move drone left by a distance
+name: move_right, args: [distance: int], comment: Move drone right by a distance
+name: move_up, args: [distance: int], comment: Move drone up by a distance
+name: move_down, args: [distance: int], comment: Move drone down by a distance
+name: turn_ccw, args: [degree: int], comment: Turn drone counterclockwise by a degree
+name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree
+name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight
+name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object
+name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object
+name: query, args: [question: str], comment: Query the LLM to check the environment state
+name: verification, args: [retry: int], comment: Restart plan if task description has not been met
+
+
+The `scene desc.` is an object list, containing their names with id, location and box size.
+The `task desc.` is a natural language sentence, describing the user's instructions. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task desc.` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
+1. You should not generate any aggressive drone control.
+2. Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
+3. Derive the `object_name` arguments or question answers from the `scene description` as much as possible. Only if when it's unavailable, carefully use `$?` and `exec#query,'question'` during execution.
+4. Prioritize the employment of high-level skills whenever feasible.
+5. If no proper high-level skill is available, try to generate a new high-level skill.
+6. Assume `task description` uses common interpretation. E.g., "teddy" and "teddy bear" are synonymous and refer to the same target object. "something is a fruit" can be categorized under "something edible". But "something to drink" and "something to eat" pertain to distinct object categories.
+
+Here is a list of example `response` for different `scene desc.` and `task desc.`, and their explanations:
+{
+    "scene_desc": [],
+    "task_desc": "[A] find an apple",
+    "response": ["if#scan,apple,=,True#2", "exec#orienting,apple", "exec#approach"],
+    "explanation": "Apple is not in the scene, so the you first try to find an apple. If it is found, orient and approach it."
+},
+{
+    "scene_desc": ["apple_5"],
+    "task_desc": "[A] find an apple",
+    "response": ["exec#orienting,apple_5", "exec#approach"],
+    "explanation": "Apple is in the scene, just orient and approach it."
+},
+{
+    "scene_desc": ["apple_3"],
+    "task_desc": "[Q] is there an apple",
+    "response": ["print#'Yes, there is an apple.'"],
+    "explanation": "A Query type task and apple is in the scene, so the answer is yes."
+},
+{
+    "scene_desc": ["chair_4", "chair_13"],
+    "task_desc": "[A] find a chair on the left",
+    "response": ["exec#orienting,chair_4", "exec#approach"],
+    "explanation": "There are two chairs, so you need to specify which one to find. In this case, you need to find the chair on the left."
+},
+{
+    "scene_desc": ["chair_13", "laptop_2"],
+    "task_desc": "[A] find a chair, please verify the chair is in the scene and retry up to 3 times",
+    "response": ["exec#orienting,chair_13", "exec#approach", "exec#verification,3"],
+    "explanation": "Chair is in the scene, just orient and approach it. Then do the verification with 3 retries."
+},
+{
+    "scene_desc": ["apple_1", "lemon_3", "bottle_2"],
+    "task_desc": "[A] go to the yellow object",
+    "response": ["exec#orienting,lemon_3", "exec#approach"],
+    "explanation": "Lemon is yellow, just orient and approach it."
+},
+{
+    "scene_desc": ["chair_3", "laptop_1", "bottle_5"],
+    "task_desc": "[A] Find and go any edible object",
+    "response": ["loop#8#6", "if#query,'is there anything edible?',=,true#4", "exec#query,'what's the name of the edible object'", "exec#orienting,$?", "exec#approach", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "No edible object in the scene, so using query in the loop to check the condition. Return immediately when the condition is satisfied and approach the object."
+},
+{
+    "scene_desc": ["laptop_4", "lemon_3"],
+    "task_desc": "[Q] is there anything edible behind you?",
+    "response": ["exec#turn_ccw,180", "exec#query,'is there anything edible?'", "print#$?"],
+    "explanation": "The query problem cannot be decided currently, turn around and execute the query, then call `str` with `$?` to output the result."
+},
+{
+    "scene_desc": ["chair_3", "laptop_9"],
+    "task_desc": "[A] Turn around until you can see some animal.",
+    "response": ["loop#8#3", "if#query,'is there any animal?',=,true#1", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees clockwise. If the loop is finished, return false."
+}
+
+Now given the following `scene desc.` and `task desc.`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
+`scene desc.`:
+['{name: bottle_98, loc_x: 0.45, loc_y: 0.32, size_x: 0.03, size_y: 0.17}', '{name: person_104, loc_x: 0.59, loc_y: 0.68, size_x: 0.58, size_y: 0.65}', '{name: bottle_113, loc_x: 0.55, loc_y: 0.29, size_x: 0.03, size_y: 0.12}']
+`task desc.`:
+[Q] how many bottles are in sight?
+##################################
+{"id": "chatcmpl-8DivuZ3zJnH3fucV9kXj6e8kOIzt5", "object": "chat.completion", "created": 1698281678, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "[\"exec#query,'how many bottles are in sight?'\", \"print#$?\"]"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2405, "completion_tokens": 18, "total_tokens": 2423}}
+##################################
+Here I will provide you with a `scene description` and a question.
+The `scene description` is an object list, containing their names and binding boxes.
+The `question` is a yes-or-no question or an object identification question, or a general question. They are closely related to the `scene description`.
+Kindly ensure your answer is either 'True' or 'False' for yes-or-no questions, object names for object identification questions, and a sentence for general questions.
+`scene description`: ['{name: bottle_98, loc_x: 0.45, loc_y: 0.33, size_x: 0.03, size_y: 0.17}', '{name: person_104, loc_x: 0.59, loc_y: 0.69, size_x: 0.57, size_y: 0.63}', '{name: bottle_113, loc_x: 0.55, loc_y: 0.31, size_x: 0.04, size_y: 0.12}'],
+`question`: 'how many bottles are in sight?'.
+##################################
+{"id": "chatcmpl-8Divz9dNCPJHJQ95gxt130MP874CL", "object": "chat.completion", "created": 1698281683, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "There are 2 bottles in sight."}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 239, "completion_tokens": 8, "total_tokens": 247}}
+##################################
+You are a drone pilot and you should follow the user's instructions to generate a task plan for the drone. You response should carefully consider the `system skills desc.`, the `scene desc.`, and the `task desc.`.
+The `system skills desc.` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using our own language `MiniSpec`, are more flexible and can be used to build more complex skills.
+
+The syntax of `MiniSpec` is as follows:
+# Control block:
+"exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
+"if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
+"loop#count#nbr": Loop the next `nbr` commands for `count` times.
+"skip#nbr": Skip the next `nbr` commands.
+"delay#time": Delay the next command for `time` microseconds.
+"break": Break the current `loop` execution.
+"print#text": Print the `text` to the console.
+"ret#val": Return `val` as the return value of the current skill.
+
+# Arguments:
+"$1", "$2", "$3", ...: The arguments used by high-level skills, should be replaced when generating the program. If the specific argument cannot be determined at planning time, you can use `$?` as a special placeholder which represents the result of the last `exec` skill execution. Make sure the use of '$?' is following following a `exec` skill.
+
+
+Desc. of the two skill sets:
+- High-level skills:
+name: scan, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,true#1', 'ret#true', 'exec#turn_cw,45', 'delay#300', 'ret#false'], args: [obj_name: str], comment: rotate to find a certain object
+name: approach, skill_str_list: ['exec#move_forward,60'], args: [], comment: approach the object
+name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone
+name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down
+
+
+- Low-level skills:
+name: move_forward, args: [distance: int], comment: Move drone forward by a distance
+name: move_backward, args: [distance: int], comment: Move drone backward by a distance
+name: move_left, args: [distance: int], comment: Move drone left by a distance
+name: move_right, args: [distance: int], comment: Move drone right by a distance
+name: move_up, args: [distance: int], comment: Move drone up by a distance
+name: move_down, args: [distance: int], comment: Move drone down by a distance
+name: turn_ccw, args: [degree: int], comment: Turn drone counterclockwise by a degree
+name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree
+name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight
+name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object
+name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object
+name: query, args: [question: str], comment: Query the LLM to check the environment state
+name: verification, args: [retry: int], comment: Restart plan if task description has not been met
+
+
+The `scene desc.` is an object list, containing their names with id, location and box size.
+The `task desc.` is a natural language sentence, describing the user's instructions. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task desc.` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
+1. You should not generate any aggressive drone control.
+2. Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
+3. Derive the `object_name` arguments or question answers from the `scene description` as much as possible. Only if when it's unavailable, carefully use `$?` and `exec#query,'question'` during execution.
+4. Prioritize the employment of high-level skills whenever feasible.
+5. If no proper high-level skill is available, try to generate a new high-level skill.
+6. Assume `task description` uses common interpretation. E.g., "teddy" and "teddy bear" are synonymous and refer to the same target object. "something is a fruit" can be categorized under "something edible". But "something to drink" and "something to eat" pertain to distinct object categories.
+
+Here is a list of example `response` for different `scene desc.` and `task desc.`, and their explanations:
+{
+    "scene_desc": [],
+    "task_desc": "[A] find an apple",
+    "response": ["if#scan,apple,=,True#2", "exec#orienting,apple", "exec#approach"],
+    "explanation": "Apple is not in the scene, so the you first try to find an apple. If it is found, orient and approach it."
+},
+{
+    "scene_desc": ["apple_5"],
+    "task_desc": "[A] find an apple",
+    "response": ["exec#orienting,apple_5", "exec#approach"],
+    "explanation": "Apple is in the scene, just orient and approach it."
+},
+{
+    "scene_desc": ["apple_3"],
+    "task_desc": "[Q] is there an apple",
+    "response": ["print#'Yes, there is an apple.'"],
+    "explanation": "A Query type task and apple is in the scene, so the answer is yes."
+},
+{
+    "scene_desc": ["chair_4", "chair_13"],
+    "task_desc": "[A] find a chair on the left",
+    "response": ["exec#orienting,chair_4", "exec#approach"],
+    "explanation": "There are two chairs, so you need to specify which one to find. In this case, you need to find the chair on the left."
+},
+{
+    "scene_desc": ["chair_13", "laptop_2"],
+    "task_desc": "[A] find a chair, please verify the chair is in the scene and retry up to 3 times",
+    "response": ["exec#orienting,chair_13", "exec#approach", "exec#verification,3"],
+    "explanation": "Chair is in the scene, just orient and approach it. Then do the verification with 3 retries."
+},
+{
+    "scene_desc": ["apple_1", "lemon_3", "bottle_2"],
+    "task_desc": "[A] go to the yellow object",
+    "response": ["exec#orienting,lemon_3", "exec#approach"],
+    "explanation": "Lemon is yellow, just orient and approach it."
+},
+{
+    "scene_desc": ["chair_3", "laptop_1", "bottle_5"],
+    "task_desc": "[A] Find and go any edible object",
+    "response": ["loop#8#6", "if#query,'is there anything edible?',=,true#4", "exec#query,'what's the name of the edible object'", "exec#orienting,$?", "exec#approach", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "No edible object in the scene, so using query in the loop to check the condition. Return immediately when the condition is satisfied and approach the object."
+},
+{
+    "scene_desc": ["laptop_4", "lemon_3"],
+    "task_desc": "[Q] is there anything edible behind you?",
+    "response": ["exec#turn_ccw,180", "exec#query,'is there anything edible?'", "print#$?"],
+    "explanation": "The query problem cannot be decided currently, turn around and execute the query, then call `str` with `$?` to output the result."
+},
+{
+    "scene_desc": ["chair_3", "laptop_9"],
+    "task_desc": "[A] Turn around until you can see some animal.",
+    "response": ["loop#8#3", "if#query,'is there any animal?',=,true#1", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees clockwise. If the loop is finished, return false."
+}
+
+Now given the following `scene desc.` and `task desc.`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
+`scene desc.`:
+['{name: bottle_98, loc_x: 0.45, loc_y: 0.32, size_x: 0.03, size_y: 0.17}', '{name: person_104, loc_x: 0.58, loc_y: 0.67, size_x: 0.59, size_y: 0.67}', '{name: bottle_113, loc_x: 0.55, loc_y: 0.29, size_x: 0.03, size_y: 0.11}']
+`task desc.`:
+[A] turn around
+##################################
+{"id": "chatcmpl-8Diw7JP7WCX3aNWmBAG5ctp4rwACd", "object": "chat.completion", "created": 1698281691, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "[\"exec#turn_ccw,180\"]"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2399, "completion_tokens": 9, "total_tokens": 2408}}
+##################################
+You are a drone pilot and you should follow the user's instructions to generate a task plan for the drone. You response should carefully consider the `system skills desc.`, the `scene desc.`, and the `task desc.`.
+The `system skills desc.` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using our own language `MiniSpec`, are more flexible and can be used to build more complex skills.
+
+The syntax of `MiniSpec` is as follows:
+# Control block:
+"exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
+"if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
+"loop#count#nbr": Loop the next `nbr` commands for `count` times.
+"skip#nbr": Skip the next `nbr` commands.
+"delay#time": Delay the next command for `time` microseconds.
+"break": Break the current `loop` execution.
+"print#text": Print the `text` to the console.
+"ret#val": Return `val` as the return value of the current skill.
+
+# Arguments:
+"$1", "$2", "$3", ...: The arguments used by high-level skills, should be replaced when generating the program. If the specific argument cannot be determined at planning time, you can use `$?` as a special placeholder which represents the result of the last `exec` skill execution. Make sure the use of '$?' is following following a `exec` skill.
+
+
+Desc. of the two skill sets:
+- High-level skills:
+name: scan, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,true#1', 'ret#true', 'exec#turn_cw,45', 'delay#300', 'ret#false'], args: [obj_name: str], comment: rotate to find a certain object
+name: approach, skill_str_list: ['exec#move_forward,60'], args: [], comment: approach the object
+name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone
+name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down
+
+
+- Low-level skills:
+name: move_forward, args: [distance: int], comment: Move drone forward by a distance
+name: move_backward, args: [distance: int], comment: Move drone backward by a distance
+name: move_left, args: [distance: int], comment: Move drone left by a distance
+name: move_right, args: [distance: int], comment: Move drone right by a distance
+name: move_up, args: [distance: int], comment: Move drone up by a distance
+name: move_down, args: [distance: int], comment: Move drone down by a distance
+name: turn_ccw, args: [degree: int], comment: Turn drone counterclockwise by a degree
+name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree
+name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight
+name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object
+name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object
+name: query, args: [question: str], comment: Query the LLM to check the environment state
+name: verification, args: [retry: int], comment: Restart plan if task description has not been met
+
+
+The `scene desc.` is an object list, containing their names with id, location and box size.
+The `task desc.` is a natural language sentence, describing the user's instructions. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task desc.` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
+1. You should not generate any aggressive drone control.
+2. Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
+3. Derive the `object_name` arguments or question answers from the `scene description` as much as possible. Only if when it's unavailable, carefully use `$?` and `exec#query,'question'` during execution.
+4. Prioritize the employment of high-level skills whenever feasible.
+5. If no proper high-level skill is available, try to generate a new high-level skill.
+6. Assume `task description` uses common interpretation. E.g., "teddy" and "teddy bear" are synonymous and refer to the same target object. "something is a fruit" can be categorized under "something edible". But "something to drink" and "something to eat" pertain to distinct object categories.
+
+Here is a list of example `response` for different `scene desc.` and `task desc.`, and their explanations:
+{
+    "scene_desc": [],
+    "task_desc": "[A] find an apple",
+    "response": ["if#scan,apple,=,True#2", "exec#orienting,apple", "exec#approach"],
+    "explanation": "Apple is not in the scene, so the you first try to find an apple. If it is found, orient and approach it."
+},
+{
+    "scene_desc": ["apple_5"],
+    "task_desc": "[A] find an apple",
+    "response": ["exec#orienting,apple_5", "exec#approach"],
+    "explanation": "Apple is in the scene, just orient and approach it."
+},
+{
+    "scene_desc": ["apple_3"],
+    "task_desc": "[Q] is there an apple",
+    "response": ["print#'Yes, there is an apple.'"],
+    "explanation": "A Query type task and apple is in the scene, so the answer is yes."
+},
+{
+    "scene_desc": ["chair_4", "chair_13"],
+    "task_desc": "[A] find a chair on the left",
+    "response": ["exec#orienting,chair_4", "exec#approach"],
+    "explanation": "There are two chairs, so you need to specify which one to find. In this case, you need to find the chair on the left."
+},
+{
+    "scene_desc": ["chair_13", "laptop_2"],
+    "task_desc": "[A] find a chair, please verify the chair is in the scene and retry up to 3 times",
+    "response": ["exec#orienting,chair_13", "exec#approach", "exec#verification,3"],
+    "explanation": "Chair is in the scene, just orient and approach it. Then do the verification with 3 retries."
+},
+{
+    "scene_desc": ["apple_1", "lemon_3", "bottle_2"],
+    "task_desc": "[A] go to the yellow object",
+    "response": ["exec#orienting,lemon_3", "exec#approach"],
+    "explanation": "Lemon is yellow, just orient and approach it."
+},
+{
+    "scene_desc": ["chair_3", "laptop_1", "bottle_5"],
+    "task_desc": "[A] Find and go any edible object",
+    "response": ["loop#8#6", "if#query,'is there anything edible?',=,true#4", "exec#query,'what's the name of the edible object'", "exec#orienting,$?", "exec#approach", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "No edible object in the scene, so using query in the loop to check the condition. Return immediately when the condition is satisfied and approach the object."
+},
+{
+    "scene_desc": ["laptop_4", "lemon_3"],
+    "task_desc": "[Q] is there anything edible behind you?",
+    "response": ["exec#turn_ccw,180", "exec#query,'is there anything edible?'", "print#$?"],
+    "explanation": "The query problem cannot be decided currently, turn around and execute the query, then call `str` with `$?` to output the result."
+},
+{
+    "scene_desc": ["chair_3", "laptop_9"],
+    "task_desc": "[A] Turn around until you can see some animal.",
+    "response": ["loop#8#3", "if#query,'is there any animal?',=,true#1", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees clockwise. If the loop is finished, return false."
+}
+
+Now given the following `scene desc.` and `task desc.`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
+`scene desc.`:
+['{name: bottle_98, loc_x: 0.45, loc_y: 0.33, size_x: 0.04, size_y: 0.17}', '{name: person_104, loc_x: 0.6, loc_y: 0.68, size_x: 0.58, size_y: 0.65}', '{name: bottle_113, loc_x: 0.55, loc_y: 0.3, size_x: 0.03, size_y: 0.11}']
+`task desc.`:
+[A] 
+##################################
+{"id": "chatcmpl-8DiwBrvHWLl2XfBLluvCHtaMrtohe", "object": "chat.completion", "created": 1698281695, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "\"Find a person and approach them.\""}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2398, "completion_tokens": 8, "total_tokens": 2406}}
+##################################
+You are a drone pilot and you should follow the user's instructions to generate a task plan for the drone. You response should carefully consider the `system skills desc.`, the `scene desc.`, and the `task desc.`.
+The `system skills desc.` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using our own language `MiniSpec`, are more flexible and can be used to build more complex skills.
+
+The syntax of `MiniSpec` is as follows:
+# Control block:
+"exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
+"if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
+"loop#count#nbr": Loop the next `nbr` commands for `count` times.
+"skip#nbr": Skip the next `nbr` commands.
+"delay#time": Delay the next command for `time` microseconds.
+"break": Break the current `loop` execution.
+"print#text": Print the `text` to the console.
+"ret#val": Return `val` as the return value of the current skill.
+
+# Arguments:
+"$1", "$2", "$3", ...: The arguments used by high-level skills, should be replaced when generating the program. If the specific argument cannot be determined at planning time, you can use `$?` as a special placeholder which represents the result of the last `exec` skill execution. Make sure the use of '$?' is following following a `exec` skill.
+
+
+Desc. of the two skill sets:
+- High-level skills:
+name: scan, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,true#1', 'ret#true', 'exec#turn_cw,45', 'delay#300', 'ret#false'], args: [obj_name: str], comment: rotate to find a certain object
+name: approach, skill_str_list: ['exec#move_forward,60'], args: [], comment: approach the object
+name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone
+name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down
+
+
+- Low-level skills:
+name: move_forward, args: [distance: int], comment: Move drone forward by a distance
+name: move_backward, args: [distance: int], comment: Move drone backward by a distance
+name: move_left, args: [distance: int], comment: Move drone left by a distance
+name: move_right, args: [distance: int], comment: Move drone right by a distance
+name: move_up, args: [distance: int], comment: Move drone up by a distance
+name: move_down, args: [distance: int], comment: Move drone down by a distance
+name: turn_ccw, args: [degree: int], comment: Turn drone counterclockwise by a degree
+name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree
+name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight
+name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object
+name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object
+name: query, args: [question: str], comment: Query the LLM to check the environment state
+name: verification, args: [retry: int], comment: Restart plan if task description has not been met
+
+
+The `scene desc.` is an object list, containing their names with id, location and box size.
+The `task desc.` is a natural language sentence, describing the user's instructions. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task desc.` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
+1. You should not generate any aggressive drone control.
+2. Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
+3. Derive the `object_name` arguments or question answers from the `scene description` as much as possible. Only if when it's unavailable, carefully use `$?` and `exec#query,'question'` during execution.
+4. Prioritize the employment of high-level skills whenever feasible.
+5. If no proper high-level skill is available, try to generate a new high-level skill.
+6. Assume `task description` uses common interpretation. E.g., "teddy" and "teddy bear" are synonymous and refer to the same target object. "something is a fruit" can be categorized under "something edible". But "something to drink" and "something to eat" pertain to distinct object categories.
+
+Here is a list of example `response` for different `scene desc.` and `task desc.`, and their explanations:
+{
+    "scene_desc": [],
+    "task_desc": "[A] find an apple",
+    "response": ["if#scan,apple,=,True#2", "exec#orienting,apple", "exec#approach"],
+    "explanation": "Apple is not in the scene, so the you first try to find an apple. If it is found, orient and approach it."
+},
+{
+    "scene_desc": ["apple_5"],
+    "task_desc": "[A] find an apple",
+    "response": ["exec#orienting,apple_5", "exec#approach"],
+    "explanation": "Apple is in the scene, just orient and approach it."
+},
+{
+    "scene_desc": ["apple_3"],
+    "task_desc": "[Q] is there an apple",
+    "response": ["print#'Yes, there is an apple.'"],
+    "explanation": "A Query type task and apple is in the scene, so the answer is yes."
+},
+{
+    "scene_desc": ["chair_4", "chair_13"],
+    "task_desc": "[A] find a chair on the left",
+    "response": ["exec#orienting,chair_4", "exec#approach"],
+    "explanation": "There are two chairs, so you need to specify which one to find. In this case, you need to find the chair on the left."
+},
+{
+    "scene_desc": ["chair_13", "laptop_2"],
+    "task_desc": "[A] find a chair, please verify the chair is in the scene and retry up to 3 times",
+    "response": ["exec#orienting,chair_13", "exec#approach", "exec#verification,3"],
+    "explanation": "Chair is in the scene, just orient and approach it. Then do the verification with 3 retries."
+},
+{
+    "scene_desc": ["apple_1", "lemon_3", "bottle_2"],
+    "task_desc": "[A] go to the yellow object",
+    "response": ["exec#orienting,lemon_3", "exec#approach"],
+    "explanation": "Lemon is yellow, just orient and approach it."
+},
+{
+    "scene_desc": ["chair_3", "laptop_1", "bottle_5"],
+    "task_desc": "[A] Find and go any edible object",
+    "response": ["loop#8#6", "if#query,'is there anything edible?',=,true#4", "exec#query,'what's the name of the edible object'", "exec#orienting,$?", "exec#approach", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "No edible object in the scene, so using query in the loop to check the condition. Return immediately when the condition is satisfied and approach the object."
+},
+{
+    "scene_desc": ["laptop_4", "lemon_3"],
+    "task_desc": "[Q] is there anything edible behind you?",
+    "response": ["exec#turn_ccw,180", "exec#query,'is there anything edible?'", "print#$?"],
+    "explanation": "The query problem cannot be decided currently, turn around and execute the query, then call `str` with `$?` to output the result."
+},
+{
+    "scene_desc": ["chair_3", "laptop_9"],
+    "task_desc": "[A] Turn around until you can see some animal.",
+    "response": ["loop#8#3", "if#query,'is there any animal?',=,true#1", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees clockwise. If the loop is finished, return false."
+}
+
+Now given the following `scene desc.` and `task desc.`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
+`scene desc.`:
+['{name: bottle_98, loc_x: 0.45, loc_y: 0.46, size_x: 0.03, size_y: 0.17}', '{name: person_104, loc_x: 0.59, loc_y: 0.72, size_x: 0.43, size_y: 0.56}']
+`task desc.`:
+[A] go to the bottle on the left
+##################################
+{"id": "chatcmpl-8DiwWxX2qEmcoYMRqqD26odRFjrtN", "object": "chat.completion", "created": 1698281716, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "[\"exec#orienting,bottle_98\", \"exec#approach\"]"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2365, "completion_tokens": 16, "total_tokens": 2381}}
+##################################
+You are a drone pilot and you should follow the user's instructions to generate a task plan for the drone. You response should carefully consider the `system skills desc.`, the `scene desc.`, and the `task desc.`.
+The `system skills desc.` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using our own language `MiniSpec`, are more flexible and can be used to build more complex skills.
+
+The syntax of `MiniSpec` is as follows:
+# Control block:
+"exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
+"if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
+"loop#count#nbr": Loop the next `nbr` commands for `count` times.
+"skip#nbr": Skip the next `nbr` commands.
+"delay#time": Delay the next command for `time` microseconds.
+"break": Break the current `loop` execution.
+"print#text": Print the `text` to the console.
+"ret#val": Return `val` as the return value of the current skill.
+
+# Arguments:
+"$1", "$2", "$3", ...: The arguments used by high-level skills, should be replaced when generating the program. If the specific argument cannot be determined at planning time, you can use `$?` as a special placeholder which represents the result of the last `exec` skill execution. Make sure the use of '$?' is following following a `exec` skill.
+
+
+Desc. of the two skill sets:
+- High-level skills:
+name: scan, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,true#1', 'ret#true', 'exec#turn_cw,45', 'delay#300', 'ret#false'], args: [obj_name: str], comment: rotate to find a certain object
+name: approach, skill_str_list: ['exec#move_forward,60'], args: [], comment: approach the object
+name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone
+name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down
+
+
+- Low-level skills:
+name: move_forward, args: [distance: int], comment: Move drone forward by a distance
+name: move_backward, args: [distance: int], comment: Move drone backward by a distance
+name: move_left, args: [distance: int], comment: Move drone left by a distance
+name: move_right, args: [distance: int], comment: Move drone right by a distance
+name: move_up, args: [distance: int], comment: Move drone up by a distance
+name: move_down, args: [distance: int], comment: Move drone down by a distance
+name: turn_ccw, args: [degree: int], comment: Turn drone counterclockwise by a degree
+name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree
+name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight
+name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object
+name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object
+name: query, args: [question: str], comment: Query the LLM to check the environment state
+name: verification, args: [retry: int], comment: Restart plan if task description has not been met
+
+
+The `scene desc.` is an object list, containing their names with id, location and box size.
+The `task desc.` is a natural language sentence, describing the user's instructions. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task desc.` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
+1. You should not generate any aggressive drone control.
+2. Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
+3. Derive the `object_name` arguments or question answers from the `scene description` as much as possible. Only if when it's unavailable, carefully use `$?` and `exec#query,'question'` during execution.
+4. Prioritize the employment of high-level skills whenever feasible.
+5. If no proper high-level skill is available, try to generate a new high-level skill.
+6. Assume `task description` uses common interpretation. E.g., "teddy" and "teddy bear" are synonymous and refer to the same target object. "something is a fruit" can be categorized under "something edible". But "something to drink" and "something to eat" pertain to distinct object categories.
+
+Here is a list of example `response` for different `scene desc.` and `task desc.`, and their explanations:
+{
+    "scene_desc": [],
+    "task_desc": "[A] find an apple",
+    "response": ["if#scan,apple,=,True#2", "exec#orienting,apple", "exec#approach"],
+    "explanation": "Apple is not in the scene, so the you first try to find an apple. If it is found, orient and approach it."
+},
+{
+    "scene_desc": ["apple_5"],
+    "task_desc": "[A] find an apple",
+    "response": ["exec#orienting,apple_5", "exec#approach"],
+    "explanation": "Apple is in the scene, just orient and approach it."
+},
+{
+    "scene_desc": ["apple_3"],
+    "task_desc": "[Q] is there an apple",
+    "response": ["print#'Yes, there is an apple.'"],
+    "explanation": "A Query type task and apple is in the scene, so the answer is yes."
+},
+{
+    "scene_desc": ["chair_4", "chair_13"],
+    "task_desc": "[A] find a chair on the left",
+    "response": ["exec#orienting,chair_4", "exec#approach"],
+    "explanation": "There are two chairs, so you need to specify which one to find. In this case, you need to find the chair on the left."
+},
+{
+    "scene_desc": ["chair_13", "laptop_2"],
+    "task_desc": "[A] find a chair, please verify the chair is in the scene and retry up to 3 times",
+    "response": ["exec#orienting,chair_13", "exec#approach", "exec#verification,3"],
+    "explanation": "Chair is in the scene, just orient and approach it. Then do the verification with 3 retries."
+},
+{
+    "scene_desc": ["apple_1", "lemon_3", "bottle_2"],
+    "task_desc": "[A] go to the yellow object",
+    "response": ["exec#orienting,lemon_3", "exec#approach"],
+    "explanation": "Lemon is yellow, just orient and approach it."
+},
+{
+    "scene_desc": ["chair_3", "laptop_1", "bottle_5"],
+    "task_desc": "[A] Find and go any edible object",
+    "response": ["loop#8#6", "if#query,'is there anything edible?',=,true#4", "exec#query,'what's the name of the edible object'", "exec#orienting,$?", "exec#approach", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "No edible object in the scene, so using query in the loop to check the condition. Return immediately when the condition is satisfied and approach the object."
+},
+{
+    "scene_desc": ["laptop_4", "lemon_3"],
+    "task_desc": "[Q] is there anything edible behind you?",
+    "response": ["exec#turn_ccw,180", "exec#query,'is there anything edible?'", "print#$?"],
+    "explanation": "The query problem cannot be decided currently, turn around and execute the query, then call `str` with `$?` to output the result."
+},
+{
+    "scene_desc": ["chair_3", "laptop_9"],
+    "task_desc": "[A] Turn around until you can see some animal.",
+    "response": ["loop#8#3", "if#query,'is there any animal?',=,true#1", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees clockwise. If the loop is finished, return false."
+}
+
+Now given the following `scene desc.` and `task desc.`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
+`scene desc.`:
+['{name: bottle_98, loc_x: 0.45, loc_y: 0.35, size_x: 0.03, size_y: 0.17}', '{name: person_104, loc_x: 0.58, loc_y: 0.72, size_x: 0.56, size_y: 0.55}', '{name: bottle_120, loc_x: 0.55, loc_y: 0.36, size_x: 0.03, size_y: 0.17}']
+`task desc.`:
+[A] go to the bottle on the right
+##################################
+{"id": "chatcmpl-8Diwz5yDcR7X5XsBsrsrUTg19TMVO", "object": "chat.completion", "created": 1698281745, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "[\"exec#orienting,bottle_120\", \"exec#approach\"]"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2404, "completion_tokens": 16, "total_tokens": 2420}}
+##################################
+You are a drone pilot and you should follow the user's instructions to generate a task plan for the drone. You response should carefully consider the `system skills desc.`, the `scene desc.`, and the `task desc.`.
+The `system skills desc.` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using our own language `MiniSpec`, are more flexible and can be used to build more complex skills.
+
+The syntax of `MiniSpec` is as follows:
+# Control block:
+"exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
+"if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
+"loop#count#nbr": Loop the next `nbr` commands for `count` times.
+"skip#nbr": Skip the next `nbr` commands.
+"delay#time": Delay the next command for `time` microseconds.
+"break": Break the current `loop` execution.
+"print#text": Print the `text` to the console.
+"ret#val": Return `val` as the return value of the current skill.
+
+# Arguments:
+"$1", "$2", "$3", ...: The arguments used by high-level skills, should be replaced when generating the program. If the specific argument cannot be determined at planning time, you can use `$?` as a special placeholder which represents the result of the last `exec` skill execution. Make sure the use of '$?' is following following a `exec` skill.
+
+
+Desc. of the two skill sets:
+- High-level skills:
+name: scan, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,true#1', 'ret#true', 'exec#turn_cw,45', 'delay#300', 'ret#false'], args: [obj_name: str], comment: rotate to find a certain object
+name: approach, skill_str_list: ['exec#move_forward,60'], args: [], comment: approach the object
+name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone
+name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down
+
+
+- Low-level skills:
+name: move_forward, args: [distance: int], comment: Move drone forward by a distance
+name: move_backward, args: [distance: int], comment: Move drone backward by a distance
+name: move_left, args: [distance: int], comment: Move drone left by a distance
+name: move_right, args: [distance: int], comment: Move drone right by a distance
+name: move_up, args: [distance: int], comment: Move drone up by a distance
+name: move_down, args: [distance: int], comment: Move drone down by a distance
+name: turn_ccw, args: [degree: int], comment: Turn drone counterclockwise by a degree
+name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree
+name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight
+name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object
+name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object
+name: query, args: [question: str], comment: Query the LLM to check the environment state
+name: verification, args: [retry: int], comment: Restart plan if task description has not been met
+
+
+The `scene desc.` is an object list, containing their names with id, location and box size.
+The `task desc.` is a natural language sentence, describing the user's instructions. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task desc.` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
+1. You should not generate any aggressive drone control.
+2. Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
+3. Derive the `object_name` arguments or question answers from the `scene description` as much as possible. Only if when it's unavailable, carefully use `$?` and `exec#query,'question'` during execution.
+4. Prioritize the employment of high-level skills whenever feasible.
+5. If no proper high-level skill is available, try to generate a new high-level skill.
+6. Assume `task description` uses common interpretation. E.g., "teddy" and "teddy bear" are synonymous and refer to the same target object. "something is a fruit" can be categorized under "something edible". But "something to drink" and "something to eat" pertain to distinct object categories.
+
+Here is a list of example `response` for different `scene desc.` and `task desc.`, and their explanations:
+{
+    "scene_desc": [],
+    "task_desc": "[A] find an apple",
+    "response": ["if#scan,apple,=,True#2", "exec#orienting,apple", "exec#approach"],
+    "explanation": "Apple is not in the scene, so the you first try to find an apple. If it is found, orient and approach it."
+},
+{
+    "scene_desc": ["apple_5"],
+    "task_desc": "[A] find an apple",
+    "response": ["exec#orienting,apple_5", "exec#approach"],
+    "explanation": "Apple is in the scene, just orient and approach it."
+},
+{
+    "scene_desc": ["apple_3"],
+    "task_desc": "[Q] is there an apple",
+    "response": ["print#'Yes, there is an apple.'"],
+    "explanation": "A Query type task and apple is in the scene, so the answer is yes."
+},
+{
+    "scene_desc": ["chair_4", "chair_13"],
+    "task_desc": "[A] find a chair on the left",
+    "response": ["exec#orienting,chair_4", "exec#approach"],
+    "explanation": "There are two chairs, so you need to specify which one to find. In this case, you need to find the chair on the left."
+},
+{
+    "scene_desc": ["chair_13", "laptop_2"],
+    "task_desc": "[A] find a chair, please verify the chair is in the scene and retry up to 3 times",
+    "response": ["exec#orienting,chair_13", "exec#approach", "exec#verification,3"],
+    "explanation": "Chair is in the scene, just orient and approach it. Then do the verification with 3 retries."
+},
+{
+    "scene_desc": ["apple_1", "lemon_3", "bottle_2"],
+    "task_desc": "[A] go to the yellow object",
+    "response": ["exec#orienting,lemon_3", "exec#approach"],
+    "explanation": "Lemon is yellow, just orient and approach it."
+},
+{
+    "scene_desc": ["chair_3", "laptop_1", "bottle_5"],
+    "task_desc": "[A] Find and go any edible object",
+    "response": ["loop#8#6", "if#query,'is there anything edible?',=,true#4", "exec#query,'what's the name of the edible object'", "exec#orienting,$?", "exec#approach", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "No edible object in the scene, so using query in the loop to check the condition. Return immediately when the condition is satisfied and approach the object."
+},
+{
+    "scene_desc": ["laptop_4", "lemon_3"],
+    "task_desc": "[Q] is there anything edible behind you?",
+    "response": ["exec#turn_ccw,180", "exec#query,'is there anything edible?'", "print#$?"],
+    "explanation": "The query problem cannot be decided currently, turn around and execute the query, then call `str` with `$?` to output the result."
+},
+{
+    "scene_desc": ["chair_3", "laptop_9"],
+    "task_desc": "[A] Turn around until you can see some animal.",
+    "response": ["loop#8#3", "if#query,'is there any animal?',=,true#1", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees clockwise. If the loop is finished, return false."
+}
+
+Now given the following `scene desc.` and `task desc.`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
+`scene desc.`:
+['{name: bottle_98, loc_x: 0.45, loc_y: 0.36, size_x: 0.03, size_y: 0.17}', '{name: person_104, loc_x: 0.58, loc_y: 0.72, size_x: 0.54, size_y: 0.55}', '{name: bottle_120, loc_x: 0.55, loc_y: 0.37, size_x: 0.03, size_y: 0.16}']
+`task desc.`:
+[A] find an apple
+##################################
+{"id": "chatcmpl-8DixBDOGBxgsuvSFlMyXvwUKVYNhu", "object": "chat.completion", "created": 1698281757, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "[\"if#scan,apple,=,True#2\", \"exec#orienting,apple\", \"exec#approach\"]"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2400, "completion_tokens": 27, "total_tokens": 2427}}
+##################################
+You are a drone pilot and you should follow the user's instructions to generate a task plan for the drone. You response should carefully consider the `system skills desc.`, the `scene desc.`, and the `task desc.`.
+The `system skills desc.` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using our own language `MiniSpec`, are more flexible and can be used to build more complex skills.
+
+The syntax of `MiniSpec` is as follows:
+# Control block:
+"exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
+"if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
+"loop#count#nbr": Loop the next `nbr` commands for `count` times.
+"skip#nbr": Skip the next `nbr` commands.
+"delay#time": Delay the next command for `time` microseconds.
+"break": Break the current `loop` execution.
+"print#text": Print the `text` to the console.
+"ret#val": Return `val` as the return value of the current skill.
+
+# Arguments:
+"$1", "$2", "$3", ...: The arguments used by high-level skills, should be replaced when generating the program. If the specific argument cannot be determined at planning time, you can use `$?` as a special placeholder which represents the result of the last `exec` skill execution. Make sure the use of '$?' is following following a `exec` skill.
+
+
+Desc. of the two skill sets:
+- High-level skills:
+name: scan, skill_str_list: ['loop#8#4', 'if#is_in_sight,$1,=,true#1', 'ret#true', 'exec#turn_cw,45', 'delay#300', 'ret#false'], args: [obj_name: str], comment: rotate to find a certain object
+name: approach, skill_str_list: ['exec#move_forward,60'], args: [], comment: approach the object
+name: orienting, skill_str_list: ['loop#4#7', 'if#obj_loc_x,$1,>,0.6#1', 'exec#turn_cw,15', 'if#obj_loc_x,$1,<,0.4#1', 'exec#turn_ccw,15', 'if#obj_loc_x,$1,<,0.6#2', 'if#obj_loc_x,$1,>,0.4#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: align the object to the center of the frame by rotating the drone
+name: centering_y, skill_str_list: ['loop#4#7', 'if#obj_loc_y,$1,<,0.4#1', 'exec#move_up,20', 'if#obj_loc_y,$1,>,0.6#1', 'exec#move_down,20', 'if#obj_loc_y,$1,>,0.4#2', 'if#obj_loc_y,$1,<,0.6#1', 'ret#true', 'ret#false'], args: [obj_name: str], comment: center the object's y location in the frame by moving the drone up or down
+
+
+- Low-level skills:
+name: move_forward, args: [distance: int], comment: Move drone forward by a distance
+name: move_backward, args: [distance: int], comment: Move drone backward by a distance
+name: move_left, args: [distance: int], comment: Move drone left by a distance
+name: move_right, args: [distance: int], comment: Move drone right by a distance
+name: move_up, args: [distance: int], comment: Move drone up by a distance
+name: move_down, args: [distance: int], comment: Move drone down by a distance
+name: turn_ccw, args: [degree: int], comment: Turn drone counterclockwise by a degree
+name: turn_cw, args: [degree: int], comment: Turn drone clockwise by a degree
+name: is_in_sight, args: [obj_name: str], comment: Check if an object is in sight
+name: obj_loc_x, args: [obj_name: str], comment: Get x location of an object
+name: obj_loc_y, args: [obj_name: str], comment: Get y location of an object
+name: query, args: [question: str], comment: Query the LLM to check the environment state
+name: verification, args: [retry: int], comment: Restart plan if task description has not been met
+
+
+The `scene desc.` is an object list, containing their names with id, location and box size.
+The `task desc.` is a natural language sentence, describing the user's instructions. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task desc.` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
+1. You should not generate any aggressive drone control.
+2. Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
+3. Derive the `object_name` arguments or question answers from the `scene description` as much as possible. Only if when it's unavailable, carefully use `$?` and `exec#query,'question'` during execution.
+4. Prioritize the employment of high-level skills whenever feasible.
+5. If no proper high-level skill is available, try to generate a new high-level skill.
+6. Assume `task description` uses common interpretation. E.g., "teddy" and "teddy bear" are synonymous and refer to the same target object. "something is a fruit" can be categorized under "something edible". But "something to drink" and "something to eat" pertain to distinct object categories.
+
+Here is a list of example `response` for different `scene desc.` and `task desc.`, and their explanations:
+{
+    "scene_desc": [],
+    "task_desc": "[A] find an apple",
+    "response": ["if#scan,apple,=,True#2", "exec#orienting,apple", "exec#approach"],
+    "explanation": "Apple is not in the scene, so the you first try to find an apple. If it is found, orient and approach it."
+},
+{
+    "scene_desc": ["apple_5"],
+    "task_desc": "[A] find an apple",
+    "response": ["exec#orienting,apple_5", "exec#approach"],
+    "explanation": "Apple is in the scene, just orient and approach it."
+},
+{
+    "scene_desc": ["apple_3"],
+    "task_desc": "[Q] is there an apple",
+    "response": ["print#'Yes, there is an apple.'"],
+    "explanation": "A Query type task and apple is in the scene, so the answer is yes."
+},
+{
+    "scene_desc": ["chair_4", "chair_13"],
+    "task_desc": "[A] find a chair on the left",
+    "response": ["exec#orienting,chair_4", "exec#approach"],
+    "explanation": "There are two chairs, so you need to specify which one to find. In this case, you need to find the chair on the left."
+},
+{
+    "scene_desc": ["chair_13", "laptop_2"],
+    "task_desc": "[A] find a chair, please verify the chair is in the scene and retry up to 3 times",
+    "response": ["exec#orienting,chair_13", "exec#approach", "exec#verification,3"],
+    "explanation": "Chair is in the scene, just orient and approach it. Then do the verification with 3 retries."
+},
+{
+    "scene_desc": ["apple_1", "lemon_3", "bottle_2"],
+    "task_desc": "[A] go to the yellow object",
+    "response": ["exec#orienting,lemon_3", "exec#approach"],
+    "explanation": "Lemon is yellow, just orient and approach it."
+},
+{
+    "scene_desc": ["chair_3", "laptop_1", "bottle_5"],
+    "task_desc": "[A] Find and go any edible object",
+    "response": ["loop#8#6", "if#query,'is there anything edible?',=,true#4", "exec#query,'what's the name of the edible object'", "exec#orienting,$?", "exec#approach", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "No edible object in the scene, so using query in the loop to check the condition. Return immediately when the condition is satisfied and approach the object."
+},
+{
+    "scene_desc": ["laptop_4", "lemon_3"],
+    "task_desc": "[Q] is there anything edible behind you?",
+    "response": ["exec#turn_ccw,180", "exec#query,'is there anything edible?'", "print#$?"],
+    "explanation": "The query problem cannot be decided currently, turn around and execute the query, then call `str` with `$?` to output the result."
+},
+{
+    "scene_desc": ["chair_3", "laptop_9"],
+    "task_desc": "[A] Turn around until you can see some animal.",
+    "response": ["loop#8#3", "if#query,'is there any animal?',=,true#1", "ret#true", "exec#turn_cw,45", "ret#false"],
+    "explanation": "Loop 8 times, if the answer to the question is true, return true. Otherwise, turn 45 degrees clockwise. If the loop is finished, return false."
+}
+
+Now given the following `scene desc.` and `task desc.`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
+`scene desc.`:
+['{name: person_156, loc_x: 0.67, loc_y: 0.71, size_x: 0.5, size_y: 0.58}', '{name: bottle_162, loc_x: 0.46, loc_y: 0.38, size_x: 0.03, size_y: 0.17}', '{name: bottle_163, loc_x: 0.55, loc_y: 0.38, size_x: 0.03, size_y: 0.16}', '{name: cup_166, loc_x: 0.52, loc_y: 0.42, size_x: 0.03, size_y: 0.08}']
+`task desc.`:
+[A] find something to drink
+##################################
+{"id": "chatcmpl-8DiziVhjwifzToZhHQUHQE6fPLpZq", "object": "chat.completion", "created": 1698281914, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "[\"exec#orienting,bottle_162\", \"exec#approach\"]"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2440, "completion_tokens": 16, "total_tokens": 2456}}
+##################################

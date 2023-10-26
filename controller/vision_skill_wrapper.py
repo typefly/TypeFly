@@ -11,24 +11,24 @@ class VisionSkillWrapper():
         formatted_results = []
         for item in json_data['result']:
             box = item['box']
-            formatted_results.append({
+            formatted_results.append(str({
                 'name': item['name'],
                 'loc_x': round((box['x1'] + box['x2']) / 2, 2),
                 'loc_y': round((box['y1'] + box['y2']) / 2, 2),
                 'size_x': round((box['x2'] - box['x1']), 2),
                 'size_y': round((box['y2'] - box['y1']), 2)
-            })
+            }).replace("'", ''))
         return formatted_results
 
     def get_obj_list(self) -> [str]:
         return VisionSkillWrapper.format_results(self.shared_yolo_results.get())
 
     def get_obj_info(self, object_name: str) -> Optional[dict]:
-        yolo_results = self.shared_yolo_results.get()
-        for (_, json_data) in yolo_results['result']:
+        (_, yolo_results) = self.shared_yolo_results.get()
+        for item in yolo_results['result']:
             # change this to start_with
-            if json_data['name'].startswith(object_name):
-                return json_data
+            if item['name'].startswith(object_name):
+                return item
         return None
 
     def is_in_sight(self, object_name: str) -> bool:
