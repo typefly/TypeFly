@@ -27,4 +27,5 @@ class LLMWrapper:
             f.write(prompt + "\n---\n")
             f.write(json.dumps(response) + "\n---\n")
 
+        print(f"LLM response: {response}")
         return response["choices"][0]["message"]["content"]

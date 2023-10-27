@@ -3,8 +3,6 @@ from PIL import Image
 from io import BytesIO
 import webcolors
 
-
-
 def get_colour_name(requested_colour):
     def closest_colour(requested_colour):
         min_colours = {}

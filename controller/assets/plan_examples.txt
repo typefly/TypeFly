@@ -1,0 +1,36 @@
+1.
+scene: [],
+task: [A] find an apple,
+response: if#scan,apple,=,True#2\nexec#orienting,apple\nexec#approach,
+2.
+scene: ["apple_5"],
+task: [A] find an apple,
+response: exec#orienting,apple_5\nexec#approach,
+3.
+scene: ["apple_3"],
+task: [Q] is there an apple,
+response: print#'Yes, there is an apple.',
+4.
+scene: ["chair_4", "chair_13"],
+task: [A] find a chair on the left,
+response: exec#orienting,chair_4\nexec#approach,
+5.
+scene: ["chair_13", "laptop_2"],
+task: [A] find a chair, please verify the chair is in the scene and retry up to 3 times,
+response: exec#orienting,chair_13\nexec#approach\nexec#verification,3,
+6.
+scene: ["apple_1", "lemon_3", "bottle_2"],
+task: [A] go to the yellow object,
+response: exec#orienting,lemon_3\nexec#approach,
+7.
+scene: ["chair_3", "laptop_1", "bottle_5"],
+task: [A] Find and go any edible object,
+response: loop#8#6\nif#query,'is there anything edible?',=,true#4\nexec#query,'what's the name of the edible object'\nexec#orienting,$?\nexec#approach\nret#true\nexec#turn_cw,45\nret#false,
+8.
+scene: ["laptop_4", "lemon_3"],
+task: [Q] is there anything edible behind you?,
+response: exec#turn_ccw,180\nexec#query,'is there anything edible?'\nprint#$?,
+9.
+scene: ["chair_3", "laptop_9"],
+task: [A] Turn around until you can see some animal.,
+response: loop#8#3\nif#query,'is there any animal?',=,true#1\nret#true\nexec#turn_cw,45\nret#false,

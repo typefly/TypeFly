@@ -18,7 +18,7 @@ The `task desc.` is a natural language sentence, describing the user's instructi
 Here is a list of example `response` for different `scene desc.` and `task desc.`, and their explanations:
 {plan_examples}
 
-Now given the following `scene desc.` and `task desc.`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
+Now given the following `scene desc.` and `task desc.`, please generate the response only with a single sentence of MiniSpec program and avoid over escaping for '\n'.
 `scene desc.`:
 {scene_description}
 `task desc.`:

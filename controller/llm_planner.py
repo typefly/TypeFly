@@ -1,4 +1,4 @@
-import os, json, ast
+import os, re
 from typing import Union
 
 from .skillset import SkillSet
@@ -28,7 +28,7 @@ class LLMPlanner():
         with open(os.path.join(current_directory, "./assets/minispec_syntax.txt"), "r") as f:
             self.minispec_syntax = f.read()
 
-        with open(os.path.join(current_directory, "./assets/plan_examples.json"), "r") as f:
+        with open(os.path.join(current_directory, "./assets/plan_examples.txt"), "r") as f:
             self.plan_examples = f.read()
 
     def init(self, high_level_skillset: SkillSet, low_level_skillset: SkillSet, vision_skill: VisionSkillWrapper):
@@ -49,7 +49,7 @@ class LLMPlanner():
                                              scene_description=self.vision_skill.get_obj_list(),
                                              task_description=task_description)
         print_t(f"[P] Planning request: {task_description}")
-        return ast.literal_eval(self.llm.request(prompt))
+        return re.split(r'\n|\\n', self.llm.request(prompt))
 
     def request_verification(self, prev_task_description: str, prev_task_response: str):
         prompt = self.verification_prompt.format(rules=self.rules,
@@ -57,7 +57,7 @@ class LLMPlanner():
                                                  task_description=prev_task_description,
                                                  response=prev_task_response)
         print_t(f"[P] Verification request: {prev_task_description}")
-        return ast.literal_eval(self.llm.request(prompt))
+        return re.split(r'\n|\\n', self.llm.request(prompt))
     
     def request_execution(self, question: str) -> Union[bool, str]:
         def parse_value(s):
