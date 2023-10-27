@@ -172,6 +172,9 @@ class LLMController():
 
                 case 'ret':
                     return parse_value(segments[1])
+                case _:
+                    print_t(f"[C] Executing command '{segments[0]}' [FAILED]")
+                    return False
 
             if self.last_execution_result is None:
                 # if error occurs, break
@@ -254,13 +257,3 @@ class LLMController():
                 self.yolo_results_image_queue.put(latest_result[0])
 
             time.sleep(0.050)
-
-def main():
-    controller = LLMController()
-    # controller.run()
-    with open("./assets/test.txt", "r") as f:
-        text = f.read()
-    controller.execute_task_description(f"please generate the following plan: {text}")
-
-if __name__ == "__main__":
-    main()
