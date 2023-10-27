@@ -24,7 +24,7 @@ class LLMWrapper:
 
         # save the message in a txt
         with open(chat_log_path, "a") as f:
-            f.write(prompt + "\n##################################\n")
-            f.write(json.dumps(response) + "\n##################################\n")
+            f.write(prompt + "\n---\n")
+            f.write(json.dumps(response) + "\n---\n")
 
         return response["choices"][0]["message"]["content"]

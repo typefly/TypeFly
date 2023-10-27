@@ -26,7 +26,7 @@ class DroneWrapper(ABC):
         pass
 
     @abstractmethod
-    def get_image(self):
+    def get_frame_reader(self):
         pass
 
     @abstractmethod

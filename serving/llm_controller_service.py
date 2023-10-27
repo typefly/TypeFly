@@ -8,6 +8,7 @@ import argparse
 
 sys.path.append("..")
 from controller.llm_controller import LLMController
+from controller.utils import print_t
 
 logging.disable(logging.CRITICAL + 1)
 app = Flask(__name__)
@@ -17,17 +18,17 @@ global llm_controller
 main_page = open('./index.html', 'r').read()
 
 def shutdown():
-    print("Shutting down gracefully...")
+    print_t("[S] Shutting down gracefully in 0.5 seconds...")
     time.sleep(0.5)
     os.kill(os.getpid(), signal.SIGINT)
 
 def process_command(command: str):
-    print(f"Received command: {command}")
+    print_t(f"[S] Receiving task description: {command}")
     if command == "exit":
         llm_controller.stop_controller()
         Thread(target=shutdown).start()
     else:
-        llm_controller.execute_user_command(command)
+        llm_controller.execute_task_description(command)
 
 def generate_mjpeg_stream():
     while True:
@@ -71,7 +72,6 @@ def stop_loop_from_thread():
 
 def init_llm_controller(v=False):
     global llm_controller
-    print("init llm controller")
     llm_controller = LLMController(v)
 
 if __name__ == "__main__":

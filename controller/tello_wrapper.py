@@ -7,7 +7,7 @@ class TelloWrapper(DroneWrapper):
     def __init__(self):
         self.drone = Tello()
         self.active_count = 0
-        self.streamOn = False
+        self.stream_on = False
 
     def keep_active(self):
         if self.active_count % 20 == 0:
@@ -28,18 +28,17 @@ class TelloWrapper(DroneWrapper):
         self.drone.land()
 
     def start_stream(self):
-        self.streamOn = True
+        self.stream_on = True
         self.drone.streamon()
-        self.frame_reader = self.drone.get_frame_read()
 
     def stop_stream(self):
-        self.streamOn = False
+        self.stream_on = False
         self.drone.streamoff()
 
-    def get_image(self):
-        if not self.streamOn:
+    def get_frame_reader(self):
+        if not self.stream_on:
             return None
-        return self.frame_reader.frame
+        return self.drone.get_frame_read()
 
     def move_forward(self, distance: int) -> bool:
         self.drone.move_forward(distance)

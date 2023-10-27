@@ -9,9 +9,9 @@ from .tello_wrapper import TelloWrapper
 from .virtual_drone_wrapper import VirtualDroneWrapper
 from .drone_wrapper import DroneWrapper
 from .vision_skill_wrapper import VisionSkillWrapper
-from .llm_wrapper import LLMWrapper
 from .llm_planner import LLMPlanner
 from .skillset import SkillSet, LowLevelSkillItem, HighLevelSkillItem, SkillArg
+from .utils import print_t, input_t
 
 class LLMController():
     def __init__(self, use_virtual_drone=False):
@@ -21,9 +21,10 @@ class LLMController():
         self.controller_state = True
         self.controller_wait_takeoff = True
         if use_virtual_drone:
+            print_t("[C] Start virtual drone...")
             self.drone: DroneWrapper = VirtualDroneWrapper()
         else:
-            print("&&& start tello")
+            print_t("[C] Start real drone...")
             self.drone: DroneWrapper = TelloWrapper()
         self.vision = VisionSkillWrapper(self.yolo_results)
         self.planner = LLMPlanner()
@@ -76,7 +77,7 @@ class LLMController():
 
     def execute_skill_command(self, segments) -> Optional[bool]:
         # skill_command: skill_name,kwargs
-        print(f">> executing skill command: {segments}")
+        print_t(f"[C] Executing skill: {segments}")
         skill_name = segments[0]
         kwargs = segments[1:]
         # replace $? with self.last_execution_result
@@ -92,7 +93,7 @@ class LLMController():
         if skill_instance is not None:
             return self.execute_commands(skill_instance.execute(kwargs))
         
-        print(f"Skill '{skill_name}' not found.")
+        print_t(f"[C] Skill '{skill_name}' [NOT FOUND]")
         return None
 
     def execute_commands(self, commands: [str]) -> bool:
@@ -163,9 +164,9 @@ class LLMController():
                     self.last_execution_result = True
                 case 'print':
                     if segments[1].startswith("'") and segments[1].endswith("'"):
-                        print('Response: ' + segments[1])
+                        print_t('[C] Response: ' + segments[1])
                     elif segments[1] == '$?':
-                        print('Response: ' + str(self.last_execution_result))
+                        print_t('[C] Response: ' + str(self.last_execution_result))
 
                     self.last_execution_result = True
 
@@ -192,23 +193,23 @@ class LLMController():
                     loop_index = loop_range[0]
         return True
 
-    def execute_user_command(self, task_description: str):
-        # if self.controller_wait_takeoff:
-        #     print("Controller is waiting for takeoff...")
-        #     return
+    def execute_task_description(self, task_description: str):
+        if self.controller_wait_takeoff:
+            print_t("[C] Controller is waiting for takeoff...")
+            return
         
         for _ in range(1):
             t1 = time.time()
             result = self.planner.request_planning(task_description)
             t2 = time.time()
-            print(f">> planning time: {t2 - t1}")
+            print_t(f"[C] Planning time: {t2 - t1}")
             # ["loop#8#4", "if#query,'is there anything edible?',=,true#2", "exec#approach", "ret#true", "exec#turn_cw,45",
             #          "loop#8#4", "if#query,'is there anything drinkable?',=,true#2", "exec#approach", "ret#true", "exec#turn_cw,45",
             #          "print#'no edible and drinkable item can be found'", "ret#false"]
             # print(f">> result: {result}, executing...")
-            consent = input(f">> result: {result}, executing?")
+            consent = input_t(f"[C] Get plan: {result}, executing?")
             if consent == 'n':
-                print(">> command rejected.")
+                print_t("[C] > Command rejected <")
                 return
             self.execute_commands(result)
             # ending = self.planner.request_verification(task_description, result)
@@ -220,26 +221,25 @@ class LLMController():
             #     print(">> command failed, try again.")
 
     def start_robot(self):
-        print("Drone is taking off...")
+        print_t("[C] Drone is taking off...")
         self.drone.connect()
         self.drone.takeoff()
         self.drone.move_up(30)
         self.drone.start_stream()
         self.controller_wait_takeoff = False
-        print("Start controller...")
 
     def stop_robot(self):
-        print("Drone is landing...")
+        print_t("[C] Drone is landing...")
         self.drone.land()
         self.drone.stop_stream()
         self.controller_wait_takeoff = True
-        print("Stop controller...")
 
     def capture_loop(self, asyncio_loop):
-        print("Start capture loop...")
+        print_t("[C] Start capture loop...")
+        frame_reader = self.drone.get_frame_reader()
         while self.controller_state:
             self.drone.keep_active()
-            frame = self.drone.get_image()
+            frame = frame_reader.frame
             image = Image.fromarray(frame)
 
             if self.yolo_client.local_service():
@@ -260,7 +260,7 @@ def main():
     # controller.run()
     with open("./assets/test.txt", "r") as f:
         text = f.read()
-    controller.execute_user_command(f"please generate the following plan: {text}")
+    controller.execute_task_description(f"please generate the following plan: {text}")
 
 if __name__ == "__main__":
     main()

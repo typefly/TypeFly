@@ -4,6 +4,7 @@ from typing import Union
 from .skillset import SkillSet
 from .llm_wrapper import LLMWrapper
 from .vision_skill_wrapper import VisionSkillWrapper
+from .utils import print_t
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 
@@ -47,7 +48,7 @@ class LLMPlanner():
                                              plan_examples=self.plan_examples,
                                              scene_description=self.vision_skill.get_obj_list(),
                                              task_description=task_description)
-        print(f"> Planning request: {task_description}...")
+        print_t(f"[P] Planning request: {task_description}")
         return ast.literal_eval(self.llm.request(prompt))
 
     def request_verification(self, prev_task_description: str, prev_task_response: str):
@@ -55,7 +56,7 @@ class LLMPlanner():
                                                  scene_description=self.vision_skill.get_obj_list(),
                                                  task_description=prev_task_description,
                                                  response=prev_task_response)
-        print(f"> Verification request: {prev_task_description}...")
+        print_t(f"[P] Verification request: {prev_task_description}")
         return ast.literal_eval(self.llm.request(prompt))
     
     def request_execution(self, question: str) -> Union[bool, str]:
@@ -67,5 +68,5 @@ class LLMPlanner():
                 return False
             return s
         prompt = self.execution_prompt.format(scene_description=self.vision_skill.get_obj_list(), question=question)
-        print(f"> Execution request: {question}...")
+        print_t(f"[P] Execution request: {question}")
         return parse_value(self.llm.request(prompt))
