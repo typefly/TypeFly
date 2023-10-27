@@ -26,14 +26,17 @@ class VisionSkillWrapper():
         return name
 
     def get_dominant_color(image, box):
-        cropped_image = image.crop((box['x1'], box['y1'], box['x2'], box['y2']))
+        w, h = image.size
+        cropped_image = image.crop((box['x1'] * w, box['y1'] * h, box['x2'] * w, box['y2'] * h))
         imgByteArr = BytesIO()
-        cropped_image.save(imgByteArr, format='WEBP')
+        cropped_image.save(imgByteArr, format='JPEG')
         color_thief = ColorThief(imgByteArr)
         dominant_color = color_thief.get_color(quality=1)
         return dominant_color
 
     def format_results(results):
+        if results is None:
+            return []
         (image, json_data) = results
         formatted_results = []
         for item in json_data['result']:

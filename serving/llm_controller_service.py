@@ -3,12 +3,13 @@ from threading import Thread
 from flask import Flask, request, jsonify, Response
 import logging
 import asyncio
-import fire, sys
+import sys
+import argparse
 
 sys.path.append("..")
 from controller.llm_controller import LLMController
 
-# logging.disable(logging.CRITICAL + 1)
+logging.disable(logging.CRITICAL + 1)
 app = Flask(__name__)
 FRAME_RATE = 30
 
@@ -70,10 +71,14 @@ def stop_loop_from_thread():
 
 def init_llm_controller(v=False):
     global llm_controller
+    print("init llm controller")
     llm_controller = LLMController(v)
 
 if __name__ == "__main__":
-    fire.Fire(init_llm_controller)
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument("-v", "--virtual-camera", action='store_true', help="Use laptop camera")
+    args = parser.parse_args()
+    init_llm_controller(args.virtual_camera)
     # Start the asyncio loop in a separate thread
     async_thread = Thread(target=start_async_loop)
     async_thread.start()
@@ -86,7 +91,7 @@ if __name__ == "__main__":
     llm_thread.start()
 
     # Start the Flask server
-    app.run(host='localhost', port=50001, debug=True)
+    app.run(host='localhost', port=50001, debug=True, use_reloader=False)
 
     # Stop the LLM controller
     stop_loop_from_thread()

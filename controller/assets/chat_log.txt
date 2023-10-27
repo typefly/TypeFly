@@ -107,20 +107,83 @@ Here is a list of example `response` for different `scene desc.` and `task desc.
 
 Now given the following `scene desc.` and `task desc.`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
 `scene desc.`:
-['{name: person_14, loc_x: 0.55, loc_y: 0.5, size_x: 0.78, size_y: 1.0, color: rosybrown}']
+['{name: dining table, loc_x: 0.65, loc_y: 0.69, size_x: 0.71, size_y: 0.63, color: darkslategray}', '{name: bowl, loc_x: 0.87, loc_y: 0.47, size_x: 0.08, size_y: 0.09, color: silver}', '{name: dining table, loc_x: 0.65, loc_y: 0.57, size_x: 0.7, size_y: 0.4, color: gainsboro}', '{name: cup, loc_x: 0.71, loc_y: 0.53, size_x: 0.05, size_y: 0.08, color: dimgray}', '{name: bottle, loc_x: 0.27, loc_y: 0.05, size_x: 0.04, size_y: 0.1, color: darkgray}']
 `task desc.`:
-[Q] what's the color of my cloth
+[A] Could you try to find something for me to eat?
 ##################################
-{"id": "chatcmpl-8DkxmjogxfMgdrY8CdFqMvlok1C2P", "object": "chat.completion", "created": 1698289482, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "[\"exec#query,'what's the color of person_14?'\", \"print#$?\"]"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2333, "completion_tokens": 20, "total_tokens": 2353}}
+{"id": "chatcmpl-8EJokFkr9iiN6W4ZPu46eS1RLPfA0", "object": "chat.completion", "created": 1698423462, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "[\"loop#8#6\", \"if#query,'is there anything edible?',=,true#4\", \"exec#query,'what's the name of the edible object'\", \"exec#orienting,$?\", \"exec#approach\", \"ret#true\", \"exec#turn_cw,45\", \"ret#false\"]"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2504, "completion_tokens": 69, "total_tokens": 2573}}
 ##################################
 Here I will provide you with a `scene description` and a question.
 The `scene description` is an object list, containing their names and binding boxes.
 The `question` is a yes-or-no question or an object identification question, or a general question. They are closely related to the `scene description`.
 Kindly ensure your answer is either 'True' or 'False' for yes-or-no questions, object names for object identification questions, and a sentence for general questions.
-`scene description`: ['{name: person_14, loc_x: 0.54, loc_y: 0.5, size_x: 0.78, size_y: 1.0, color: rosybrown}'],
-`question`: 'what's the color of person_14?'.
+`scene description`: ['{name: bottle, loc_x: 0.28, loc_y: 0.06, size_x: 0.03, size_y: 0.11, color: darkslategray}', '{name: dining table, loc_x: 0.65, loc_y: 0.7, size_x: 0.7, size_y: 0.6, color: darkslategray}', '{name: dining table, loc_x: 0.65, loc_y: 0.6, size_x: 0.7, size_y: 0.33, color: antiquewhite}', '{name: bowl, loc_x: 0.87, loc_y: 0.48, size_x: 0.08, size_y: 0.09, color: rosybrown}', '{name: cup, loc_x: 0.71, loc_y: 0.53, size_x: 0.04, size_y: 0.08, color: dimgray}'],
+`question`: 'is there anything edible?'.
 ##################################
-{"id": "chatcmpl-8DkxsMRONRFOkOQZyPuFQiGkCULW5", "object": "chat.completion", "created": 1698289488, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "The color of person_14 is rosybrown."}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 169, "completion_tokens": 11, "total_tokens": 180}}
+{"id": "chatcmpl-8EJp0JWUFZaBRu617HQ0mz6Hh9p1M", "object": "chat.completion", "created": 1698423478, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 337, "completion_tokens": 1, "total_tokens": 338}}
+##################################
+Here I will provide you with a `scene description` and a question.
+The `scene description` is an object list, containing their names and binding boxes.
+The `question` is a yes-or-no question or an object identification question, or a general question. They are closely related to the `scene description`.
+Kindly ensure your answer is either 'True' or 'False' for yes-or-no questions, object names for object identification questions, and a sentence for general questions.
+`scene description`: ['{name: chair_98, loc_x: 0.59, loc_y: 0.62, size_x: 0.73, size_y: 0.76, color: black}'],
+`question`: 'is there anything edible?'.
+##################################
+{"id": "chatcmpl-8EJp4zWyspv14htlnR0NLuvHCdtvs", "object": "chat.completion", "created": 1698423482, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "'False'"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 163, "completion_tokens": 3, "total_tokens": 166}}
+##################################
+Here I will provide you with a `scene description` and a question.
+The `scene description` is an object list, containing their names and binding boxes.
+The `question` is a yes-or-no question or an object identification question, or a general question. They are closely related to the `scene description`.
+Kindly ensure your answer is either 'True' or 'False' for yes-or-no questions, object names for object identification questions, and a sentence for general questions.
+`scene description`: ['{name: chair_101, loc_x: 0.27, loc_y: 0.7, size_x: 0.46, size_y: 0.58, color: black}'],
+`question`: 'is there anything edible?'.
+##################################
+{"id": "chatcmpl-8EJp9aBkZlffHwqiv98lqlDrEKpRy", "object": "chat.completion", "created": 1698423487, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "'False'"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 163, "completion_tokens": 3, "total_tokens": 166}}
+##################################
+Here I will provide you with a `scene description` and a question.
+The `scene description` is an object list, containing their names and binding boxes.
+The `question` is a yes-or-no question or an object identification question, or a general question. They are closely related to the `scene description`.
+Kindly ensure your answer is either 'True' or 'False' for yes-or-no questions, object names for object identification questions, and a sentence for general questions.
+`scene description`: ['{name: cup_104, loc_x: 0.53, loc_y: 0.52, size_x: 0.08, size_y: 0.19, color: rosybrown}'],
+`question`: 'is there anything edible?'.
+##################################
+{"id": "chatcmpl-8EJpEtzlDGnIgx9ppBf2g3wwi6iQX", "object": "chat.completion", "created": 1698423492, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "'False'"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 165, "completion_tokens": 3, "total_tokens": 168}}
+##################################
+Here I will provide you with a `scene description` and a question.
+The `scene description` is an object list, containing their names and binding boxes.
+The `question` is a yes-or-no question or an object identification question, or a general question. They are closely related to the `scene description`.
+Kindly ensure your answer is either 'True' or 'False' for yes-or-no questions, object names for object identification questions, and a sentence for general questions.
+`scene description`: ['{name: mouse_110, loc_x: 0.03, loc_y: 0.71, size_x: 0.06, size_y: 0.16, color: darkkhaki}', '{name: keyboard_111, loc_x: 0.26, loc_y: 0.49, size_x: 0.3, size_y: 0.13, color: darkslategray}'],
+`question`: 'is there anything edible?'.
+##################################
+{"id": "chatcmpl-8EJpIeJUcNwVGIdJ74XFI1Vdp7v4f", "object": "chat.completion", "created": 1698423496, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "'False'"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 211, "completion_tokens": 3, "total_tokens": 214}}
+##################################
+Here I will provide you with a `scene description` and a question.
+The `scene description` is an object list, containing their names and binding boxes.
+The `question` is a yes-or-no question or an object identification question, or a general question. They are closely related to the `scene description`.
+Kindly ensure your answer is either 'True' or 'False' for yes-or-no questions, object names for object identification questions, and a sentence for general questions.
+`scene description`: ['{name: chair_112, loc_x: 0.44, loc_y: 0.57, size_x: 0.3, size_y: 0.67, color: darkolivegreen}'],
+`question`: 'is there anything edible?'.
+##################################
+{"id": "chatcmpl-8EJpN0fvJ23L1CLXLvWEqGPJ7Y1xH", "object": "chat.completion", "created": 1698423501, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "'False'"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 166, "completion_tokens": 3, "total_tokens": 169}}
+##################################
+Here I will provide you with a `scene description` and a question.
+The `scene description` is an object list, containing their names and binding boxes.
+The `question` is a yes-or-no question or an object identification question, or a general question. They are closely related to the `scene description`.
+Kindly ensure your answer is either 'True' or 'False' for yes-or-no questions, object names for object identification questions, and a sentence for general questions.
+`scene description`: ['{name: person_114, loc_x: 0.61, loc_y: 0.5, size_x: 0.53, size_y: 1.0, color: darkslategray}', '{name: chair_115, loc_x: 0.32, loc_y: 0.67, size_x: 0.2, size_y: 0.63, color: darkslategray}'],
+`question`: 'is there anything edible?'.
+##################################
+{"id": "chatcmpl-8EJpRa3KzrcG64LtrHsf2qCKGyDAY", "object": "chat.completion", "created": 1698423505, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 212, "completion_tokens": 1, "total_tokens": 213}}
+##################################
+Here I will provide you with a `scene description` and a question.
+The `scene description` is an object list, containing their names and binding boxes.
+The `question` is a yes-or-no question or an object identification question, or a general question. They are closely related to the `scene description`.
+Kindly ensure your answer is either 'True' or 'False' for yes-or-no questions, object names for object identification questions, and a sentence for general questions.
+`scene description`: ['{name: person_116, loc_x: 0.05, loc_y: 0.53, size_x: 0.1, size_y: 0.34, color: darkslategray}'],
+`question`: 'is there anything edible?'.
+##################################
+{"id": "chatcmpl-8EJpUvWuoUcG7mGJ1z3xTLfkBLG3c", "object": "chat.completion", "created": 1698423508, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "'False'"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 166, "completion_tokens": 3, "total_tokens": 169}}
 ##################################
 You are a drone pilot and you should follow the user's instructions to generate a task plan for the drone. You response should carefully consider the `system skills desc.`, the `scene desc.`, and the `task desc.`.
 The `system skills desc.` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built using our own language `MiniSpec`, are more flexible and can be used to build more complex skills.
@@ -231,9 +294,9 @@ Here is a list of example `response` for different `scene desc.` and `task desc.
 
 Now given the following `scene desc.` and `task desc.`, please generate the plan string list only. The response should be in the format of "[skill_calls]"
 `scene desc.`:
-['{name: person_14, loc_x: 0.52, loc_y: 0.49, size_x: 0.97, size_y: 0.99, color: tan}']
+['{name: dining table, loc_x: 0.73, loc_y: 0.74, size_x: 0.53, size_y: 0.51, color: darkolivegreen}', '{name: bench, loc_x: 0.87, loc_y: 0.88, size_x: 0.26, size_y: 0.25, color: dimgray}', '{name: bowl, loc_x: 0.67, loc_y: 0.52, size_x: 0.14, size_y: 0.09, color: cadetblue}']
 `task desc.`:
-[Q] what's the color of the person
+[A] can you find an apple
 ##################################
-{"id": "chatcmpl-8DkyEVP8cd1DhLYLZFewDpMynyfwt", "object": "chat.completion", "created": 1698289510, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "[\"print#'The color of the person is tan.'\"]"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2331, "completion_tokens": 12, "total_tokens": 2343}}
+{"id": "chatcmpl-8EJpdNvYQJUom3VMAcdatLc4XRjbJ", "object": "chat.completion", "created": 1698423517, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "[\"if#scan,apple,=,True#2\", \"exec#orienting,apple\", \"exec#approach\"]"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 2415, "completion_tokens": 27, "total_tokens": 2442}}
 ##################################

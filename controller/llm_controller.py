@@ -23,6 +23,7 @@ class LLMController():
         if use_virtual_drone:
             self.drone: DroneWrapper = VirtualDroneWrapper()
         else:
+            print("&&& start tello")
             self.drone: DroneWrapper = TelloWrapper()
         self.vision = VisionSkillWrapper(self.yolo_results)
         self.planner = LLMPlanner()
@@ -235,6 +236,7 @@ class LLMController():
         print("Stop controller...")
 
     def capture_loop(self, asyncio_loop):
+        print("Start capture loop...")
         while self.controller_state:
             self.drone.keep_active()
             frame = self.drone.get_image()
