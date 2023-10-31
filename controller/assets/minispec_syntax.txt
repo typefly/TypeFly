@@ -1,12 +1,13 @@
 # Control block:
-"exec#skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs`.
-"if#skill_name,kwargs,cmp,val#nbr": Execute the skill specified by `skill_name` with the given `kwargs`. Then compare the return value with `val` using `cmp`. If the result is true, then execute the next `nbr` commands. Otherwise, skip the next `nbr` commands.
-"loop#count#nbr": Loop the next `nbr` commands for `count` times.
-"skip#nbr": Skip the next `nbr` commands.
-"delay#time": Delay the next command for `time` microseconds.
+"var_i:skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs` and store the return value in the variable `var_i`.
+"if:var_i,cmp,val:nbr": Compare the `var_i` with `val` using `cmp`. If the result is true, then execute the next `nbr` commands, otherwise, skip the next `nbr` commands.
+"loop:count:nbr": Loop the next `nbr` commands for `count` times.
+"skip:nbr": Skip the next `nbr` commands.
 "break": Break the current `loop` execution.
-"print#text": Print the `text` to the console.
-"ret#val": Return `val` as the return value of the current skill.
+"ret:val": Stop execution and return `val`.
+
+# formatting:
+sentences are divided by ';'
 
 # Arguments:
-"$1", "$2", "$3", ...: The arguments used by high-level skills, should be replaced when generating the program. If the specific argument cannot be determined at planning time, you can use `$?` as a special placeholder which represents the result of the last `exec` skill execution. Make sure the use of '$?' is following following a `exec` skill.
+"$1", "$2", "$3", ...: The arguments used by high-level skills, should be replaced with real arguments (number, object_name, or `var_i` from the execution of some skill) when generating the program.
