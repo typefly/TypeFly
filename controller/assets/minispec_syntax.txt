@@ -1,13 +1,13 @@
-# Control block:
-"var_i:skill_name,kwargs": Execute the skill specified by `skill_name` with the given `kwargs` and store the return value in the variable `var_i`. `var_0` is for all unused return values.
-"if:condition:nbr": If the condition is true, execute the next `nbr` commands, otherwise skip them. The simplest condition would be `var_i,cmp,val`, where `cmp` is one of `==`, `!=`, `>`, `<`, `>=`, `<=`. Condition can be nested with `&&` and `||`.
-"loop:count:nbr": Loop the next `nbr` commands for `count` times.
-"skip:nbr": Skip the next `nbr` commands.
-"break": Break the current `loop` execution.
-"ret:val": Stop execution and return `val`.
-
-# formatting:
-sentences are divided by ';'
-
-# Arguments:
-"$1", "$2", "$3", ...: The arguments used by high-level skills, should be replaced with real arguments (number, object_name, or `var_i` from the execution of some skill) when generating the program.
+<program> ::= <statement> { ';' <statement> }
+<statement> ::= <loop> | <function-call> | <conditional> | <return>
+<loop> ::= <int> '{' <program> '}'
+<function-call> ::= <variable-assign> | <function-name> ',' <argument>
+<variable-assign> ::= <variable> '=' <function-name> ',' <argument>
+<conditional> ::= '?' <condition> '{' <program> '}'
+<return> ::= '->' <value>
+<condition> ::= <variable> <comparator> <value> { '&' <condition> | '|' <condition> }
+<comparator> ::= '>' | '<' | '==' | '!='
+<function-name> ::= <alpha> { <alpha> }
+<argument> ::= <value> { ',' <value> }
+<variable> ::= '_' <int>
+<value> ::= <int> | <float> | <string> | <bool>

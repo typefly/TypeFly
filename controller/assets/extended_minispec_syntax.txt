@@ -1,19 +1,17 @@
-`command`: a command is a sequence of actions that can be executed by the agent
-<command> ::= <var-command> 
-           | <if-command> 
-           | <loop-command> 
-           | <skip-command> 
-           | <break-command> 
-           | <ret-command>
+//program: a sequence of commands that can be executed by the agent
+<program> ::= <command> | <command> ";" <program>
 
-`var-command`: a variable command is a command that assigns a value to a variable `var_i` for future use. If the return value is not useful, assign it to `var_0`.
+//command: basic unit of a program
+<command> ::= <var-command> | <if-command> | <loop-command> | <skip-command> | <break-command> | <ret-command>
+
+//var-command: assigns a value to a variable `var_i` for future use. If the return value is not useful, assign it to `var_0`.
 <var-command> ::= <variable> ":" <skill-name> "," <kwargs>
 <variable> ::= "var_" <integer>
 <skill-name> ::= <string>  // use the available skills only
 <kwargs> ::= <arg-list> | ε
 <arg-list> ::= <value> | <value> "," <arg-list>
 
-`if-command`: an if command is a command that executes the following <nbr> commands if a condition is met, otherwise skip the following <nbr> commands.
+//if-command: executes the following <nbr> commands if a condition is met, otherwise skip the following <nbr> commands
 <if-command> ::= "if:" <condition> ":" <nbr>
 <condition> ::= <simple-condition> | <compound-condition>
 <simple-condition> ::= <variable> "," <cmp> "," <value>
@@ -21,17 +19,17 @@
 <logical-operator> ::= "&&" | "||" // "&&" has higher precedence than "||"
 <cmp> ::= "==" | "!=" | "<" | "<=" | ">" | ">="
 
-`loop-command`: a loop command is a command that executes the following <nbr> commands for <count> times.
+//loop-command: executes the following <nbr> commands for <count> times
 <loop-command> ::= "loop:" <count> ":" <nbr>
 <count> ::= <integer>
 
-`skip-command`: a skip command is a command that skips the following <nbr> commands.
+//skip-command: skips the following <nbr> commands
 <skip-command> ::= "skip:" <nbr>
 
-`break-command`: a break command is a command that breaks the current loop.
+//break-command: breaks the current loop
 <break-command> ::= "break"
 
-`ret-command`: a ret command is a command that returns a value to the caller.
+//ret-command: returns a value to the caller
 <ret-command> ::= "ret:" <value>
 
 <nbr> ::= <integer>
