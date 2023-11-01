@@ -41,33 +41,29 @@ class LLMController():
         self.low_level_skillset.add_skill(LowLevelSkillItem("is_in_sight", self.vision.is_in_sight, "Check if an object is in sight", args=[SkillArg("obj_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("obj_loc_x", self.vision.obj_loc_x, "Get x location of an object", args=[SkillArg("obj_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("obj_loc_y", self.vision.obj_loc_y, "Get y location of an object", args=[SkillArg("obj_name", str)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.planner.request_execution, "Query the LLM to check the environment state", args=[SkillArg("question", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.planner.request_execution, "Query the LLM for reasoning", args=[SkillArg("question", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("log", self.log, "Print the text to console", args=[SkillArg("text", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("delay", self.delay, "Sleep for some microseconds", args=[SkillArg("ms", int)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("verification", self.verification, "Restart plan if task description has not been met", args=[SkillArg("retry", int)]))
         
         self.high_level_skillset = SkillSet(level="high", lower_level_skillset=self.low_level_skillset)
-        self.high_level_skillset.add_skill(HighLevelSkillItem("scan", ["loop#8#4", "if#is_in_sight,$1,==,true#1", "ret#true", "exec#turn_cw,45", "delay#300", "ret#false"],
-                                                           "rotate to find a certain object"))
-        self.high_level_skillset.add_skill(HighLevelSkillItem("approach", ["exec#move_forward,60"], comment="approach the object"))
-        self.high_level_skillset.add_skill(HighLevelSkillItem("orienting",
-                                                           ["loop#4#7",
-                                                            "if#obj_loc_x,$1,>,0.6#1", "exec#turn_cw,15",
-                                                            "if#obj_loc_x,$1,<,0.4#1", "exec#turn_ccw,15",
-                                                            "if#obj_loc_x,$1,<,0.6#2", "if#obj_loc_x,$1,>,0.4#1", "ret#true", "ret#false"],
+        self.high_level_skillset.add_skill(HighLevelSkillItem("scan", "loop:8:4; var_1:is_in_sight,$1; if:var_1,==,true:1; ret:true; var_0:turn_cw,45; var_0:delay,300; ret:false;", "rotate to find a certain object"))
+        self.high_level_skillset.add_skill(HighLevelSkillItem("approach", "var_0:move_forward,60", comment="approach the object"))
+        self.high_level_skillset.add_skill(HighLevelSkillItem("orienting", "loop:4:8; var_1:obj_loc_x,$1; if:var_1,>,0.6:1; var_0:turn_cw,15; if:var_1,<,0.4:1; var_0:turn_ccw,15; var_2:obj_loc_x,$1; if:var_2,<,0.6&&var_2,>,0.4:1; ret:true; ret:false;",
                                                             "align the object to the center of the frame by rotating the drone"))
-        self.high_level_skillset.add_skill(HighLevelSkillItem("centering_y",
-                                                           ["loop#4#7",
-                                                            "if#obj_loc_y,$1,<,0.4#1", "exec#move_up,20",
-                                                            "if#obj_loc_y,$1,>,0.6#1", "exec#move_down,20",
-                                                            "if#obj_loc_y,$1,>,0.4#2", "if#obj_loc_y,$1,<,0.6#1", "ret#true", "ret#false"],
+        self.high_level_skillset.add_skill(HighLevelSkillItem("centering_y", "loop:4:8; var_1:obj_loc_y,$1; if:var_1,>,0.6:1; var_0:move_down,20; if:var_1,<,0.4:1; var_0:move_up,20; var_2:obj_loc_y,$1; if:var_2,<,0.6&&var_2,>,0.4:1; ret:true; ret:false;",
                                                             "center the object's y location in the frame by moving the drone up or down"))
-        # self.high_level_skillset.add_skill(HighLevelSkillItem("find_drink_obj",
-        #                                                    ["loop#8#3", "exec#turn_cw,45", "if#query,'is there anything for drink?',==,true#1", "ret#true", "ret#false"],
-        #                                                     "find a drinkable object"))
 
         self.planner.init(high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset, vision_skill=self.vision)
 
     def verification(self, retry: int):
         pass
+
+    def log(self, text: str):
+        print_t(f"[LOG] {text}")
+
+    def delay(self, ms: int):
+        time.sleep(ms / 1000.0)
 
     def stop_controller(self):
         self.controller_state = False
