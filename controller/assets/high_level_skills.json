@@ -1,0 +1,17 @@
+[
+    {
+        "skill_name": "sweeping",
+        "skill_description": "Rotate to find a certain object",
+        "definition": "8{_1=iis,$1;?_1==True{->True}tc,45}->False"
+    },
+    {
+        "skill_name": "approach",
+        "skill_description": "Approach a certain object",
+        "definition": "mf,40"
+    },
+    {
+        "skill_name": "orienting",
+        "skill_description": "Rotate to align with a certain object",
+        "definition": "4{_1=olx,$1;?_1>0.6{tc,15};?_1<0.4{tcc,15};_2=olx,$1;?_2<0.6&_2>0.4{->True}}->False"
+    }
+]

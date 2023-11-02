@@ -47,25 +47,33 @@ class VirtualDroneWrapper(DroneWrapper):
         return FrameReader(self.cap)
 
     def move_forward(self, distance: int) -> bool:
+        print(f"-> Moving forward {distance} cm")
         return True
 
     def move_backward(self, distance: int) -> bool:
+        print(f"-> Moving backward {distance} cm")
         return True
 
     def move_left(self, distance: int) -> bool:
+        print(f"-> Moving left {distance} cm")
         return True
 
     def move_right(self, distance: int) -> bool:
+        print(f"-> Moving right {distance} cm")
         return True
 
     def move_up(self, distance: int) -> bool:
+        print(f"-> Moving up {distance} cm")
         return True
 
     def move_down(self, distance: int) -> bool:
+        print(f"-> Moving down {distance} cm")
         return True
 
     def turn_ccw(self, degree: int) -> bool:
+        print(f"-> Turning CCW {degree} degrees")
         return True
 
     def turn_cw(self, degree: int) -> bool:
+        print(f"-> Turning CW {degree} degrees")
         return True

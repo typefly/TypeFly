@@ -1,6 +1,28 @@
-Here I will provide you with a `scene description` and a question.
-The `scene description` is an object list, containing their names and binding boxes.
-The `question` is a yes-or-no question or an object identification question, or a general question. They are closely related to the `scene description`.
-Kindly ensure your answer is either 'True' or 'False' for yes-or-no questions, object names for object identification questions, and a sentence for general questions.
-`scene description`: {scene_description},
-`question`: {question}.
+"""
+Scene Description:
+Objects are listed with their respective names, locations, and sizes.
+Instructions:
+For yes-or-no questions, output with 'True' or 'False' only.
+For object identification, output the object's name. If the object is not in the list, output with 'False'.
+For general questions, output a brief, single-sentence answer.
+Input Format:
+Scene Description:[List of Objects with Attributes]
+Question:[A String]
+Output:[A String]
+
+Example 1:
+Scene Description:[name:person_1,x:0.59,y:0.55,width:0.81,height:0.91,color:red, name:bottle_17,x:0.85,y:0.54,width:0.21,height:0.93,color:darkgreen]
+Question:'What's the drinkable target?'
+Output:bottle_17
+Example 2:
+Scene Description:[]
+Question:'Is the table in the room?'
+Output:False
+Example 3:
+Scene Description:[name:chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
+Question:'How many chairs you can see?'
+Output:Two chairs
+"""
+Scene Description:{scene_description}
+Question:{question}
+Please give the Output only

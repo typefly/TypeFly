@@ -15,10 +15,10 @@ ROUTER_SERVICE_PORT = '50049'
 
 class SharedYoloResults():
     def __init__(self) -> None:
-        self.result_with_image = None
+        self.result_with_image = (None, {})
         self.lock = threading.Lock()
 
-    def get(self) -> Optional[Tuple[Image.Image, dict]]:
+    def get(self) -> Tuple[Image.Image, dict]:
         with self.lock:
             return self.result_with_image
         

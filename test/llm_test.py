@@ -3,7 +3,6 @@ import sys
 sys.path.append("..")
 
 from controller.llm_wrapper import LLMWrapper
-from controller.llm_controller import LLMController
 
 llm = LLMWrapper()
 
@@ -38,6 +37,3 @@ t1 = time.time()
 response = llm.request(start + d)
 t2 = time.time()
 print(f"Time elapsed: {t2 - t1}, response: {response}")
-
-# controller = LLMController()
-# controller.execute_commands(['find a person.'])

@@ -49,7 +49,7 @@ class LLMPlanner():
                                              scene_description=self.vision_skill.get_obj_list(),
                                              task_description=task_description)
         print_t(f"[P] Planning request: {task_description}")
-        return re.split(r'\n|\\n', self.llm.request(prompt))
+        return self.llm.request(prompt)
 
     def request_verification(self, prev_task_description: str, prev_task_response: str):
         prompt = self.verification_prompt.format(rules=self.rules,
@@ -57,7 +57,7 @@ class LLMPlanner():
                                                  task_description=prev_task_description,
                                                  response=prev_task_response)
         print_t(f"[P] Verification request: {prev_task_description}")
-        return re.split(r'\n|\\n', self.llm.request(prompt))
+        return self.llm.request(prompt)
     
     def request_execution(self, question: str) -> Union[bool, str]:
         def parse_value(s):

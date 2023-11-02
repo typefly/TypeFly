@@ -41,40 +41,46 @@ class VisionSkillWrapper():
         formatted_results = []
         for item in json_data['result']:
             box = item['box']
-            formatted_results.append(str({
-                'name': item['name'],
-                'loc_x': round((box['x1'] + box['x2']) / 2, 2),
-                'loc_y': round((box['y1'] + box['y2']) / 2, 2),
-                'size_x': round((box['x2'] - box['x1']), 2),
-                'size_y': round((box['y2'] - box['y1']), 2),
-                'color': VisionSkillWrapper.get_colour_name(VisionSkillWrapper.get_dominant_color(image, box))
-            }).replace("'", ''))
-        return formatted_results
+            name = item['name']
+            x = round((box['x1'] + box['x2']) / 2, 2)
+            y = round((box['y1'] + box['y2']) / 2, 2)
+            w = round(box['x2'] - box['x1'], 2)
+            h = round(box['y2'] - box['y1'], 2)
+            color = VisionSkillWrapper.get_colour_name(VisionSkillWrapper.get_dominant_color(image, box))
+            info = f"name:{name},x:{x},y:{y},width:{w},height:{h},color:{color}"
+            formatted_results.append(info)
+        return str(formatted_results).replace("'", '')
 
-    def get_obj_list(self) -> [str]:
+    def get_obj_list(self) -> str:
         return VisionSkillWrapper.format_results(self.shared_yolo_results.get())
 
-    def get_obj_info(self, object_name: str) -> Optional[dict]:
+    def get_obj_info(self, object_name: str) -> dict:
         (_, yolo_results) = self.shared_yolo_results.get()
-        for item in yolo_results['result']:
+        for item in yolo_results.get('result', []):
             # change this to start_with
             if item['name'].startswith(object_name):
                 return item
-        return None
+        raise Exception(f'Object {object_name} not found')
 
     def is_in_sight(self, object_name: str) -> bool:
         return self.get_obj_info(object_name) is not None
         
-    def obj_loc_x(self, object_name: str) -> Optional[float]:
+    def obj_loc_x(self, object_name: str) -> float:
         info = self.get_obj_info(object_name)
-        if info is None:
-            return None
         box = info['box']
         return (box['x1'] + box['x2']) / 2
     
-    def obj_loc_y(self, object_name: str) -> Optional[float]:
+    def obj_loc_y(self, object_name: str) -> float:
         info = self.get_obj_info(object_name)
-        if info is None:
-            return None
         box = info['box']
         return (box['y1'] + box['y2']) / 2
+    
+    def obj_size_w(self, object_name: str) -> float:
+        info = self.get_obj_info(object_name)
+        box = info['box']
+        return box['x2'] - box['x1']
+    
+    def obj_size_h(self, object_name: str) -> float:
+        info = self.get_obj_info(object_name)
+        box = info['box']
+        return box['y2'] - box['y1']

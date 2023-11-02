@@ -1,5 +1,6 @@
-<program> ::= <statement> { ';' <statement> }
-<statement> ::= <loop> | <function-call> | <conditional> | <return>
+<program> ::= { <block-statement> [';'] | <statement> ';' }
+<statement> ::= <function-call> | <return>
+<block-statement> ::= <loop> | <conditional>
 <loop> ::= <int> '{' <program> '}'
 <function-call> ::= <variable-assign> | <function-name> ',' <argument>
 <variable-assign> ::= <variable> '=' <function-name> ',' <argument>
