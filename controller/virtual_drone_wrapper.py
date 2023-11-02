@@ -1,5 +1,5 @@
 import cv2
-from .drone_wrapper import DroneWrapper
+from .abs.drone_wrapper import DroneWrapper
 
 class FrameReader:
     def __init__(self, cap):

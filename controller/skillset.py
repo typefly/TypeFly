@@ -2,46 +2,7 @@ import re
 from enum import Enum
 from abc import ABC, abstractmethod
 from typing import Optional, List
-
-class SkillArg:
-    def __init__(self, arg_name: str, arg_type: type):
-        self.arg_name = arg_name
-        self.arg_type = arg_type
-    
-    def __repr__(self):
-        return f"{self.arg_name}: {self.arg_type.__name__}"
-
-class SkillItem(ABC):
-    abbr_dict = {}
-    def generate_abbreviation(self, word):
-        base_abbr = ''.join([part[0] for part in word.split('_')])
-        abbr = base_abbr
-        count = 1
-        while abbr in self.abbr_dict:
-            abbr = base_abbr + str(count)
-            count += 1
-        self.abbr_dict[abbr] = word
-        return abbr
-
-    @abstractmethod
-    def get_name(self) -> str:
-        pass
-
-    @abstractmethod
-    def get_skill_description(self) -> str:
-        pass
-
-    @abstractmethod
-    def get_argument(self) -> [SkillArg]:
-        pass
-
-    @abstractmethod
-    def __repr__(self) -> str:
-        pass
-
-    @abstractmethod
-    def execute(self, arg_list: [str]):
-        pass
+from .abs.skill_item import SkillItem, SkillArg
 
 class SkillSetLevel(Enum):
         LOW = "low"
@@ -137,10 +98,10 @@ class LowLevelSkillItem(SkillItem):
             raise ValueError(f"'{self.skill_callable}' is not a callable function.")
 
     def __repr__(self) -> str:
-        return (f"abbr: {self.abbr}, "
-                f"name: {self.skill_name}, "
-                f"args: {[arg for arg in self.args]}, "
-                f"desc.: {self.skill_description}")
+        return (f"abbr:{self.abbr},"
+                f"name:{self.skill_name},"
+                f"args:{[arg for arg in self.args]},"
+                f"description:{self.skill_description}")
 
 class HighLevelSkillItem(SkillItem):
     def __init__(self, skill_name: str, definition: str,
@@ -205,8 +166,8 @@ class HighLevelSkillItem(SkillItem):
         return definition
 
     def __repr__(self) -> str:
-        return (f"abbr: {self.abbr}, "
-                f"name: {self.skill_name}, "
-                f"definition: {self.definition}, "
-                f"args: {[arg for arg in self.args]}, "
-                f"desc.: {self.skill_description}")
+        return (f"abbr:{self.abbr},"
+                f"name:{self.skill_name},"
+                f"definition:{self.definition},"
+                f"args:{[arg for arg in self.args]},"
+                f"description:{self.skill_description}")

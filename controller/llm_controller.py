@@ -7,7 +7,7 @@ from .yolo_client import YoloClient, SharedYoloResults
 from .yolo_grpc_client import YoloGRPCClient
 from .tello_wrapper import TelloWrapper
 from .virtual_drone_wrapper import VirtualDroneWrapper
-from .drone_wrapper import DroneWrapper
+from .abs.drone_wrapper import DroneWrapper
 from .vision_skill_wrapper import VisionSkillWrapper
 from .llm_planner import LLMPlanner
 from .skillset import SkillSet, LowLevelSkillItem, HighLevelSkillItem, SkillArg

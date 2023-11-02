@@ -19,28 +19,28 @@ The BNF syntax definition of `MiniSpec` is as follows:
 
 Description of the two skill sets:
 - High-level skills:
-abbr: s, name: sweeping, definition: 8{_1=iis,$1;?_1==True{->True}tc,45}->False, args: [obj_name: str], desc.: Rotate to find a certain object
+abbr: s, name: sweeping, definition: 8{_1=iis,$1;?_1==True{->True}tc,45}->False, args: [obj_name:str], desc.: Rotate to find a certain object
 abbr: a, name: approach, definition: mf,40, args: [], desc.: Approach a certain object
-abbr: o, name: orienting, definition: 4{_1=olx,$1;?_1>0.6{tc,15};?_1<0.4{tcc,15};_2=olx,$1;?_2<0.6&_2>0.4{->True}}->False, args: [obj_name: str], desc.: Rotate to align with a certain object
+abbr: o, name: orienting, definition: 4{_1=olx,$1;?_1>0.6{tc,15};?_1<0.4{tcc,15};_2=olx,$1;?_2<0.6&_2>0.4{->True}}->False, args: [obj_name:str], desc.: Rotate to align with a certain object
 
 - Low-level skills:
-abbr: mf, name: move_forward, args: [dis: int], desc.: Move drone forward by a distance
-abbr: mb, name: move_backward, args: [dis: int], desc.: Move drone backward by a distance
-abbr: ml, name: move_left, args: [dis: int], desc.: Move drone left by a distance
-abbr: mr, name: move_right, args: [dis: int], desc.: Move drone right by a distance
-abbr: mu, name: move_up, args: [dis: int], desc.: Move drone up by a distance
-abbr: md, name: move_down, args: [dis: int], desc.: Move drone down by a distance
-abbr: tc, name: turn_cw, args: [deg: int], desc.: Turn drone clockwise by a degree
-abbr: tcc, name: turn_c_cw, args: [deg: int], desc.: Turn drone counterclockwise by a degree
-abbr: iis, name: is_in_sight, args: [obj_name: str], desc.: Check if an object is in sight
-abbr: olx, name: obj_loc_x, args: [obj_name: str], desc.: Get x loc of an object
-abbr: oly, name: obj_loc_y, args: [obj_name: str], desc.: Get y loc of an object
-abbr: osw, name: obj_size_w, args: [obj_name: str], desc.: Get width of an object
-abbr: osh, name: obj_size_h, args: [obj_name: str], desc.: Get height of an object
-abbr: q, name: query, args: [question: str], desc.: Query the LLM for reasoning
-abbr: l, name: log, args: [text: str], desc.: Print the text to console
-abbr: d, name: delay, args: [ms: int], desc.: Sleep for some microseconds
-abbr: v, name: verification, args: [retry: int], desc.: Restart plan if task description has not been met
+abbr: mf, name: move_forward, args: [dis:int], desc.: Move drone forward by a distance
+abbr: mb, name: move_backward, args: [dis:int], desc.: Move drone backward by a distance
+abbr: ml, name: move_left, args: [dis:int], desc.: Move drone left by a distance
+abbr: mr, name: move_right, args: [dis:int], desc.: Move drone right by a distance
+abbr: mu, name: move_up, args: [dis:int], desc.: Move drone up by a distance
+abbr: md, name: move_down, args: [dis:int], desc.: Move drone down by a distance
+abbr: tc, name: turn_cw, args: [deg:int], desc.: Turn drone clockwise by a degree
+abbr: tcc, name: turn_c_cw, args: [deg:int], desc.: Turn drone counterclockwise by a degree
+abbr: iis, name: is_in_sight, args: [obj_name:str], desc.: Check if an object is in sight
+abbr: olx, name: obj_loc_x, args: [obj_name:str], desc.: Get x loc of an object
+abbr: oly, name: obj_loc_y, args: [obj_name:str], desc.: Get y loc of an object
+abbr: osw, name: obj_size_w, args: [obj_name:str], desc.: Get width of an object
+abbr: osh, name: obj_size_h, args: [obj_name:str], desc.: Get height of an object
+abbr: q, name: query, args: [question:str], desc.: Query the LLM for reasoning
+abbr: l, name: log, args: [text:str], desc.: Print the text to console
+abbr: d, name: delay, args: [ms:int], desc.: Sleep for some microseconds
+abbr: v, name: verification, args: [retry:int], desc.: Restart plan if task description has not been met
 
 
 The `scene description` is an object list, containing their names with ID, location, and size (location and size are float between 0~1).
@@ -83,257 +83,9 @@ Example 9:
 
 Now given the following `scene description` and `task description`, please generate the response only with a single sentence of MiniSpec program.
 `scene description`:
-[name:person_1,x:0.53,y:0.68,width:0.42,height:0.65,color:rosybrown, name:laptop_29,x:0.06,y:0.85,width:0.11,height:0.29,color:saddlebrown]
+[name:person_1,x:0.57,y:0.54,width:0.77,height:0.92,color:rosybrown, name:tv_32,x:0.4,y:0.75,width:0.13,height:0.14,color:darkslategray]
 `task description`:
-[A] Could you try to find something for me to eat?
+[A] turn around
 ---
-{"id": "chatcmpl-8GIOqt92oh6qsqEmwv4D3xyWgS8TW", "object": "chat.completion", "created": 1698894668, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "8{_1=q,'what's the edible target?';?_1!=False{o,_1;a;->True}tc,45}->False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1798, "completion_tokens": 30, "total_tokens": 1828}}
----
-"""
-Scene Description:
-Objects are listed with their respective names, locations, and sizes.
-Instructions:
-For yes-or-no questions, output with 'True' or 'False' only.
-For object identification, output the object's name. If the object is not in the list, output with 'False'.
-For general questions, output a brief, single-sentence answer.
-Input Format:
-Scene Description:[List of Objects with Attributes]
-Question:[A String]
-Output:[A String]
-
-Example 1:
-Scene Description:[name:person_1,x:0.59,y:0.55,width:0.81,height:0.91,color:red, name:bottle_17,x:0.85,y:0.54,width:0.21,height:0.93,color:darkgreen]
-Question:'What's the drinkable target?'
-Output:bottle_17
-Example 2:
-Scene Description:[]
-Question:'Is the table in the room?'
-Output:False
-Example 3:
-Scene Description:[name:chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
-Question:'How many chairs you can see?'
-Output:Two chairs
-"""
-Scene Description:[name:person_1,x:0.55,y:0.68,width:0.35,height:0.65,color:rosybrown, name:person_30,x:0.69,y:0.97,width:0.06,height:0.05,color:darkslategray]
-Question:'what's the edible target?'
-Please give the Output only
----
-{"id": "chatcmpl-8GIOw4I3U86SHfiGZYRDI9bZbuJoB", "object": "chat.completion", "created": 1698894674, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 365, "completion_tokens": 1, "total_tokens": 366}}
----
-"""
-Scene Description:
-Objects are listed with their respective names, locations, and sizes.
-Instructions:
-For yes-or-no questions, output with 'True' or 'False' only.
-For object identification, output the object's name. If the object is not in the list, output with 'False'.
-For general questions, output a brief, single-sentence answer.
-Input Format:
-Scene Description:[List of Objects with Attributes]
-Question:[A String]
-Output:[A String]
-
-Example 1:
-Scene Description:[name:person_1,x:0.59,y:0.55,width:0.81,height:0.91,color:red, name:bottle_17,x:0.85,y:0.54,width:0.21,height:0.93,color:darkgreen]
-Question:'What's the drinkable target?'
-Output:bottle_17
-Example 2:
-Scene Description:[]
-Question:'Is the table in the room?'
-Output:False
-Example 3:
-Scene Description:[name:chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
-Question:'How many chairs you can see?'
-Output:Two chairs
-"""
-Scene Description:[name:person_1,x:0.54,y:0.68,width:0.35,height:0.65,color:rosybrown, name:person_30,x:0.69,y:0.98,width:0.05,height:0.04,color:tan, name:laptop_29,x:0.06,y:0.85,width:0.11,height:0.29,color:saddlebrown]
-Question:'what's the edible target?'
-Please give the Output only
----
-{"id": "chatcmpl-8GIOyo5NdDKQGM5xsvKFrz7vbitx4", "object": "chat.completion", "created": 1698894676, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 392, "completion_tokens": 1, "total_tokens": 393}}
----
-"""
-Scene Description:
-Objects are listed with their respective names, locations, and sizes.
-Instructions:
-For yes-or-no questions, output with 'True' or 'False' only.
-For object identification, output the object's name. If the object is not in the list, output with 'False'.
-For general questions, output a brief, single-sentence answer.
-Input Format:
-Scene Description:[List of Objects with Attributes]
-Question:[A String]
-Output:[A String]
-
-Example 1:
-Scene Description:[name:person_1,x:0.59,y:0.55,width:0.81,height:0.91,color:red, name:bottle_17,x:0.85,y:0.54,width:0.21,height:0.93,color:darkgreen]
-Question:'What's the drinkable target?'
-Output:bottle_17
-Example 2:
-Scene Description:[]
-Question:'Is the table in the room?'
-Output:False
-Example 3:
-Scene Description:[name:chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
-Question:'How many chairs you can see?'
-Output:Two chairs
-"""
-Scene Description:[name:person_1,x:0.53,y:0.68,width:0.35,height:0.65,color:rosybrown, name:person_30,x:0.68,y:0.97,width:0.04,height:0.05,color:tan, name:laptop_29,x:0.06,y:0.85,width:0.11,height:0.29,color:saddlebrown]
-Question:'what's the edible target?'
-Please give the Output only
----
-{"id": "chatcmpl-8GIP0TsfgyCEswy4vcn2OPaeiXbkn", "object": "chat.completion", "created": 1698894678, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 392, "completion_tokens": 1, "total_tokens": 393}}
----
-"""
-Scene Description:
-Objects are listed with their respective names, locations, and sizes.
-Instructions:
-For yes-or-no questions, output with 'True' or 'False' only.
-For object identification, output the object's name. If the object is not in the list, output with 'False'.
-For general questions, output a brief, single-sentence answer.
-Input Format:
-Scene Description:[List of Objects with Attributes]
-Question:[A String]
-Output:[A String]
-
-Example 1:
-Scene Description:[name:person_1,x:0.59,y:0.55,width:0.81,height:0.91,color:red, name:bottle_17,x:0.85,y:0.54,width:0.21,height:0.93,color:darkgreen]
-Question:'What's the drinkable target?'
-Output:bottle_17
-Example 2:
-Scene Description:[]
-Question:'Is the table in the room?'
-Output:False
-Example 3:
-Scene Description:[name:chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
-Question:'How many chairs you can see?'
-Output:Two chairs
-"""
-Scene Description:[name:person_1,x:0.53,y:0.68,width:0.34,height:0.65,color:rosybrown, name:person_30,x:0.69,y:0.98,width:0.05,height:0.04,color:mediumblue, name:laptop_29,x:0.06,y:0.85,width:0.11,height:0.29,color:saddlebrown]
-Question:'what's the edible target?'
-Please give the Output only
----
-{"id": "chatcmpl-8GIP1i4XUS85KMvKPLEtfRhvHJPG4", "object": "chat.completion", "created": 1698894679, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 393, "completion_tokens": 1, "total_tokens": 394}}
----
-"""
-Scene Description:
-Objects are listed with their respective names, locations, and sizes.
-Instructions:
-For yes-or-no questions, output with 'True' or 'False' only.
-For object identification, output the object's name. If the object is not in the list, output with 'False'.
-For general questions, output a brief, single-sentence answer.
-Input Format:
-Scene Description:[List of Objects with Attributes]
-Question:[A String]
-Output:[A String]
-
-Example 1:
-Scene Description:[name:person_1,x:0.59,y:0.55,width:0.81,height:0.91,color:red, name:bottle_17,x:0.85,y:0.54,width:0.21,height:0.93,color:darkgreen]
-Question:'What's the drinkable target?'
-Output:bottle_17
-Example 2:
-Scene Description:[]
-Question:'Is the table in the room?'
-Output:False
-Example 3:
-Scene Description:[name:chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
-Question:'How many chairs you can see?'
-Output:Two chairs
-"""
-Scene Description:[name:person_1,x:0.53,y:0.68,width:0.34,height:0.65,color:rosybrown, name:person_30,x:0.71,y:0.97,width:0.05,height:0.06,color:mediumblue, name:laptop_29,x:0.06,y:0.85,width:0.11,height:0.29,color:saddlebrown]
-Question:'what's the edible target?'
-Please give the Output only
----
-{"id": "chatcmpl-8GIP35B5QcPL9L7zXG2oTW2ozmZiq", "object": "chat.completion", "created": 1698894681, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 393, "completion_tokens": 1, "total_tokens": 394}}
----
-"""
-Scene Description:
-Objects are listed with their respective names, locations, and sizes.
-Instructions:
-For yes-or-no questions, output with 'True' or 'False' only.
-For object identification, output the object's name. If the object is not in the list, output with 'False'.
-For general questions, output a brief, single-sentence answer.
-Input Format:
-Scene Description:[List of Objects with Attributes]
-Question:[A String]
-Output:[A String]
-
-Example 1:
-Scene Description:[name:person_1,x:0.59,y:0.55,width:0.81,height:0.91,color:red, name:bottle_17,x:0.85,y:0.54,width:0.21,height:0.93,color:darkgreen]
-Question:'What's the drinkable target?'
-Output:bottle_17
-Example 2:
-Scene Description:[]
-Question:'Is the table in the room?'
-Output:False
-Example 3:
-Scene Description:[name:chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
-Question:'How many chairs you can see?'
-Output:Two chairs
-"""
-Scene Description:[name:person_1,x:0.53,y:0.68,width:0.34,height:0.65,color:rosybrown, name:person_30,x:0.69,y:0.97,width:0.06,height:0.06,color:mediumblue, name:laptop_29,x:0.06,y:0.85,width:0.11,height:0.29,color:sienna]
-Question:'what's the edible target?'
-Please give the Output only
----
-{"id": "chatcmpl-8GIP41ZnEloo1A83soX7DpbG6dtUG", "object": "chat.completion", "created": 1698894682, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 393, "completion_tokens": 1, "total_tokens": 394}}
----
-"""
-Scene Description:
-Objects are listed with their respective names, locations, and sizes.
-Instructions:
-For yes-or-no questions, output with 'True' or 'False' only.
-For object identification, output the object's name. If the object is not in the list, output with 'False'.
-For general questions, output a brief, single-sentence answer.
-Input Format:
-Scene Description:[List of Objects with Attributes]
-Question:[A String]
-Output:[A String]
-
-Example 1:
-Scene Description:[name:person_1,x:0.59,y:0.55,width:0.81,height:0.91,color:red, name:bottle_17,x:0.85,y:0.54,width:0.21,height:0.93,color:darkgreen]
-Question:'What's the drinkable target?'
-Output:bottle_17
-Example 2:
-Scene Description:[]
-Question:'Is the table in the room?'
-Output:False
-Example 3:
-Scene Description:[name:chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
-Question:'How many chairs you can see?'
-Output:Two chairs
-"""
-Scene Description:[name:person_1,x:0.55,y:0.69,width:0.36,height:0.62,color:darkslategray]
-Question:'what's the edible target?'
-Please give the Output only
----
-{"id": "chatcmpl-8GIP5Jstmyg5shtdiSqfukU72jDLn", "object": "chat.completion", "created": 1698894683, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 334, "completion_tokens": 1, "total_tokens": 335}}
----
-"""
-Scene Description:
-Objects are listed with their respective names, locations, and sizes.
-Instructions:
-For yes-or-no questions, output with 'True' or 'False' only.
-For object identification, output the object's name. If the object is not in the list, output with 'False'.
-For general questions, output a brief, single-sentence answer.
-Input Format:
-Scene Description:[List of Objects with Attributes]
-Question:[A String]
-Output:[A String]
-
-Example 1:
-Scene Description:[name:person_1,x:0.59,y:0.55,width:0.81,height:0.91,color:red, name:bottle_17,x:0.85,y:0.54,width:0.21,height:0.93,color:darkgreen]
-Question:'What's the drinkable target?'
-Output:bottle_17
-Example 2:
-Scene Description:[]
-Question:'Is the table in the room?'
-Output:False
-Example 3:
-Scene Description:[name:chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
-Question:'How many chairs you can see?'
-Output:Two chairs
-"""
-Scene Description:[name:person_1,x:0.52,y:0.7,width:0.35,height:0.61,color:silver]
-Question:'what's the edible target?'
-Please give the Output only
----
-{"id": "chatcmpl-8GIP7UgFoWgglnWOsl55TrVhcYbbn", "object": "chat.completion", "created": 1698894685, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 331, "completion_tokens": 1, "total_tokens": 332}}
+{"id": "chatcmpl-8GUdkkLEHG2x75PL5twWCfpruNP62", "object": "chat.completion", "created": 1698941720, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "tc,180"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1772, "completion_tokens": 3, "total_tokens": 1775}}
 ---
