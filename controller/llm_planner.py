@@ -4,7 +4,7 @@ from typing import Union
 from .skillset import SkillSet
 from .llm_wrapper import LLMWrapper
 from .vision_skill_wrapper import VisionSkillWrapper
-from .utils import print_t
+from .utils import print_t, evaluate_value
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 
@@ -59,14 +59,7 @@ class LLMPlanner():
         print_t(f"[P] Verification request: {prev_task_description}")
         return self.llm.request(prompt)
     
-    def request_execution(self, question: str) -> Union[bool, str]:
-        def parse_value(s):
-            # Check for boolean values
-            if s.lower() == "true":
-                return True
-            elif s.lower() == "false":
-                return False
-            return s
+    def request_execution(self, question: str) -> Union[bool, str, int, float]:
         prompt = self.execution_prompt.format(scene_description=self.vision_skill.get_obj_list(), question=question)
         print_t(f"[P] Execution request: {question}")
-        return parse_value(self.llm.request(prompt))
+        return evaluate_value(self.llm.request(prompt))

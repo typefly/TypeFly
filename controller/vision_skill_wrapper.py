@@ -60,27 +60,35 @@ class VisionSkillWrapper():
             # change this to start_with
             if item['name'].startswith(object_name):
                 return item
-        raise Exception(f'Object {object_name} not found')
+        return None
 
     def is_in_sight(self, object_name: str) -> bool:
         return self.get_obj_info(object_name) is not None
         
     def obj_loc_x(self, object_name: str) -> float:
         info = self.get_obj_info(object_name)
+        if info is None:
+            raise ValueError(f"Object {object_name} is not in sight.")
         box = info['box']
         return (box['x1'] + box['x2']) / 2
     
     def obj_loc_y(self, object_name: str) -> float:
         info = self.get_obj_info(object_name)
+        if info is None:
+            raise ValueError(f"Object {object_name} is not in sight.")
         box = info['box']
         return (box['y1'] + box['y2']) / 2
     
     def obj_size_w(self, object_name: str) -> float:
         info = self.get_obj_info(object_name)
+        if info is None:
+            raise ValueError(f"Object {object_name} is not in sight.")
         box = info['box']
         return box['x2'] - box['x1']
     
     def obj_size_h(self, object_name: str) -> float:
         info = self.get_obj_info(object_name)
+        if info is None:
+            raise ValueError(f"Object {object_name} is not in sight.")
         box = info['box']
         return box['y2'] - box['y1']

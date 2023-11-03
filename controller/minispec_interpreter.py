@@ -1,5 +1,6 @@
 import re
 from .skillset import SkillSet
+from .utils import evaluate_value
 
 class MiniSpecInterpreter:
     low_level_skillset: SkillSet = None
@@ -91,13 +92,13 @@ class MiniSpecInterpreter:
         var, comparator, value = re.match(r'(_\d+)\s*(==|!=|<|>)\s*(.+)', condition).groups()
         var_value = self.get_env_value(var)
         if comparator == '>':
-            return var_value > self.evaluate_value(value)
+            return var_value > evaluate_value(value)
         elif comparator == '<':
-            return var_value < self.evaluate_value(value)
+            return var_value < evaluate_value(value)
         elif comparator == '==':
-            return var_value == self.evaluate_value(value)
+            return var_value == evaluate_value(value)
         elif comparator == '!=':
-            return var_value != self.evaluate_value(value)
+            return var_value != evaluate_value(value)
 
     def call_function(self, func):
         name, args = re.match(r'(\w+)(?:,(.+))?', func).groups()
@@ -118,16 +119,3 @@ class MiniSpecInterpreter:
             interpreter = MiniSpecInterpreter()
             return interpreter.execute(skill_instance.execute(args))
         raise Exception(f'Skill {name} is not defined')
-    
-
-    def evaluate_value(self, value):
-        if value.isdigit():
-            return int(value)
-        elif value.replace('.', '', 1).isdigit():
-            return float(value)
-        elif value == 'True':
-            return True
-        elif value == 'False':
-            return False
-        else:
-            return value.strip('\'"')

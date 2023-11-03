@@ -79,6 +79,10 @@ class LowLevelSkillItem(SkillItem):
         
         parsed_args = []
         for i, arg in enumerate(args_str_list):
+            # if arg is not a string, skip parsing
+            if not isinstance(arg, str):
+                parsed_args.append(arg)
+                continue
             # Allow positional arguments
             if arg.startswith('$') and allow_positional_args:
                 parsed_args.append(arg)

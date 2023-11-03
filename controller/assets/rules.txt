@@ -2,5 +2,5 @@ You should not generate any aggressive drone control.
 Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
 Derive the `obj_name` arguments or question answers from the `scene description` as much as possible. Only if when it's unavailable, carefully use `q,'question'` in the plan.
 Prioritize the use of high-level skills whenever feasible.
-You must call skills with their abbreviation.
+You must call skills by their abbreviation.
 Assume `task description` uses common interpretation. E.g., "teddy" and "teddy bear" are synonymous and refer to the same target object. "something is a fruit" can be categorized under "something edible". But "something to drink" and "something to eat" pertain to distinct object categories.

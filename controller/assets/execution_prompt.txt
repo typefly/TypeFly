@@ -4,6 +4,7 @@ Objects are listed with their respective names, locations, and sizes.
 Instructions:
 For yes-or-no questions, output with 'True' or 'False' only.
 For object identification, output the object's name. If the object is not in the list, output with 'False'.
+For counting questions, output the exact number of target objects.
 For general questions, output a brief, single-sentence answer.
 Input Format:
 Scene Description:[List of Objects with Attributes]
@@ -21,7 +22,7 @@ Output:False
 Example 3:
 Scene Description:[name:chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
 Question:'How many chairs you can see?'
-Output:Two chairs
+Output:2
 """
 Scene Description:{scene_description}
 Question:{question}

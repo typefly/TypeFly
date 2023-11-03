@@ -19,28 +19,28 @@ The BNF syntax definition of `MiniSpec` is as follows:
 
 Description of the two skill sets:
 - High-level skills:
-abbr: s, name: sweeping, definition: 8{_1=iis,$1;?_1==True{->True}tc,45}->False, args: [obj_name:str], desc.: Rotate to find a certain object
-abbr: a, name: approach, definition: mf,40, args: [], desc.: Approach a certain object
-abbr: o, name: orienting, definition: 4{_1=olx,$1;?_1>0.6{tc,15};?_1<0.4{tcc,15};_2=olx,$1;?_2<0.6&_2>0.4{->True}}->False, args: [obj_name:str], desc.: Rotate to align with a certain object
+abbr:s,name:sweeping,definition:8{_1=iis,$1;?_1==True{->True}tc,45}->False,args:[obj_name:str],description:Rotate to find a certain object
+abbr:a,name:approach,definition:mf,40,args:[],description:Approach a certain object
+abbr:o,name:orienting,definition:4{_1=olx,$1;?_1>0.6{tc,15};?_1<0.4{tcc,15};_2=olx,$1;?_2<0.6&_2>0.4{->True}}->False,args:[obj_name:str],description:Rotate to align with a certain object
 
 - Low-level skills:
-abbr: mf, name: move_forward, args: [dis:int], desc.: Move drone forward by a distance
-abbr: mb, name: move_backward, args: [dis:int], desc.: Move drone backward by a distance
-abbr: ml, name: move_left, args: [dis:int], desc.: Move drone left by a distance
-abbr: mr, name: move_right, args: [dis:int], desc.: Move drone right by a distance
-abbr: mu, name: move_up, args: [dis:int], desc.: Move drone up by a distance
-abbr: md, name: move_down, args: [dis:int], desc.: Move drone down by a distance
-abbr: tc, name: turn_cw, args: [deg:int], desc.: Turn drone clockwise by a degree
-abbr: tcc, name: turn_c_cw, args: [deg:int], desc.: Turn drone counterclockwise by a degree
-abbr: iis, name: is_in_sight, args: [obj_name:str], desc.: Check if an object is in sight
-abbr: olx, name: obj_loc_x, args: [obj_name:str], desc.: Get x loc of an object
-abbr: oly, name: obj_loc_y, args: [obj_name:str], desc.: Get y loc of an object
-abbr: osw, name: obj_size_w, args: [obj_name:str], desc.: Get width of an object
-abbr: osh, name: obj_size_h, args: [obj_name:str], desc.: Get height of an object
-abbr: q, name: query, args: [question:str], desc.: Query the LLM for reasoning
-abbr: l, name: log, args: [text:str], desc.: Print the text to console
-abbr: d, name: delay, args: [ms:int], desc.: Sleep for some microseconds
-abbr: v, name: verification, args: [retry:int], desc.: Restart plan if task description has not been met
+abbr:mf,name:move_forward,args:[dis:int],description:Move drone forward by a distance
+abbr:mb,name:move_backward,args:[dis:int],description:Move drone backward by a distance
+abbr:ml,name:move_left,args:[dis:int],description:Move drone left by a distance
+abbr:mr,name:move_right,args:[dis:int],description:Move drone right by a distance
+abbr:mu,name:move_up,args:[dis:int],description:Move drone up by a distance
+abbr:md,name:move_down,args:[dis:int],description:Move drone down by a distance
+abbr:tc,name:turn_cw,args:[deg:int],description:Turn drone clockwise by a degree
+abbr:tcc,name:turn_c_cw,args:[deg:int],description:Turn drone counterclockwise by a degree
+abbr:iis,name:is_in_sight,args:[obj_name:str],description:Check if an object is in sight
+abbr:olx,name:obj_loc_x,args:[obj_name:str],description:Get x loc of an object
+abbr:oly,name:obj_loc_y,args:[obj_name:str],description:Get y loc of an object
+abbr:osw,name:obj_size_w,args:[obj_name:str],description:Get width of an object
+abbr:osh,name:obj_size_h,args:[obj_name:str],description:Get height of an object
+abbr:q,name:query,args:[question:str],description:Query the LLM for reasoning
+abbr:l,name:log,args:[text:str],description:Print the text to console
+abbr:d,name:delay,args:[ms:int],description:Sleep for some microseconds
+abbr:v,name:verification,args:[retry:int],description:Restart plan if task description has not been met
 
 
 The `scene description` is an object list, containing their names with ID, location, and size (location and size are float between 0~1).
@@ -49,7 +49,7 @@ You should not generate any aggressive drone control.
 Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
 Derive the `obj_name` arguments or question answers from the `scene description` as much as possible. Only if when it's unavailable, carefully use `q,'question'` in the plan.
 Prioritize the use of high-level skills whenever feasible.
-You must call skills with their abbreviation.
+You must call skills by their abbreviation.
 Assume `task description` uses common interpretation. E.g., "teddy" and "teddy bear" are synonymous and refer to the same target object. "something is a fruit" can be categorized under "something edible". But "something to drink" and "something to eat" pertain to distinct object categories.
 
 Here is a list of example `response` for different `scene description` and `task description`, and their explanations:
@@ -83,9 +83,40 @@ Example 9:
 
 Now given the following `scene description` and `task description`, please generate the response only with a single sentence of MiniSpec program.
 `scene description`:
-[name:person_1,x:0.57,y:0.54,width:0.77,height:0.92,color:rosybrown, name:tv_32,x:0.4,y:0.75,width:0.13,height:0.14,color:darkslategray]
+[name:person_1,x:0.52,y:0.58,width:0.7,height:0.83,color:gray, name:person_100,x:0.38,y:0.6,width:0.1,height:0.2,color:darkslategray, name:person_49,x:0.87,y:0.66,width:0.2,height:0.22,color:darkolivegreen, name:bottle_52,x:0.98,y:0.84,width:0.04,height:0.31,color:dimgray, name:laptop_95,x:0.9,y:0.8,width:0.14,height:0.14,color:gray, name:cell phone_108,x:0.6,y:0.84,width:0.12,height:0.23,color:darkslategray, name:donut_112,x:0.48,y:0.83,width:0.11,height:0.23,color:darkslategray]
 `task description`:
-[A] turn around
+[A] How many people are behind you? If more than 2, please find an apple
 ---
-{"id": "chatcmpl-8GUdkkLEHG2x75PL5twWCfpruNP62", "object": "chat.completion", "created": 1698941720, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "tc,180"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1772, "completion_tokens": 3, "total_tokens": 1775}}
+{"id": "chatcmpl-8GtYDbiuC0ClxBBgNBfa0pkz6nFRJ", "object": "chat.completion", "created": 1699037477, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "tcc,180;_1=q,'how many people are behind me?';?_1>2{s,apple;?_1==True{o,apple;a}}"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1870, "completion_tokens": 36, "total_tokens": 1906}}
+---
+"""
+Scene Description:
+Objects are listed with their respective names, locations, and sizes.
+Instructions:
+For yes-or-no questions, output with 'True' or 'False' only.
+For object identification, output the object's name. If the object is not in the list, output with 'False'.
+For general questions, output a brief, single-sentence answer.
+Input Format:
+Scene Description:[List of Objects with Attributes]
+Question:[A String]
+Output:[A String]
+
+Example 1:
+Scene Description:[name:person_1,x:0.59,y:0.55,width:0.81,height:0.91,color:red, name:bottle_17,x:0.85,y:0.54,width:0.21,height:0.93,color:darkgreen]
+Question:'What's the drinkable target?'
+Output:bottle_17
+Example 2:
+Scene Description:[]
+Question:'Is the table in the room?'
+Output:False
+Example 3:
+Scene Description:[name:chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
+Question:'How many chairs you can see?'
+Output:Two chairs
+"""
+Scene Description:[name:person_1,x:0.51,y:0.59,width:0.7,height:0.82,color:dimgray, name:person_100,x:0.36,y:0.6,width:0.14,height:0.22,color:dimgray, name:person_49,x:0.88,y:0.68,width:0.17,height:0.26,color:dimgray, name:bottle_52,x:0.98,y:0.84,width:0.04,height:0.31,color:dimgray, name:laptop_95,x:0.91,y:0.8,width:0.13,height:0.14,color:gray, name:chair_144,x:0.74,y:0.85,width:0.26,height:0.3,color:tan]
+Question:'how many people are behind me?'
+Please give the Output only
+---
+{"id": "chatcmpl-8GtYjJhYzgHYCb1yzHToxWVG6KKiF", "object": "chat.completion", "created": 1699037509, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "Three people"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 481, "completion_tokens": 2, "total_tokens": 483}}
 ---

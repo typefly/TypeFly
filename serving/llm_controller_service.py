@@ -27,6 +27,8 @@ def process_command(command: str):
     if command == "exit":
         llm_controller.stop_controller()
         Thread(target=shutdown).start()
+    elif len(command) == 0:
+        return
     else:
         llm_controller.execute_task_description(command)
 
