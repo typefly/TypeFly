@@ -58,7 +58,7 @@ class MiniSpecInterpreter:
 
     def evaluate_return(self, statement):
         _, value = statement.split('->')
-        return self.evaluate_value(value.strip())
+        return evaluate_value(value.strip())
     
     def execute_loop(self, statement):
         count, program = re.match(r'(\d+)\s*\{(.+)\}', statement).groups()

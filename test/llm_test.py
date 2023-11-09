@@ -37,3 +37,32 @@ t1 = time.time()
 response = llm.request(start + d)
 t2 = time.time()
 print(f"Time elapsed: {t2 - t1}, response: {response}")
+
+# import openai
+# import os
+
+# openai.organization = "org-sAnQwPNnbSrHg1XyR4QYALf7"
+# openai.api_key = os.environ.get('OPENAI_API_KEY')
+# # MODEL_NAME = "gpt-3.5-turbo-16k"
+# MODEL_NAME = "gpt-4"
+
+
+
+# response = openai.ChatCompletion.create(
+#     model="gpt-4-vision-preview",
+#     messages=[
+#         {
+#             "role": "user",
+#             "content": [
+#                 {"type": "text", "text": "What’s in this image?"},
+#                 {
+#                     "type": "image_url",
+#                     "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
+#                 },
+#             ],
+#         }
+#     ],
+#     max_tokens=300,
+# )
+
+# print(response.choices[0])

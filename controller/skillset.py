@@ -54,7 +54,7 @@ class SkillSet():
 
 class LowLevelSkillItem(SkillItem):
     def __init__(self, skill_name: str, skill_callable: callable,
-                 skill_description: str = "", args: [SkillArg] = None):
+                 skill_description: str = "", args: [SkillArg] = []):
         self.skill_name = skill_name
         self.abbr = self.generate_abbreviation(skill_name)
         self.abbr_dict[self.abbr] = skill_name
@@ -68,7 +68,7 @@ class LowLevelSkillItem(SkillItem):
     def get_skill_description(self) -> str:
         return self.skill_description
     
-    def get_argument(self) -> Optional[List[SkillArg]]:
+    def get_argument(self) -> List[SkillArg]:
         return self.args
 
     def parse_args(self, args_str_list: [str], allow_positional_args: bool = False):

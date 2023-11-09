@@ -17,12 +17,13 @@ from .minispec_interpreter import MiniSpecInterpreter
 current_directory = os.path.dirname(os.path.abspath(__file__))
 
 class LLMController():
-    def __init__(self, use_virtual_drone=True):
+    def __init__(self, use_virtual_drone=True, message_queue: Optional[queue.Queue]=None):
         self.yolo_results_image_queue = queue.Queue(maxsize=30)
         self.yolo_results = SharedYoloResults()
         self.yolo_client = YoloGRPCClient(shared_yolo_results=self.yolo_results)
         self.controller_state = True
         self.controller_wait_takeoff = True
+        self.message_queue = message_queue
         if use_virtual_drone:
             print_t("[C] Start virtual drone...")
             self.drone: DroneWrapper = VirtualDroneWrapper()
@@ -50,6 +51,7 @@ class LLMController():
         self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.planner.request_execution, "Query the LLM for reasoning", args=[SkillArg("question", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("log", self.log, "Print the text to console", args=[SkillArg("text", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("delay", self.delay, "Sleep for some microseconds", args=[SkillArg("ms", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("picture", self.picture, "Take a picture"))
         self.low_level_skillset.add_skill(LowLevelSkillItem("verification", self.verification, "Restart plan if task description has not been met", args=[SkillArg("retry", int)]))
 
         # load high-level skills
@@ -64,6 +66,9 @@ class LLMController():
         self.planner.init(high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset, vision_skill=self.vision)
 
     def verification(self, retry: int):
+        pass
+
+    def picture(self):
         pass
 
     def log(self, text: str):
@@ -84,26 +89,22 @@ class LLMController():
 
     def execute_task_description(self, task_description: str):
         if self.controller_wait_takeoff:
-            print_t("[C] Controller is waiting for takeoff...")
+            self.message_queue.put("[Warning] Controller is waiting for takeoff...")
             return
-        
+        self.message_queue.put('[Task]: ' + task_description)
         for _ in range(1):
             t1 = time.time()
             result = self.planner.request_planning(task_description)
             t2 = time.time()
             print_t(f"[C] Planning time: {t2 - t1}")
+            self.message_queue.put('[Plan]: ' + result + f', received in ({t2 - t1:.2f}s)')
             consent = input_t(f"[C] Get plan: {result}, executing?")
             if consent == 'n':
-                print_t("[C] > Command rejected <")
+                print_t("[C] > Plan rejected <")
                 return
             self.execute_minispec(result)
-            # ending = self.planner.request_verification(task_description, result)
-            # print(f">> ending: {ending['feedback']}")
-            # if ending['result'] == 'True' or ending['result'] == True:
-            #     print(">> command executed successfully.")
-            #     return
-            # else:
-            #     print(">> command failed, try again.")
+        self.message_queue.put('Task complete!')
+        self.message_queue.put('end')
 
     def start_robot(self):
         print_t("[C] Drone is taking off...")
@@ -137,5 +138,4 @@ class LLMController():
             if latest_result is not None:
                 YoloClient.plot_results(latest_result[0], latest_result[1]['result'])
                 self.yolo_results_image_queue.put(latest_result[0])
-
-            time.sleep(0.050)
+            time.sleep(0.030)
