@@ -139,3 +139,7 @@ class LLMController():
                 YoloClient.plot_results(latest_result[0], latest_result[1]['result'])
                 self.yolo_results_image_queue.put(latest_result[0])
             time.sleep(0.030)
+        for task in asyncio.all_tasks(asyncio_loop):
+            task.cancel()
+        asyncio_loop.stop()
+        print("[C] Capture loop stopped")

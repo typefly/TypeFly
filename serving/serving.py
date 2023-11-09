@@ -2,7 +2,7 @@ import gradio as gr
 import logging, os, signal, time
 import argparse, asyncio, sys
 from threading import Thread
-from flask import Flask, Response
+from flask import Flask, Response, request
 import io
 import queue
 
@@ -15,6 +15,8 @@ logging.disable(logging.CRITICAL + 1)
 '''
     Shutdown the service
 '''
+global system_stop
+system_stop = False
 def shutdown():
     print_t("[S] Shutting down gracefully in 0.5 seconds...")
     time.sleep(0.5)
@@ -29,10 +31,12 @@ def init_llm_controller(use_virtual_cam):
     llm_controller = LLMController(use_virtual_cam, message_queue)
 
 def process_command(command, history):
+    global system_stop
     print_t(f"[S] Receiving task description: {command}")
     if command == "exit":
         llm_controller.stop_controller()
-        Thread(target=shutdown).start()
+        system_stop = True
+        yield "Shutting down..."
     elif len(command) == 0:
         return
     else:
@@ -49,7 +53,8 @@ def process_command(command, history):
                 complete_message += msg + '\n'
                 yield complete_message
 
-with gr.Blocks() as demo:
+with gr.Blocks(title="TypeFly") as demo:
+    gr.HTML(open('./header.html', 'r').read())
     gr.HTML(open('./drone-pov.html', 'r').read())
     gr.ChatInterface(process_command).queue()
 
@@ -75,22 +80,10 @@ def video_feed():
     return Response(generate_mjpeg_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 '''
-    Start async even loop
+    Async even loop
 '''
 global asyncio_loop
 asyncio_loop = asyncio.get_event_loop()
-def start_async_loop():
-    global asyncio_loop
-    asyncio_loop.run_forever()
-
-async def stop_async_loop():
-    global asyncio_loop
-    asyncio_loop.stop()
-
-def stop_loop_from_thread():
-    global asyncio_loop
-    # Schedule the stopping function to run on the loop
-    asyncio_loop.call_soon_threadsafe(asyncio_loop.create_task, stop_async_loop())
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="")
@@ -98,7 +91,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     init_llm_controller(args.virtual_camera)
     # Start the asyncio loop in a separate thread
-    async_thread = Thread(target=start_async_loop)
+    async_thread = Thread(target=asyncio_loop.run_forever)
     async_thread.start()
 
     # Start the LLM controller
@@ -112,11 +105,20 @@ if __name__ == "__main__":
     flask_thread.start()
 
     # Start the gradio server
-    demo.launch(show_api=False, server_port=50001, debug=True)
+    demo.launch(show_api=False, server_port=50001, prevent_thread_lock=True)
+
+    while True:
+        time.sleep(1)
+        if system_stop:
+            break
 
     # Stop the LLM controller
-    stop_loop_from_thread()
+    print("Main thread waiting for llm thread to finish")
     llm_thread.join()
+    print("Main thread waiting for flask thread to finish")
+    # flask_thread.join()
+    print("Main thread waiting for async thread to finish")
     async_thread.join()
+    print("Main thread exiting")
     llm_controller.stop_robot()
     
