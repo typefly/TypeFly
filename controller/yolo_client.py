@@ -15,7 +15,7 @@ YOLO_SERVICE_IP = '172.29.249.77'
 YOLO_SERVICE_PORT = '50051'
 ROUTER_SERVICE_PORT = '50049'
 
-class SharedYoloResults():
+class SharedYoloResult():
     def __init__(self) -> None:
         self.result_with_image = (None, {})
         self.lock = threading.Lock()
@@ -29,11 +29,11 @@ class SharedYoloResults():
             self.result_with_image = val
 
 class YoloClient():
-    def __init__(self, shared_yolo_results: SharedYoloResults=None):
+    def __init__(self, shared_yolo_result: SharedYoloResult=None):
         self.service_url = 'http://{}:{}/yolo'.format(YOLO_SERVICE_IP, ROUTER_SERVICE_PORT)
         self.image_size = (640, 352)
         self.image_queue = queue.Queue() # queue element: (image_id, image)
-        self.shared_yolo_results = shared_yolo_results
+        self.shared_yolo_result = shared_yolo_result
         self.latest_result_with_image = None # (image, json_data: {'image_id': int, 'result': [result]})
         self.latest_result_with_image_lock = asyncio.Lock()
         self.image_id = 0
@@ -105,5 +105,5 @@ class YoloClient():
                 return
 
             self.latest_result_with_image = (self.image_queue.get()[1], json_results)
-            if self.shared_yolo_results is not None:
-                self.shared_yolo_results.set(self.latest_result_with_image)
+            if self.shared_yolo_result is not None:
+                self.shared_yolo_result.set(self.latest_result_with_image)

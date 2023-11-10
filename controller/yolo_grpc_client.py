@@ -7,7 +7,7 @@ import queue
 import grpc
 import asyncio
 
-from .yolo_client import SharedYoloResults
+from .yolo_client import SharedYoloResult
 
 sys.path.append("../proto/generated")
 import hyrch_serving_pb2
@@ -21,7 +21,7 @@ YOLO_SERVICE_PORT = '50050'
 Access the YOLO service through gRPC.
 '''
 class YoloGRPCClient():
-    def __init__(self, is_local_service=False, shared_yolo_results: SharedYoloResults=None):
+    def __init__(self, is_local_service=False, shared_yolo_result: SharedYoloResult=None):
         self.is_local_service = is_local_service
         if is_local_service:
             channel = grpc.insecure_channel(f'localhost:{YOLO_SERVICE_PORT}')
@@ -30,7 +30,7 @@ class YoloGRPCClient():
         self.stub = hyrch_serving_pb2_grpc.YoloServiceStub(channel)
         self.image_size = (640, 352)
         self.image_queue = queue.Queue()
-        self.shared_yolo_results = shared_yolo_results
+        self.shared_yolo_result = shared_yolo_result
         self.latest_result_with_image = None
         if not is_local_service:
             self.latest_result_with_image_lock = asyncio.Lock()
@@ -58,8 +58,8 @@ class YoloGRPCClient():
         
         json_results = json.loads(response.json_data)
         self.latest_result_with_image = (self.image_queue.get(), json_results)
-        if self.shared_yolo_results is not None:
-            self.shared_yolo_results.set(json_results)
+        if self.shared_yolo_result is not None:
+            self.shared_yolo_result.set(json_results)
 
     async def detect(self, image):
         if self.is_local_service:
@@ -86,5 +86,5 @@ class YoloGRPCClient():
             if self.image_queue.queue[0][0] > json_results['image_id']:
                 return
             self.latest_result_with_image = (self.image_queue.get()[1], json_results)
-            if self.shared_yolo_results is not None:
-                self.shared_yolo_results.set(self.latest_result_with_image)
+            if self.shared_yolo_result is not None:
+                self.shared_yolo_result.set(self.latest_result_with_image)

@@ -3,11 +3,11 @@ from io import BytesIO
 from colorthief import ColorThief
 import webcolors
 
-from .yolo_client import SharedYoloResults
+from .yolo_client import SharedYoloResult
 
 class VisionSkillWrapper():
-    def __init__(self, shared_yolo_results: SharedYoloResults):
-        self.shared_yolo_results = shared_yolo_results
+    def __init__(self, shared_yolo_result: SharedYoloResult):
+        self.shared_yolo_result = shared_yolo_result
 
     def get_colour_name(requested_colour):
         def closest_colour(requested_colour):
@@ -52,10 +52,10 @@ class VisionSkillWrapper():
         return str(formatted_results).replace("'", '')
 
     def get_obj_list(self) -> str:
-        return VisionSkillWrapper.format_results(self.shared_yolo_results.get())
+        return VisionSkillWrapper.format_results(self.shared_yolo_result.get())
 
     def get_obj_info(self, object_name: str) -> dict:
-        (_, yolo_results) = self.shared_yolo_results.get()
+        (_, yolo_results) = self.shared_yolo_result.get()
         for item in yolo_results.get('result', []):
             # change this to start_with
             if item['name'].startswith(object_name):

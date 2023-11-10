@@ -1,18 +1,26 @@
 import queue
-import sys
+import sys, os
 import asyncio
 import io, time
 import gradio as gr
 from flask import Flask, Response
 from threading import Thread
+from PIL import Image
 
 sys.path.append("..")
 from controller.llm_controller import LLMController
 from controller.utils import print_t
 
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 class TypeFly:
     def __init__(self, use_virtual_cam):
+         # create a cache folder
+        self.cache_folder = os.path.join(CURRENT_DIR, 'cache')
+        if not os.path.exists(self.cache_folder):
+            os.makedirs(self.cache_folder)
         self.message_queue = queue.Queue()
+        self.message_queue.put(self.cache_folder)
         self.llm_controller = LLMController(use_virtual_cam, self.message_queue)
         self.system_stop = False
         self.ui = gr.Blocks(title="TypeFly")
@@ -28,21 +36,27 @@ class TypeFly:
             self.llm_controller.stop_controller()
             self.system_stop = True
             yield "Shutting down..."
+        elif message == "pic":
+            yield ('../test/images/kitchen.webp',)
         elif len(message) == 0:
             yield "[WARNING] Empty command!]"
         else:
             task_thread = Thread(target=self.llm_controller.execute_task_description, args=(message,))
             task_thread.start()
-            complete_message = ''
+            complete_response = ''
             while True:
                 msg = self.message_queue.get()
-                if msg == 'end':
-                    # Indicate end of the task to Gradio chat
-                    return "Command Complete!"
+                if isinstance(msg, tuple):
+                    # history.append((message, complete_response))
+                    history.append((None, msg))
+                    # complete_response = ''
                 else:
-                    complete_message += msg + '\n'
-                    yield complete_message
-                
+                    if msg == 'end':
+                        # Indicate end of the task to Gradio chat
+                        return "Command Complete!"
+                    complete_response += msg + '\n'
+                yield complete_response
+
     def generate_mjpeg_stream(self):
         while True:
             if self.system_stop:
@@ -82,7 +96,11 @@ class TypeFly:
 
         self.llm_controller.stop_robot()
 
+        # clean self.cache_folder
+        for file in os.listdir(self.cache_folder):
+            os.remove(os.path.join(self.cache_folder, file))
+
+
 if __name__ == "__main__":
     typefly = TypeFly(use_virtual_cam=True)
     typefly.run()
-        

@@ -41,7 +41,6 @@ abbr:q,name:query,args:[question:str],description:Query the LLM for reasoning
 abbr:l,name:log,args:[text:str],description:Print the text to console
 abbr:d,name:delay,args:[ms:int],description:Sleep for some microseconds
 abbr:p,name:picture,args:[],description:Take a picture
-abbr:v,name:verification,args:[retry:int],description:Restart plan if task description has not been met
 
 
 The `scene description` is an object list, containing their names with ID, location, and size (location and size are float between 0~1).
@@ -84,9 +83,9 @@ Example 9:
 
 Now given the following `scene description` and `task description`, please generate the response only with a single sentence of MiniSpec program.
 `scene description`:
-[name:person_164,x:0.51,y:0.56,width:0.68,height:0.87,color:gray, name:laptop_169,x:0.02,y:0.43,width:0.04,height:0.43,color:peru]
+[name:person_173,x:0.55,y:0.59,width:0.63,height:0.81,color:gray, name:tie_194,x:0.54,y:0.96,width:0.05,height:0.09,color:lightgray]
 `task description`:
-[A] turn around
+[A] take me an pic
 ---
-{"id": "chatcmpl-8JDbqZIFOKs5iVeN1J85mL4BYib75", "object": "chat.completion", "created": 1699591238, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "tc,180"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1710, "completion_tokens": 3, "total_tokens": 1713}}
+{"id": "chatcmpl-8JO1LctVR3a46UciiZ9ibm72GfqUk", "object": "chat.completion", "created": 1699631259, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "p"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1690, "completion_tokens": 1, "total_tokens": 1691}}
 ---

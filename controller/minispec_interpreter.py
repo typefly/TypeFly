@@ -108,6 +108,8 @@ class MiniSpecInterpreter:
             for i in range(0, len(args)):
                 if args[i].startswith('_'):
                     args[i] = self.get_env_value(args[i])
+        else:
+            args = []
         print(f'Calling skill {name} with args {args}')
 
         skill_instance = MiniSpecInterpreter.low_level_skillset.get_skill_by_abbr(name)
