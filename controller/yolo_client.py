@@ -8,6 +8,8 @@ import queue
 import asyncio, aiohttp
 import threading
 
+from .utils import print_t
+
 # YOLO_SERVICE_IP = 'localhost'
 YOLO_SERVICE_IP = '172.29.249.77'
 YOLO_SERVICE_PORT = '50051'
@@ -62,10 +64,16 @@ class YoloClient():
         return self.latest_result_with_image
     
     @asynccontextmanager
-    async def get_aiohttp_session_response(service_url, data):
-        async with aiohttp.ClientSession() as session:
-            async with session.post(service_url, data=data) as response:
-                yield response
+    async def get_aiohttp_session_response(service_url, data, timeout_seconds=3):
+        timeout = aiohttp.ClientTimeout(total=timeout_seconds)
+        try:
+            # The ClientSession now uses the defined timeout
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(service_url, data=data) as response:
+                    response.raise_for_status()  # Optional: raises exception for 4XX/5XX responses
+                    yield response
+        except aiohttp.ServerTimeoutError:
+            print_t(f"[Y] Timeout error when connecting to {service_url}")
 
     async def detect(self, image):
         image_bytes = YoloClient.image_to_bytes(image.resize(self.image_size))
@@ -84,7 +92,7 @@ class YoloClient():
         try:
             json_results = json.loads(results)
         except:
-            print(f"Invalid json results: {results}")
+            print_t(f"[Y] Invalid json results: {results}")
             return
         async with self.latest_result_with_image_lock:
             # discard old images

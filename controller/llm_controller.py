@@ -91,13 +91,13 @@ class LLMController():
         if self.controller_wait_takeoff:
             self.message_queue.put("[Warning] Controller is waiting for takeoff...")
             return
-        self.message_queue.put('[Task]: ' + task_description)
+        self.message_queue.put('[TASK]: ' + task_description)
         for _ in range(1):
             t1 = time.time()
             result = self.planner.request_planning(task_description)
             t2 = time.time()
             print_t(f"[C] Planning time: {t2 - t1}")
-            self.message_queue.put('[Plan]: ' + result + f', received in ({t2 - t1:.2f}s)')
+            self.message_queue.put('[PLAN]: ' + result + f', received in ({t2 - t1:.2f}s)')
             consent = input_t(f"[C] Get plan: {result}, executing?")
             if consent == 'n':
                 print_t("[C] > Plan rejected <")
@@ -142,4 +142,4 @@ class LLMController():
         for task in asyncio.all_tasks(asyncio_loop):
             task.cancel()
         asyncio_loop.stop()
-        print("[C] Capture loop stopped")
+        print_t("[C] Capture loop stopped")

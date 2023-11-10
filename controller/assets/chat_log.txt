@@ -1,0 +1,92 @@
+You are a drone pilot and you should follow the user's instructions to generate a task plan for the drone. Your response should carefully consider the `system skills description`, the `scene description`, and the `task description`.
+The `system skills description` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built with our language `MiniSpec`, are more flexible and can be used to build more complex skills.
+
+The BNF syntax definition of `MiniSpec` is as follows:
+<program> ::= { <block-statement> [';'] | <statement> ';' }
+<statement> ::= <function-call> | <return>
+<block-statement> ::= <loop> | <conditional>
+<loop> ::= <int> '{' <program> '}'
+<function-call> ::= <variable-assign> | <function-name> ',' <argument>
+<variable-assign> ::= <variable> '=' <function-name> ',' <argument>
+<conditional> ::= '?' <condition> '{' <program> '}'
+<return> ::= '->' <value>
+<condition> ::= <variable> <comparator> <value> { '&' <condition> | '|' <condition> }
+<comparator> ::= '>' | '<' | '==' | '!='
+<function-name> ::= <alpha> { <alpha> }
+<argument> ::= <value> { ',' <value> }
+<variable> ::= '_' <int>
+<value> ::= <int> | <float> | <string> | <bool>
+
+Description of the two skill sets:
+- High-level skills:
+abbr:s,name:sweeping,definition:8{_1=iis,$1;?_1==True{->True}tc,45}->False,args:[obj_name:str],description:Rotate to find a certain object
+abbr:a,name:approach,definition:mf,40,args:[],description:Approach a certain object
+abbr:o,name:orienting,definition:4{_1=olx,$1;?_1>0.6{tc,15};?_1<0.4{tcc,15};_2=olx,$1;?_2<0.6&_2>0.4{->True}}->False,args:[obj_name:str],description:Rotate to align with a certain object
+
+- Low-level skills:
+abbr:mf,name:move_forward,args:[dis:int],description:Move drone forward by a distance
+abbr:mb,name:move_backward,args:[dis:int],description:Move drone backward by a distance
+abbr:ml,name:move_left,args:[dis:int],description:Move drone left by a distance
+abbr:mr,name:move_right,args:[dis:int],description:Move drone right by a distance
+abbr:mu,name:move_up,args:[dis:int],description:Move drone up by a distance
+abbr:md,name:move_down,args:[dis:int],description:Move drone down by a distance
+abbr:tc,name:turn_cw,args:[deg:int],description:Turn drone clockwise by a degree
+abbr:tcc,name:turn_c_cw,args:[deg:int],description:Turn drone counterclockwise by a degree
+abbr:iis,name:is_in_sight,args:[obj_name:str],description:Check if an object is in sight
+abbr:olx,name:obj_loc_x,args:[obj_name:str],description:Get x loc of an object
+abbr:oly,name:obj_loc_y,args:[obj_name:str],description:Get y loc of an object
+abbr:osw,name:obj_size_w,args:[obj_name:str],description:Get width of an object
+abbr:osh,name:obj_size_h,args:[obj_name:str],description:Get height of an object
+abbr:q,name:query,args:[question:str],description:Query the LLM for reasoning
+abbr:l,name:log,args:[text:str],description:Print the text to console
+abbr:d,name:delay,args:[ms:int],description:Sleep for some microseconds
+abbr:p,name:picture,args:[],description:Take a picture
+abbr:v,name:verification,args:[retry:int],description:Restart plan if task description has not been met
+
+
+The `scene description` is an object list, containing their names with ID, location, and size (location and size are float between 0~1).
+The `task description` is a natural language sentence, describing the user's instructions. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task description` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
+You should not generate any aggressive drone control.
+Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
+Derive the `obj_name` arguments or question answers from the `scene description` as much as possible. Only if when it's unavailable, carefully use `q,'question'` in the plan.
+Prioritize the use of high-level skills whenever feasible.
+You must call skills by their abbreviation.
+Assume `task description` uses common interpretation. E.g., "teddy" and "teddy bear" are synonymous and refer to the same target object. "something is a fruit" can be categorized under "something edible". But "something to drink" and "something to eat" pertain to distinct object categories.
+
+Here is a list of example `response` for different `scene description` and `task description`, and their explanations:
+Example 1:
+    scene:[],task:[A] Find an apple.
+    response:_1=s,apple;?_1==True{o,apple;a}
+Example 2:
+    scene:["apple_5"],task:[A] Find an apple.
+    response:o,apple;a
+Example 3:
+    scene:["apple_3"],task:[Q] Is there an apple?
+    response:l,'Yes, there is an apple.'
+Example 4:
+    scene:["chair_4", "chair_13"],task:[A] Find a chair on the left.
+    response:o,chair_4;a
+Example 5:
+    scene:["chair_13", "laptop_2"],task:[A] find a chair, please verify the chair is in the scene and retry up to 3 times.
+    response:o,chair_13;a;v,3
+Example 6:
+    scene:["apple_1", "lemon_3", "bottle_2"],task:[A] Go to the yellow object.
+    response:o,lemon_3;a
+Example 7:
+    scene:["chair_3", "laptop_1", "bottle_5"],task:[A] Find and go any edible object.
+    response:8{_1=q,'what's the edible target?';?_1!=False{o,_1;a;->True}tc,45}->False
+Example 8:
+    scene:["laptop_4", "lemon_3"],task:[Q] Is there anything edible behind you?
+    response:tcc,180;_1=q,'is there anything edible?';l,_1
+Example 9:
+    scene:["chair_3", "laptop_9"],task:[A] Turn around until you can see some animal.
+    response:8{_1=q'what's the animal target?';?_1!=False{l,_1;->True}tc,45}->False
+
+Now given the following `scene description` and `task description`, please generate the response only with a single sentence of MiniSpec program.
+`scene description`:
+[name:person_164,x:0.51,y:0.56,width:0.68,height:0.87,color:gray, name:laptop_169,x:0.02,y:0.43,width:0.04,height:0.43,color:peru]
+`task description`:
+[A] turn around
+---
+{"id": "chatcmpl-8JDbqZIFOKs5iVeN1J85mL4BYib75", "object": "chat.completion", "created": 1699591238, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "tc,180"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1710, "completion_tokens": 3, "total_tokens": 1713}}
+---
