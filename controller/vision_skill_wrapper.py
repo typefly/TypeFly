@@ -47,7 +47,7 @@ class VisionSkillWrapper():
             w = round(box['x2'] - box['x1'], 2)
             h = round(box['y2'] - box['y1'], 2)
             color = VisionSkillWrapper.get_colour_name(VisionSkillWrapper.get_dominant_color(image, box))
-            info = f"name:{name},x:{x},y:{y},width:{w},height:{h},color:{color}"
+            info = f"{name} x:{x} y:{y} width:{w} height:{h} color:{color}"
             formatted_results.append(info)
         return str(formatted_results).replace("'", '')
 
@@ -62,31 +62,31 @@ class VisionSkillWrapper():
                 return item
         return None
 
-    def is_in_sight(self, object_name: str) -> bool:
+    def is_visible(self, object_name: str) -> bool:
         return self.get_obj_info(object_name) is not None
         
-    def obj_loc_x(self, object_name: str) -> float:
+    def object_x(self, object_name: str) -> float:
         info = self.get_obj_info(object_name)
         if info is None:
             raise ValueError(f"Object {object_name} is not in sight.")
         box = info['box']
         return (box['x1'] + box['x2']) / 2
     
-    def obj_loc_y(self, object_name: str) -> float:
+    def object_y(self, object_name: str) -> float:
         info = self.get_obj_info(object_name)
         if info is None:
             raise ValueError(f"Object {object_name} is not in sight.")
         box = info['box']
         return (box['y1'] + box['y2']) / 2
     
-    def obj_size_w(self, object_name: str) -> float:
+    def object_w(self, object_name: str) -> float:
         info = self.get_obj_info(object_name)
         if info is None:
             raise ValueError(f"Object {object_name} is not in sight.")
         box = info['box']
         return box['x2'] - box['x1']
     
-    def obj_size_h(self, object_name: str) -> float:
+    def object_h(self, object_name: str) -> float:
         info = self.get_obj_info(object_name)
         if info is None:
             raise ValueError(f"Object {object_name} is not in sight.")

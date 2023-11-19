@@ -2,14 +2,16 @@ from io import BytesIO
 from PIL import Image
 from typing import Optional, Tuple
 
-import json, sys
+import json, sys, os
 import queue
 import grpc
 import asyncio
 
 from .yolo_client import SharedYoloResult
 
-sys.path.append("../proto/generated")
+PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.append(os.path.join(PARENT_DIR, "proto/generated"))
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 

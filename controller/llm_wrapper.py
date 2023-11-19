@@ -10,7 +10,7 @@ current_directory = os.path.dirname(os.path.abspath(__file__))
 chat_log_path = os.path.join(current_directory, "./assets/chat_log.txt")
 
 class LLMWrapper:
-    def __init__(self, temperature=0.05):
+    def __init__(self, temperature=0.0):
         self.temperature = temperature
         # clean chat_log
         open(chat_log_path, "w").close()

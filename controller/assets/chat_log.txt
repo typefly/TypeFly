@@ -1,91 +1,170 @@
-You are a drone pilot and you should follow the user's instructions to generate a task plan for the drone. Your response should carefully consider the `system skills description`, the `scene description`, and the `task description`.
-The `system skills description` describes the system's capabilities which include low-level and high-level skills. Low-level skills, while fixed, offer direct function calls to control the drone and acquire vision information. High-level skills, built with our language `MiniSpec`, are more flexible and can be used to build more complex skills.
-
-The BNF syntax definition of `MiniSpec` is as follows:
-<program> ::= { <block-statement> [';'] | <statement> ';' }
-<statement> ::= <function-call> | <return>
-<block-statement> ::= <loop> | <conditional>
-<loop> ::= <int> '{' <program> '}'
-<function-call> ::= <variable-assign> | <function-name> ',' <argument>
-<variable-assign> ::= <variable> '=' <function-name> ',' <argument>
-<conditional> ::= '?' <condition> '{' <program> '}'
-<return> ::= '->' <value>
-<condition> ::= <variable> <comparator> <value> { '&' <condition> | '|' <condition> }
-<comparator> ::= '>' | '<' | '==' | '!='
-<function-name> ::= <alpha> { <alpha> }
-<argument> ::= <value> { ',' <value> }
-<variable> ::= '_' <int>
-<value> ::= <int> | <float> | <string> | <bool>
-
-Description of the two skill sets:
-- High-level skills:
-abbr:s,name:sweeping,definition:8{_1=iis,$1;?_1==True{->True}tc,45}->False,args:[obj_name:str],description:Rotate to find a certain object
-abbr:a,name:approach,definition:mf,40,args:[],description:Approach a certain object
-abbr:o,name:orienting,definition:4{_1=olx,$1;?_1>0.6{tc,15};?_1<0.4{tcc,15};_2=olx,$1;?_2<0.6&_2>0.4{->True}}->False,args:[obj_name:str],description:Rotate to align with a certain object
-
-- Low-level skills:
-abbr:mf,name:move_forward,args:[dis:int],description:Move drone forward by a distance
-abbr:mb,name:move_backward,args:[dis:int],description:Move drone backward by a distance
-abbr:ml,name:move_left,args:[dis:int],description:Move drone left by a distance
-abbr:mr,name:move_right,args:[dis:int],description:Move drone right by a distance
-abbr:mu,name:move_up,args:[dis:int],description:Move drone up by a distance
-abbr:md,name:move_down,args:[dis:int],description:Move drone down by a distance
-abbr:tc,name:turn_cw,args:[deg:int],description:Turn drone clockwise by a degree
-abbr:tcc,name:turn_c_cw,args:[deg:int],description:Turn drone counterclockwise by a degree
-abbr:iis,name:is_in_sight,args:[obj_name:str],description:Check if an object is in sight
-abbr:olx,name:obj_loc_x,args:[obj_name:str],description:Get x loc of an object
-abbr:oly,name:obj_loc_y,args:[obj_name:str],description:Get y loc of an object
-abbr:osw,name:obj_size_w,args:[obj_name:str],description:Get width of an object
-abbr:osh,name:obj_size_h,args:[obj_name:str],description:Get height of an object
-abbr:q,name:query,args:[question:str],description:Query the LLM for reasoning
-abbr:l,name:log,args:[text:str],description:Print the text to console
-abbr:d,name:delay,args:[ms:int],description:Sleep for some microseconds
-abbr:p,name:picture,args:[],description:Take a picture
-
-
-The `scene description` is an object list, containing their names with ID, location, and size (location and size are float between 0~1).
-The `task description` is a natural language sentence, describing the user's instructions. It may start with "[A]" or "[Q]". "[A]" sentences mean you should generate an execution plan for the drone. "[Q]" sentences mean you should give a literal answer at the end of the plan execution. The `task description` is the goal of the task, you should interpret it and generate a detailed multi-step plan to achieve it as much as you can while following the rules below:
-You should not generate any aggressive drone control.
-Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
-Derive the `obj_name` arguments or question answers from the `scene description` as much as possible. Only if when it's unavailable, carefully use `q,'question'` in the plan.
-Prioritize the use of high-level skills whenever feasible.
-You must call skills by their abbreviation.
-Assume `task description` uses common interpretation. E.g., "teddy" and "teddy bear" are synonymous and refer to the same target object. "something is a fruit" can be categorized under "something edible". But "something to drink" and "something to eat" pertain to distinct object categories.
-
-Here is a list of example `response` for different `scene description` and `task description`, and their explanations:
-Example 1:
-    scene:[],task:[A] Find an apple.
-    response:_1=s,apple;?_1==True{o,apple;a}
-Example 2:
-    scene:["apple_5"],task:[A] Find an apple.
-    response:o,apple;a
-Example 3:
-    scene:["apple_3"],task:[Q] Is there an apple?
-    response:l,'Yes, there is an apple.'
-Example 4:
-    scene:["chair_4", "chair_13"],task:[A] Find a chair on the left.
-    response:o,chair_4;a
-Example 5:
-    scene:["chair_13", "laptop_2"],task:[A] find a chair, please verify the chair is in the scene and retry up to 3 times.
-    response:o,chair_13;a;v,3
-Example 6:
-    scene:["apple_1", "lemon_3", "bottle_2"],task:[A] Go to the yellow object.
-    response:o,lemon_3;a
-Example 7:
-    scene:["chair_3", "laptop_1", "bottle_5"],task:[A] Find and go any edible object.
-    response:8{_1=q,'what's the edible target?';?_1!=False{o,_1;a;->True}tc,45}->False
-Example 8:
-    scene:["laptop_4", "lemon_3"],task:[Q] Is there anything edible behind you?
-    response:tcc,180;_1=q,'is there anything edible?';l,_1
-Example 9:
-    scene:["chair_3", "laptop_9"],task:[A] Turn around until you can see some animal.
-    response:8{_1=q'what's the animal target?';?_1!=False{l,_1;->True}tc,45}->False
-
-Now given the following `scene description` and `task description`, please generate the response only with a single sentence of MiniSpec program.
-`scene description`:
-[name:person_173,x:0.55,y:0.59,width:0.63,height:0.81,color:gray, name:tie_194,x:0.54,y:0.96,width:0.05,height:0.09,color:lightgray]
-`task description`:
-[A] take me an pic
+Please generate the exact following code: _1=s,apple;?_1==True{o,apple;a}
 ---
-{"id": "chatcmpl-8JO1LctVR3a46UciiZ9ibm72GfqUk", "object": "chat.completion", "created": 1699631259, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "p"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1690, "completion_tokens": 1, "total_tokens": 1691}}
+{"id": "chatcmpl-8MSuoagO0dETydscw0nvdWvQW5E8i", "object": "chat.completion", "created": 1700365058, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "_1=s,apple;?_1==True{o,apple;a}"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 30, "completion_tokens": 16, "total_tokens": 46}}
+---
+Please generate the exact following code: 
+var_1 = high_level_skillset.execute_skill("sweeping", "apple")
+if var_1 == True:
+    high_level_skillset.orienting("apple")
+    high_level_skillset.approach()
+
+---
+{"id": "chatcmpl-8MSuqSuJmMXHyPf4ESjYEp43TA0X4", "object": "chat.completion", "created": 1700365060, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "var_1 = high_level_skillset.execute_skill(\"sweeping\", \"apple\")\nif var_1 == True:\n    high_level_skillset.orienting(\"apple\")\n    high_level_skillset.approach()"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 59, "completion_tokens": 44, "total_tokens": 103}}
+---
+Please generate the exact following code: tc,180;o,person_3;a
+---
+{"id": "chatcmpl-8MSut6a8BRVt51G9B6MQCJdwHWT2M", "object": "chat.completion", "created": 1700365063, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "tc,180;o,person_3;a"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 23, "completion_tokens": 9, "total_tokens": 32}}
+---
+Please generate the exact following code: 
+drone.tc(180)
+high_level_skillset.orienting("person_3")
+high_level_skillset.approach()
+
+---
+{"id": "chatcmpl-8MSuvqtF6l8vw7bMqfBz05V7YnOIZ", "object": "chat.completion", "created": 1700365065, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "drone.tc(180)\nhigh_level_skillset.orienting(\"person_3\")\nhigh_level_skillset.approach()"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 40, "completion_tokens": 25, "total_tokens": 65}}
+---
+Please generate the exact following code: o,chair_1;p
+---
+{"id": "chatcmpl-8MSuyHvkQouJpAJogouRmQhzPZTlW", "object": "chat.completion", "created": 1700365068, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "o,chair_1;p"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 20, "completion_tokens": 6, "total_tokens": 26}}
+---
+Please generate the exact following code: 
+high_level_skillset.orienting("chair_1")
+high_level_skillset.picture()
+
+---
+{"id": "chatcmpl-8MSuzCOuwEG4mA0VgUnyGBslTMnqO", "object": "chat.completion", "created": 1700365069, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "high_level_skillset.orienting(\"chair_1\")\nhigh_level_skillset.picture()"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 33, "completion_tokens": 18, "total_tokens": 51}}
+---
+Please generate the exact following code: o,apple_1;p
+---
+{"id": "chatcmpl-8MSv1Mo1iUTzPhx0w4395V2UIyLVq", "object": "chat.completion", "created": 1700365071, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "o,apple_1;p"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 20, "completion_tokens": 6, "total_tokens": 26}}
+---
+Please generate the exact following code: 
+high_level_skillset.orienting("apple_1")
+high_level_skillset.picture()
+
+---
+{"id": "chatcmpl-8MSv20Xk0kYZYHdhhKGQzc3pUb10k", "object": "chat.completion", "created": 1700365072, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "high_level_skillset.orienting(\"apple_1\")\nhigh_level_skillset.picture()"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 33, "completion_tokens": 18, "total_tokens": 51}}
+---
+Please generate the exact following code: o,apple_1;p
+---
+{"id": "chatcmpl-8MSv3naxduJFpfVlvkK2Kj0PhwYfN", "object": "chat.completion", "created": 1700365073, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "o,apple_1;p"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 20, "completion_tokens": 6, "total_tokens": 26}}
+---
+Please generate the exact following code: 
+high_level_skillset.orienting("apple_1")
+high_level_skillset.picture()
+
+---
+{"id": "chatcmpl-8MSv436R78e2hnYcl9BZtHqDnL6eh", "object": "chat.completion", "created": 1700365074, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "high_level_skillset.orienting(\"apple_1\")\nhigh_level_skillset.picture()"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 33, "completion_tokens": 18, "total_tokens": 51}}
+---
+Please generate the exact following code: 3{o,apple_1;p;o,apple_2;p;o,apple_3;p}
+---
+{"id": "chatcmpl-8MSv6LC4FiqS3FaiTLIGdYbRQelVB", "object": "chat.completion", "created": 1700365076, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "3{o,apple_1;p;o,apple_2;p;o,apple_3;p}"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 35, "completion_tokens": 20, "total_tokens": 55}}
+---
+Please generate the exact following code: 
+for i in range(3):
+    high_level_skillset.orienting("apple_1")
+    high_level_skillset.picture()
+    high_level_skillset.orienting("apple_2")
+    high_level_skillset.picture()
+    high_level_skillset.orienting("apple_3")
+    high_level_skillset.picture()
+
+---
+{"id": "chatcmpl-8MSv7Shxcic275f1K6eIeO5DSk1tr", "object": "chat.completion", "created": 1700365077, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "for i in range(3):\n    high_level_skillset.orienting(\"apple_1\")\n    high_level_skillset.picture()\n    high_level_skillset.orienting(\"apple_2\")\n    high_level_skillset.picture()\n    high_level_skillset.orienting(\"apple_3\")\n    high_level_skillset.picture()"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 82, "completion_tokens": 67, "total_tokens": 149}}
+---
+Please generate the exact following code: l,'I can see 3 kinds of fruit.'
+---
+{"id": "chatcmpl-8MSvBii2OZgrKopQdwgi8Joc6WqnL", "object": "chat.completion", "created": 1700365081, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "l = 'I can see 3 kinds of fruit.'"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 25, "completion_tokens": 12, "total_tokens": 37}}
+---
+Please generate the exact following code: 
+high_level_skillset.log("I can see 3 kinds of fruit.")
+
+---
+{"id": "chatcmpl-8MSvC6p6QDw9b5QH9TAZh30N4WEQb", "object": "chat.completion", "created": 1700365082, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "high_level_skillset.log(\"I can see 3 kinds of fruit.\")"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 30, "completion_tokens": 15, "total_tokens": 45}}
+---
+Please generate the exact following code: o,person_3;p
+---
+{"id": "chatcmpl-8MSvEm15HstIk7oQpsb5ku8KkwlGX", "object": "chat.completion", "created": 1700365084, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "o,person_3;p"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 20, "completion_tokens": 6, "total_tokens": 26}}
+---
+Please generate the exact following code: 
+high_level_skillset.orienting("person_3")
+high_level_skillset.picture()
+
+---
+{"id": "chatcmpl-8MSvEC7YVWnlePUY1JFcIRNPlhGdU", "object": "chat.completion", "created": 1700365084, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "high_level_skillset.orienting(\"person_3\")\nhigh_level_skillset.picture()"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 33, "completion_tokens": 18, "total_tokens": 51}}
+---
+Please generate the exact following code: _1=q,'what is the object closest to the chair?';o,_1;a
+---
+{"id": "chatcmpl-8MSvGOS5SVnQfT7GHxCevn2ysGoZk", "object": "chat.completion", "created": 1700365086, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "_1=q,'what is the object closest to the chair?';o,_1;a"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 32, "completion_tokens": 18, "total_tokens": 50}}
+---
+Please generate the exact following code: 
+var_1 = high_level_skillset.query("what is the object closest to the chair?")
+high_level_skillset.orienting(var_1)
+high_level_skillset.approach()
+
+---
+{"id": "chatcmpl-8MSvH89ERe1p3ONKR0adK0JKvl6RJ", "object": "chat.completion", "created": 1700365087, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "var_1 = high_level_skillset.query(\"what is the object closest to the chair?\")\nhigh_level_skillset.orienting(var_1)\nhigh_level_skillset.approach()"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 52, "completion_tokens": 37, "total_tokens": 89}}
+---
+Please generate the exact following code: o,apple_1;a
+---
+{"id": "chatcmpl-8MSvJ7L6iBbXKPfiiqTCG5FYn6yVp", "object": "chat.completion", "created": 1700365089, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "o,apple_1;a"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 20, "completion_tokens": 6, "total_tokens": 26}}
+---
+Please generate the exact following code: 
+high_level_skillset.orienting("apple_1")
+high_level_skillset.approach()
+
+---
+{"id": "chatcmpl-8MSvKtGlHHG7aTgnkBJDouQKixS3C", "object": "chat.completion", "created": 1700365090, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "high_level_skillset.orienting(\"apple_1\")\nhigh_level_skillset.approach()"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 34, "completion_tokens": 19, "total_tokens": 53}}
+---
+Please generate the exact following code: o,person_2;a
+---
+{"id": "chatcmpl-8MSvLL96qnJ2Jxxi0v5kBR6BuaYkg", "object": "chat.completion", "created": 1700365091, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "o,person_2;a"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 20, "completion_tokens": 6, "total_tokens": 26}}
+---
+Please generate the exact following code: 
+high_level_skillset.orienting("person_2")
+high_level_skillset.approach()
+
+---
+{"id": "chatcmpl-8MSvMDdAVkC6xyTDyheafaItNK4FX", "object": "chat.completion", "created": 1700365092, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "high_level_skillset.orienting(\"person_2\")\nhigh_level_skillset.approach()"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 34, "completion_tokens": 19, "total_tokens": 53}}
+---
+Please generate the exact following code: 8{_1=q,'what's the edible target?';?_1!=False{o,_1;a;->True}tc,45}->False;8{_2=q,'what's the drinkable target?';?_2!=False{o,_2;a;->True}tc,45}->False
+---
+{"id": "chatcmpl-8MSvNiMTegQ5salfpdzHPYm63DqAP", "object": "chat.completion", "created": 1700365093, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "8{_1=q,'what's the edible target?';?_1!=False{o,_1;a;->True}tc,45}->False;\n8{_2=q,'what's the drinkable target?';?_2!=False{o,_2;a;->True}tc,45}->False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 77, "completion_tokens": 62, "total_tokens": 139}}
+---
+Please generate the exact following code: 
+for i in range(8):
+    var_1 = high_level_skillset.query("what's the edible target?")
+    if var_1 != False:
+        high_level_skillset.orienting(var_1)
+        high_level_skillset.approach()
+        return True
+    drone.tc(45)
+for i in range(8):
+    var_2 = high_level_skillset.query("what's the drinkable target?")
+    if var_2 != False:
+        high_level_skillset.orienting(var_2)
+        high_level_skillset.approach()
+        return True
+    drone.tc(45)
+return False
+
+---
+{"id": "chatcmpl-8MSvRLRESEg4iMJ3JOeLx7CwxFrad", "object": "chat.completion", "created": 1700365097, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "Here is the code you requested:\n\n```python\nfor i in range(8):\n    var_1 = high_level_skillset.query(\"what's the edible target?\")\n    if var_1 != False:\n        high_level_skillset.orienting(var_1)\n        high_level_skillset.approach()\n        return True\n    drone.tc(45)\nfor i in range(8):\n    var_2 = high_level_skillset.query(\"what's the drinkable target?\")\n    if var_2 != False:\n        high_level_skillset.orienting(var_2)\n        high_level_skillset.approach()\n        return True\n    drone.tc(45)\nreturn False\n```"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 143, "completion_tokens": 139, "total_tokens": 282}}
+---
+Please generate the exact following code: 8{_1=q,'which of person has a cup in hand?';?_1!=False{o,_1;a;->True}tc,45}->False
+---
+{"id": "chatcmpl-8MSvYKse0D3FSrc6gFzTwvcChLxLj", "object": "chat.completion", "created": 1700365104, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "8{_1=q,'which of person has a cup in hand?';?_1!=False{o,_1;a;->True}tc,45}->False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 48, "completion_tokens": 33, "total_tokens": 81}}
+---
+Please generate the exact following code: 
+for i in range(8):
+    var_1 = high_level_skillset.query("which of person has a cup in hand?")
+    if var_1 != False:
+        high_level_skillset.orienting(var_1)
+        high_level_skillset.approach()
+        return True
+    drone.tc(45)
+return False
+
+---
+{"id": "chatcmpl-8MSva4ErjPn36qEfTWIxIHIXAhxvk", "object": "chat.completion", "created": 1700365106, "model": "gpt-4-0613", "choices": [{"index": 0, "message": {"role": "assistant", "content": "for i in range(8):\n    var_1 = high_level_skillset.query(\"which of person has a cup in hand?\")\n    if var_1 != False:\n        high_level_skillset.orienting(var_1)\n        high_level_skillset.approach()\n        return True\n    drone.tc(45)\nreturn False"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 83, "completion_tokens": 67, "total_tokens": 150}}
 ---

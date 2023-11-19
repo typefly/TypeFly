@@ -1,27 +1,40 @@
 Example 1:
-    scene:[],task:[A] Find an apple.
-    response:_1=s,apple;?_1==True{o,apple;a}
+    scene:[],task:[A] Find a bottle.
+    response:_1=s,bottle;?_1==True{o,bottle;a}
+    reason:no bottle instance in the scene, so we use sweeping to find bottle
 Example 2:
-    scene:["apple_5"],task:[A] Find an apple.
+    scene:[apple_5],task:[A] Find an apple.
     response:o,apple;a
+    reason:there is an apple instance in the scene, so we orienting and approach the apple_5
 Example 3:
-    scene:["apple_3"],task:[Q] Is there an apple?
+    scene:[apple_3],task:[Q] Is there an apple?
     response:l,'Yes, there is an apple.'
+    reason:we use log to output the answer
 Example 4:
-    scene:["chair_4", "chair_13"],task:[A] Find a chair on the left.
-    response:o,chair_4;a
+    scene:[chair_4 x:0.61, chair_13 x:0.23],task:[A] Find a chair on the left.
+    response:o,chair_13;a
+    reason:according to the x coordinate, the chair_13 is on the left, so we orienting and approach the chair_13
 Example 5:
-    scene:["chair_13", "laptop_2"],task:[A] find a chair, please verify the chair is in the scene and retry up to 3 times.
-    response:o,chair_13;a;v,3
+    scene:["chair_13", "laptop_2"],task:[A] Go to the chair behind you.
+    response:tc,180;o,chair;a
+    reason:the chair_13 is not the target because it's behind you. So we turn 180 degrees then orienting and approach the general object chair
 Example 6:
     scene:["apple_1", "lemon_3", "bottle_2"],task:[A] Go to the yellow object.
     response:o,lemon_3;a
+    reason:the lemon_3 is the yellow object, so we orienting and approach the lemon_3
 Example 7:
     scene:["chair_3", "laptop_1", "bottle_5"],task:[A] Find and go any edible object.
     response:8{_1=q,'what's the edible target?';?_1!=False{o,_1;a;->True}tc,45}->False
+    reason:there is no edible object in the scene, so we use sweeping and query to find the edible object
 Example 8:
     scene:["laptop_4", "lemon_3"],task:[Q] Is there anything edible behind you?
     response:tcc,180;_1=q,'is there anything edible?';l,_1
+    reason:the question is about the scene behind you, so we turn 180 degrees and query the edible object
 Example 9:
     scene:["chair_3", "laptop_9"],task:[A] Turn around until you can see some animal.
     response:8{_1=q'what's the animal target?';?_1!=False{l,_1;->True}tc,45}->False
+    reason:we use sweeping and query to find the animal
+Example 10:
+    scene:["chair_3", "laptop_9"],task:[Q] If you can see a chair, go find a person.
+    response:_1=s,person;?_1==True{o,person;a}
+    reason:From the scene, we can see a chair, so we use sweeping to find a person

@@ -28,7 +28,7 @@ class TypeFly:
         with self.ui:
             gr.HTML(open('./header.html', 'r').read())
             gr.HTML(open('./drone-pov.html', 'r').read())
-            gr.ChatInterface(self.process_message).queue()
+            gr.ChatInterface(self.process_message, retry_btn=None).queue()
 
     def process_message(self, message, history):
         print_t(f"[S] Receiving task description: {message}")
@@ -99,7 +99,6 @@ class TypeFly:
         # clean self.cache_folder
         for file in os.listdir(self.cache_folder):
             os.remove(os.path.join(self.cache_folder, file))
-
 
 if __name__ == "__main__":
     typefly = TypeFly(use_virtual_cam=True)

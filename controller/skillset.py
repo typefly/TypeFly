@@ -17,13 +17,13 @@ class SkillSet():
     def get_skill(self, skill_name: str) -> Optional[SkillItem]:
         """Returns a SkillItem by its name."""
         if skill_name not in self.skills:
-            return None
+            raise ValueError(f"No skill found with the name '{skill_name}'.")
         return self.skills[skill_name]
     
     def get_skill_by_abbr(self, abbr: str) -> Optional[SkillItem]:
         """Returns a SkillItem by its abbreviation."""
         if abbr not in SkillItem.abbr_dict:
-            return None
+            raise ValueError(f"No skill found with the abbreviation '{abbr}'.")
         return self.get_skill(SkillItem.abbr_dict[abbr])
     
     def add_skill(self, skill_item: SkillItem):
@@ -70,28 +70,6 @@ class LowLevelSkillItem(SkillItem):
     
     def get_argument(self) -> List[SkillArg]:
         return self.args
-
-    def parse_args(self, args_str_list: [str], allow_positional_args: bool = False):
-        """Parses the string of arguments and converts them to the expected types."""
-        # Check the number of arguments
-        if len(args_str_list) != len(self.args):
-            raise ValueError(f"Expected {len(self.args)} arguments, but got {len(args_str_list)}.")
-        
-        parsed_args = []
-        for i, arg in enumerate(args_str_list):
-            # if arg is not a string, skip parsing
-            if not isinstance(arg, str):
-                parsed_args.append(arg)
-                continue
-            # Allow positional arguments
-            if arg.startswith('$') and allow_positional_args:
-                parsed_args.append(arg)
-                continue
-            try:
-                parsed_args.append(self.args[i].arg_type(arg.strip()))
-            except ValueError as e:
-                raise ValueError(f"Error parsing argument {i + 1}. Expected type {self.args[i].arg_type.__name__}, but got value '{arg.strip()}'. Original error: {e}")
-        return parsed_args
     
     def execute(self, arg_list: [str]):
         """Executes the skill with the provided arguments."""

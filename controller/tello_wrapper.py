@@ -3,6 +3,13 @@ from djitellopy import Tello
 
 from .abs.drone_wrapper import DroneWrapper
 
+def cap_distance(distance):
+    if distance < 20:
+        return 20
+    elif distance > 100:
+        return 100
+    return distance
+
 class TelloWrapper(DroneWrapper):
     def __init__(self):
         self.drone = Tello()
@@ -41,32 +48,32 @@ class TelloWrapper(DroneWrapper):
         return self.drone.get_frame_read()
 
     def move_forward(self, distance: int) -> bool:
-        self.drone.move_forward(distance)
+        self.drone.move_forward(cap_distance(distance))
         time.sleep(0.5)
         return True
 
     def move_backward(self, distance: int) -> bool:
-        self.drone.move_back(distance)
+        self.drone.move_back(cap_distance(distance))
         time.sleep(0.5)
         return True
 
     def move_left(self, distance: int) -> bool:
-        self.drone.move_left(distance)
+        self.drone.move_left(cap_distance(distance))
         time.sleep(0.5)
         return True
 
     def move_right(self, distance: int) -> bool:
-        self.drone.move_right(distance)
+        self.drone.move_right(cap_distance(distance))
         time.sleep(0.5)
         return True
 
     def move_up(self, distance: int) -> bool:
-        self.drone.move_up(distance)
+        self.drone.move_up(cap_distance(distance))
         time.sleep(0.5)
         return True
 
     def move_down(self, distance: int) -> bool:
-        self.drone.move_down(distance)
+        self.drone.move_down(cap_distance(distance))
         time.sleep(0.5)
         return True
 

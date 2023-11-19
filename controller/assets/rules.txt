@@ -1,4 +1,4 @@
-You should not generate any aggressive drone control.
+Reason about the scene and task, if a condition can be determined from the scene description, then directly generate the corresponding action.
 Prioritize examining objects in the `scene description` as they relate directly to the `task description`.
 Derive the `obj_name` arguments or question answers from the `scene description` as much as possible. Only if when it's unavailable, carefully use `q,'question'` in the plan.
 Prioritize the use of high-level skills whenever feasible.

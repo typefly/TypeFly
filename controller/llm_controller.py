@@ -46,23 +46,23 @@ class LLMController():
 
         # load low-level skills
         self.low_level_skillset = SkillSet(level="low")
-        self.low_level_skillset.add_skill(LowLevelSkillItem("move_forward", self.drone.move_forward, "Move drone forward by a distance", args=[SkillArg("dis", int)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("move_backward", self.drone.move_backward, "Move drone backward by a distance", args=[SkillArg("dis", int)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("move_left", self.drone.move_left, "Move drone left by a distance", args=[SkillArg("dis", int)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("move_right", self.drone.move_right, "Move drone right by a distance", args=[SkillArg("dis", int)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("move_up", self.drone.move_up, "Move drone up by a distance", args=[SkillArg("dis", int)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("move_down", self.drone.move_down, "Move drone down by a distance", args=[SkillArg("dis", int)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("turn_cw", self.drone.turn_cw, "Turn drone clockwise by a degree", args=[SkillArg("deg", int)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("turn_c_cw", self.drone.turn_ccw, "Turn drone counterclockwise by a degree", args=[SkillArg("deg", int)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("is_in_sight", self.vision.is_in_sight, "Check if an object is in sight", args=[SkillArg("obj_name", str)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("obj_loc_x", self.vision.obj_loc_x, "Get x loc of an object", args=[SkillArg("obj_name", str)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("obj_loc_y", self.vision.obj_loc_y, "Get y loc of an object", args=[SkillArg("obj_name", str)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("obj_size_w", self.vision.obj_size_w, "Get width of an object", args=[SkillArg("obj_name", str)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("obj_size_h", self.vision.obj_size_h, "Get height of an object", args=[SkillArg("obj_name", str)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.planner.request_execution, "Query the LLM for reasoning", args=[SkillArg("question", str)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("log", self.log, "Print the text to console", args=[SkillArg("text", str)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("delay", self.delay, "Sleep for some microseconds", args=[SkillArg("ms", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_forward", self.drone.move_forward, "Move forward by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_backward", self.drone.move_backward, "Move backward by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_left", self.drone.move_left, "Move left by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_right", self.drone.move_right, "Move right by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_up", self.drone.move_up, "Move up by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_down", self.drone.move_down, "Move down by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("turn_cw", self.drone.turn_cw, "Rotate clockwise by certain degrees", args=[SkillArg("degrees", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("turn_ccw", self.drone.turn_ccw, "Rotate counterclockwise by certain degrees", args=[SkillArg("degrees", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("delay", self.delay, "Wait for specified microseconds", args=[SkillArg("milliseconds", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("is_visible", self.vision.is_visible, "Check the visibility of target object", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("object_x", self.vision.object_x, "Get object's X-coordinate in (0,1)", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("object_y", self.vision.object_y, "Get object's Y-coordinate in (0,1)", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("object_w", self.vision.object_w, "Get object's width in (0,1)", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("object_h", self.vision.object_h, "Get object's height in (0,1)", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("log", self.log, "Output text to console", args=[SkillArg("text", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("picture", self.picture, "Take a picture"))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.planner.request_execution, "Query the LLM for reasoning", args=[SkillArg("question", str)]))
 
         # load high-level skills
         self.high_level_skillset = SkillSet(level="high", lower_level_skillset=self.low_level_skillset)
@@ -82,6 +82,7 @@ class LLMController():
         return True
 
     def log(self, text: str):
+        self.append_message(text)
         print_t(f"[LOG] {text}")
 
     def delay(self, ms: int):
