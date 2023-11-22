@@ -7,7 +7,7 @@
     {
         "skill_name": "approach",
         "skill_description": "Approach a certain object",
-        "definition": "mf,40"
+        "definition": "mf,120"
     },
     {
         "skill_name": "orienting",

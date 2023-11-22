@@ -101,5 +101,5 @@ class TypeFly:
             os.remove(os.path.join(self.cache_folder, file))
 
 if __name__ == "__main__":
-    typefly = TypeFly(use_virtual_cam=True)
+    typefly = TypeFly(use_virtual_cam=False)
     typefly.run()

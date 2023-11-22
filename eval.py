@@ -22,74 +22,29 @@ from controller.llm_wrapper import LLMWrapper
 task_list = [
     {
         "id": 1,
-        "task": "Find an apple and go to it",
+        "task": "Go to the person behind you",
         "scene": "[]",
-        "minispec_plan": "_1=s,apple;?_1==True{o,apple;a}",
+        "minispec_plan": "tc,180;_1=s,person;?_1==True{o,person;a}",
         "python_plan": """
-var_1 = high_level_skillset.execute_skill("sweeping", "apple")
+drone.tc(180)
+var_1 = high_level_skillset.sweeping("person")
 if var_1 == True:
-    high_level_skillset.orienting("apple")
+    high_level_skillset.orienting("person")
     high_level_skillset.approach()
 """
     },
     {
         "id": 2,
-        "task": "Go to the person behind you",
-        "scene": "[person_3 x:0.58 y:0.5 width:0.43 height:0.7 color:gray]",
-        "minispec_plan": "tc,180;o,person_3;a",
+        "task": "Take a picture of the chair.",
+        "scene": "[char_1 x:0.58 y:0.5 width:0.43 height:0.7 color:gray]",
+        "minispec_plan": "o,char_1;p",
         "python_plan": """
-drone.tc(180)
-high_level_skillset.orienting("person_3")
-high_level_skillset.approach()
+high_level_skillset.orienting("char_1")
+high_level_skillset.picture()
 """
     },
     {
         "id": 3,
-        "task": "Take the picture of the chair",
-        "scene": "[chair_1 x:0.21 y:0.44 width:0.37 height:0.45 color:black]",
-        "minispec_plan": "o,chair_1;p",
-        "python_plan": """
-high_level_skillset.orienting("chair_1")
-high_level_skillset.picture()
-"""
-    },
-    {
-        "id": 4,
-        "task": "Find something edible",
-        "scene": "[apple_1 x:0.7 y:0.4 width:0.1 height:0.1 color:red]",
-        "minispec_plan": "o,apple_1;p",
-        "python_plan": """
-high_level_skillset.orienting("apple_1")
-high_level_skillset.picture()
-"""
-    },
-    {
-        "id": 5,
-        "task": "Find something red and sweet",
-        "scene": "[apple_1 x:0.7 y:0.4 width:0.1 height:0.1 color:red]",
-        "minispec_plan": "o,apple_1;p",
-        "python_plan": """
-high_level_skillset.orienting("apple_1")
-high_level_skillset.picture()
-"""
-    },
-    {
-        "id": 6,
-        "task": "Can you take pictures of each of the edible objects on the table?",
-        "scene": "[apple_1 x:0.7 y:0.4 width:0.1 height:0.1 color:red, apple_2 x:0.5 y:0.5 width:0.1 height:0.1 color:red, apple_3 x:0.3 y:0.6 width:0.1 height:0.1 color:red]",
-        "minispec_plan": "3{o,apple_1;p;o,apple_2;p;o,apple_3;p}",
-        "python_plan": """
-for i in range(3):
-    high_level_skillset.orienting("apple_1")
-    high_level_skillset.picture()
-    high_level_skillset.orienting("apple_2")
-    high_level_skillset.picture()
-    high_level_skillset.orienting("apple_3")
-    high_level_skillset.picture()
-"""
-    },
-    {
-        "id": 7,
         "task": "[Q] How many kinds of fruit you can see?",
         "scene": "[apple_1 x:0.7 y:0.4 width:0.1 height:0.1 color:red, orange_1 x:0.5 y:0.5 width:0.1 height:0.1 color:orange, banana_1 x:0.3 y:0.6 width:0.1 height:0.1 color:yellow]",
         "minispec_plan": "l,'I can see 3 kinds of fruit.'",
@@ -98,48 +53,87 @@ high_level_skillset.log("I can see 3 kinds of fruit.")
 """
     },
     {
-        "id": 8,
+        "id": 4,
         "task": "Go to the largest item you can see",
-        "scene": "[apple_1 x:0.7 y:0.4 width:0.1 height:0.1 color:red, chair_3 x:0.21 y:0.44 width:0.37 height:0.45 color:black, person_3 x:0.58 y:0.5 width:0.43 height:0.7 color:gray]",
-        "minispec_plan": "o,person_3;p",
+        "scene": "[apple_1 x:0.7 y:0.4 width:0.1 height:0.1 color:red, keyboard_2 x:0.21 y:0.24 width:0.37 height:0.45 color:black, person_3 x:0.58 y:0.5 width:0.43 height:0.7 color:gray]",
+        "minispec_plan": "o,person_3;a",
         "python_plan": """
 high_level_skillset.orienting("person_3")
-high_level_skillset.picture()
+high_level_skillset.approach()
+"""
+    },
+    {
+        "id": 5,
+        "task": "Find something yellow and sweet",
+        "scene": "[]",
+        "minispec_plan": "8{_1=q,'what's the yellow and sweet target?';?_1!=False{o,_1;a;->True}tc,45}->False",
+        "python_plan": """
+for i in range(8):
+    var_1 = high_level_skillset.query("what's the yellow and sweet target?")
+    if var_1 != False:
+        high_level_skillset.orienting(var_1)
+        high_level_skillset.approach()
+        return True
+    drone.tc(45)
+"""
+    },
+    {
+        "id": 6,
+        "task": "Can you find something for cutting paper on the table? The table is on your left.",
+        "scene": "[]",
+        "minispec_plan": "tc,90;8{_1=q,'what's the object for cutting paper on the table?';?_1!=False{o,_1;a;->True}tc,45}->False",
+        "python_plan": """
+drone.tc(90)
+for i in range(8):
+    var_1 = high_level_skillset.query("what's the object for cutting paper on the table?")
+    if var_1 != False:
+        high_level_skillset.orienting(var_1)
+        high_level_skillset.approach()
+        return True
+    drone.tc(45)
+"""
+    },
+    {
+        "id": 7,
+        "task": "Go to the object that is closest to the chair",
+        "scene": "[apple_1 x:0.7 y:0.4 width:0.1 height:0.1 color:red, orange_1 x:0.5 y:0.5 width:0.1 height:0.1 color:orange, banana_1 x:0.3 y:0.6 width:0.1 height:0.1 color:yellow]",
+        "minispec_plan": "8{_1=q,'what is the object closest to the chair?';?_1!=False{o,_1;a;->True}tc,45}->False",
+        "python_plan": """
+for i in range(8):
+    var_1 = high_level_skillset.query("what is the object closest to the chair?")
+    if var_1 != False:
+        high_level_skillset.orienting(var_1)
+        high_level_skillset.approach()
+        return True
+    drone.tc(45)
+"""
+    },
+    {
+        "id": 8,
+        "task": "Could you find an apple? If so, go to it",
+        "scene": "",
+        "minispec_plan": "_1=s,apple;?_1==True{o,apple;a}",
+        "python_plan": """
+var_1 = high_level_skillset.sweeping("apple")
+if var_1 == True:
+    high_level_skillset.orienting("apple")
+    high_level_skillset.approach()
 """
     },
     {
         "id": 9,
-        "task": "Go to the object that is closest to the chair",
+        "task": "If you can see more than two people, then turn to the first person you see",
         "scene": "[apple_1 x:0.7 y:0.4 width:0.1 height:0.1 color:red, chair_3 x:0.21 y:0.44 width:0.37 height:0.45 color:black, person_3 x:0.22 y:0.5 width:0.43 height:0.7 color:gray]",
-        "minispec_plan": "_1=q,'what is the object closest to the chair?';o,_1;a",
+        "minispec_plan": "_1=q,'how many people are there?';?_1>2{o,person_3}",
         "python_plan": """
-var_1 = high_level_skillset.query("what is the object closest to the chair?")
-high_level_skillset.orienting(var_1)
-high_level_skillset.approach()
+var_1 = high_level_skillset.query("how many people are there?")
+if var_1 > 2:
+    high_level_skillset.orienting("person_3")
+    high_level_skillset.approach()
 """
     },
     {
         "id": 10,
-        "task": "Could you find an apple? If so, go to it",
-        "scene": "[apple_1 x:0.7 y:0.4 width:0.1 height:0.1 color:red]",
-        "minispec_plan": "o,apple_1;a",
-        "python_plan": """
-high_level_skillset.orienting("apple_1")
-high_level_skillset.approach()
-"""
-    },
-    {
-        "id": 11,
-        "task": "If you can see more than two people, then turn to the left person",
-        "scene": "[person_1 x:0.58 y:0.5 width:0.43 height:0.7 color:gray, person_2 x:0.22 y:0.5 width:0.43 height:0.7 color:black]",
-        "minispec_plan": "o,person_2;a",
-        "python_plan": """
-high_level_skillset.orienting("person_2")
-high_level_skillset.approach()
-"""
-    },
-    {
-        "id": 12,
         "task": "Can you find something for me to eat? If you can, go for it and return, otherwise find and go to something drinkable",
         "scene": "[]",
         "minispec_plan": "8{_1=q,'what's the edible target?';?_1!=False{o,_1;a;->True}tc,45}->False;8{_2=q,'what's the drinkable target?';?_2!=False{o,_2;a;->True}tc,45}->False",
@@ -162,13 +156,13 @@ return False
 """
     },
     {
-        "id": 13,
+        "id": 11,
         "task": "Turn around until you see a person with a cup in hand",
-        "scene": "[person_1 x:0.58 y:0.5 width:0.43 height:0.7 color:gray, person_2 x:0.22 y:0.5 width:0.43 height:0.7 color:black]",
-        "minispec_plan": "8{_1=q,'which of person has a cup in hand?';?_1!=False{o,_1;a;->True}tc,45}->False",
+        "scene": "[]",
+        "minispec_plan": "8{_1=q,'what's the person with a cup in hand?';?_1!=False{o,_1;a;->True}tc,45}->False",
         "python_plan": """
 for i in range(8):
-    var_1 = high_level_skillset.query("which of person has a cup in hand?")
+    var_1 = high_level_skillset.query("which of person with a cup in hand?")
     if var_1 != False:
         high_level_skillset.orienting(var_1)
         high_level_skillset.approach()
@@ -190,8 +184,8 @@ def generate_plan():
     count = 3
 
     for task in task_list:
-        # if task['id'] != 11:
-        #     continue
+        if task['id'] != 6:
+            continue
         print_t(f"Task: {task['task']}")
         print_t(f"Scene: {task['scene']}")
         ave_planning_time = 0
@@ -268,5 +262,5 @@ def comparison():
     print("\n".join(result))
 
 if __name__ == "__main__":
-    # generate_plan()
-    comparison()
+    generate_plan()
+    # comparison()
