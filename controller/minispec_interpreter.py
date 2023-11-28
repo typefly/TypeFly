@@ -189,7 +189,8 @@ class MiniSpecInterpreter:
         Checks the syntax of a conditional statement.
         """
         message = []
-        condition, program = statement.split('{')
+        # print(statement)
+        condition, program = statement.split('{', 1)
         condition = condition[1:].strip()
         program = program[:-1]
         condition = re.split(r'[&|]', condition)
@@ -207,7 +208,7 @@ class MiniSpecInterpreter:
             if comparator not in ['==', '!=', '<', '>']:
                 message.append(f'Invalid comparator: {comparator}')
         # Add logic to check condition syntax
-        message = message + self.check_statement(program[:-1])
+        message = message + self.check_statement(program)
         return message
 
     def check_function_call_syntax(self, statement):

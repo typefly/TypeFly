@@ -1,5 +1,6 @@
 import tiktoken
 import time
+import numpy as np
 from controller.llm_controller import LLMController
 from controller.minispec_interpreter import MiniSpecInterpreter
 from controller.utils import print_t
@@ -23,14 +24,13 @@ task_list = [
     {
         "id": 1,
         "task": "Go to the person behind you",
+        "task-typo": "Go to ",
         "scene": "[]",
-        "minispec_plan": "tc,180;_1=s,person;?_1==True{o,person;a}",
+        "minispec_plan": "tc,180;o,person;a",
         "python_plan": """
 drone.tc(180)
-var_1 = high_level_skillset.sweeping("person")
-if var_1 == True:
-    high_level_skillset.orienting("person")
-    high_level_skillset.approach()
+high_level_skillset.orienting("person")
+high_level_skillset.approach()
 """
     },
     {
@@ -66,15 +66,12 @@ high_level_skillset.approach()
         "id": 5,
         "task": "Find something yellow and sweet",
         "scene": "[]",
-        "minispec_plan": "8{_1=q,'what's the yellow and sweet target?';?_1!=False{o,_1;a;->True}tc,45}->False",
+        "minispec_plan": "_1=sa,'what is yellow and sweet?';?_1!=False{o,_1;a}",
         "python_plan": """
-for i in range(8):
-    var_1 = high_level_skillset.query("what's the yellow and sweet target?")
-    if var_1 != False:
-        high_level_skillset.orienting(var_1)
-        high_level_skillset.approach()
-        return True
-    drone.tc(45)
+var_1 = high_level_skillset.sweeping_abstract('what is yellow and sweet?')
+if var_1 != False:
+    high_level_skillset.orienting(var_1)
+    high_level_skillset.approach()
 """
     },
     {
@@ -122,7 +119,7 @@ if var_1 == True:
     },
     {
         "id": 9,
-        "task": "If you can see more than two people, then turn to the first person you see",
+        "task": "If you can see more than two people, then turn to the most left person you see.",
         "scene": "[apple_1 x:0.7 y:0.4 width:0.1 height:0.1 color:red, chair_3 x:0.21 y:0.44 width:0.37 height:0.45 color:black, person_3 x:0.22 y:0.5 width:0.43 height:0.7 color:gray]",
         "minispec_plan": "_1=q,'how many people are there?';?_1>2{o,person_3}",
         "python_plan": """
@@ -134,6 +131,18 @@ if var_1 > 2:
     },
     {
         "id": 10,
+        "task": "If you can see more than two people behind you, then tell me their number.",
+        "scene": "[apple_1 x:0.7 y:0.4 width:0.1 height:0.1 color:red, person_2 x:0.21 y:0.44 width:0.37 height:0.45 color:black, person_3 x:0.22 y:0.5 width:0.43 height:0.7 color:gray]",
+        "minispec_plan": "_1=q,'how many people are there?';?_1>2{o,person_3}",
+        "python_plan": """
+var_1 = high_level_skillset.query("how many people are there?")
+if var_1 > 2:
+    high_level_skillset.orienting("person_3")
+    high_level_skillset.approach()
+"""
+    },
+    {
+        "id": 11,
         "task": "Can you find something for me to eat? If you can, go for it and return, otherwise find and go to something drinkable",
         "scene": "[]",
         "minispec_plan": "8{_1=q,'what's the edible target?';?_1!=False{o,_1;a;->True}tc,45}->False;8{_2=q,'what's the drinkable target?';?_2!=False{o,_2;a;->True}tc,45}->False",
@@ -156,7 +165,7 @@ return False
 """
     },
     {
-        "id": 11,
+        "id": 12,
         "task": "Turn around until you see a person with a cup in hand",
         "scene": "[]",
         "minispec_plan": "8{_1=q,'what's the person with a cup in hand?';?_1!=False{o,_1;a;->True}tc,45}->False",
@@ -170,6 +179,17 @@ for i in range(8):
     drone.tc(45)
 return False
 """
+    },
+    # {
+    #     "id": 12,
+    #     "task": "If there are more than 4 people, turn to the left person, otherwise turn to the right person.",
+    #     "scene": "[person_0 x:0.7 y:0.4 width:0.1 height:0.1 color:red, person_3 x:0.5 y:0.5 width:0.1 height:0.1 color:orange]",
+    #     # "scene": "[person_0 x:0.7 y:0.4 width:0.1 height:0.1 color:red, person_3 x:0.5 y:0.5 width:0.1 height:0.1 color:orange, person_10 x:0.3 y:0.6 width:0.1 height:0.1 color:yellow]",
+    # },
+    {
+        "id": 13,
+        "task": "Please find a bttle in the kitchen",
+        "scene": "[person_0 x:0.7 y:0.4 width:0.1 height:0.1 color:red, person_3 x:0.5 y:0.5 width:0.1 height:0.1 color:orange, person_10 x:0.3 y:0.6 width:0.1 height:0.1 color:yellow]",
     }
 ]
 
@@ -181,17 +201,18 @@ def generate_plan():
     # create a txt file to store the result
     result_log = open("result.txt", "w")
     result_list = []
-    count = 3
+    plan_list = []
+    count = 1
 
     for task in task_list:
-        if task['id'] != 6:
+        if task['id'] != 13:
             continue
         print_t(f"Task: {task['task']}")
         print_t(f"Scene: {task['scene']}")
-        ave_planning_time = 0
-        ave_execution_time = 0
-        ave_token_count = 0
-        ave_retries = 0
+        planning_time = []
+        execution_time = []
+        token_count = []
+        retries_count = []
         result_plan = []
         for i in range(count):
             error_history = []
@@ -208,32 +229,37 @@ def generate_plan():
                     retries += 1
                 else:
                     break
+            result_plan.append(plan)
             t2 = time.time()
-            ave_planning_time += t2 - t1
+            planning_time.append(t2 - t1)
             t1 = time.time()
             # controller.execute_minispec(plan)
             t2 = time.time()
-            ave_execution_time += t2 - t1
+            execution_time.append(t2 - t1)
             
-            token_count = len(enc.encode(plan))
-            ave_token_count += token_count
-            ave_retries += retries
+            token_count.append(len(enc.encode(plan)))
+            retries_count.append(retries)
         
-        ave_planning_time /= count
-        ave_execution_time /= count
-        ave_token_count /= count
-        ave_retries /= count
-        print_t(f"Average planning time: {ave_planning_time}, average execution time: {ave_execution_time}, average token count: {ave_token_count}, average retries: {ave_retries}")
-        result_list.append({
-            "id": task['id'],
-            "plan": plan,
-            "ave_planning_time": ave_planning_time,
-            "ave_execution_time": ave_execution_time,
-            "ave_token_count": ave_token_count,
-            "ave_retries": ave_retries
-        })
+        ave_retries = np.mean(retries_count).round(2)
+        std_retries = np.std(retries_count).round(2)
+        ave_token_count = np.mean(token_count).round(2)
+        std_token_count = np.std(token_count).round(2)
+        ave_planning_time = np.mean(planning_time).round(2)
+        std_planning_time = np.std(planning_time).round(2)
+        ave_execution_time = np.mean(execution_time).round(2)
+        std_execution_time = np.std(execution_time).round(2)
+
+        plan_list.append(result_plan)
+        
+        result = f"{ave_retries} & {ave_token_count}/{std_token_count} & {ave_planning_time}/{std_planning_time} & {ave_execution_time}/{std_execution_time}\\\\"
+        print_t(result)
+        result_list.append(result)
+
 
     result_log.write(str(result_list))
+    result_log.write(str(plan_list))
+    for result in result_list:
+        print(result)
 
 def comparison():
     enc = tiktoken.encoding_for_model("gpt-4")

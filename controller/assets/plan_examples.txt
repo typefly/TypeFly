@@ -17,24 +17,28 @@ Example 4:
 Example 5:
     scene:["chair_13", "laptop_2"],task:[A] Go to the chair behind you.
     response:tc,180;o,chair;a
-    reason:the chair_13 is not the target because it's behind you. So we turn 180 degrees then orienting and approach the general object chair
+    reason:the chair_13 is not the target because we want the one behind you. So we turn 180 degrees then orienting and approach the general object chair
 Example 6:
     scene:["apple_1", "lemon_3", "bottle_2"],task:[A] Go to the yellow object.
     response:o,lemon_3;a
     reason:the lemon_3 is the yellow object, so we orienting and approach the lemon_3
 Example 7:
     scene:["chair_3", "laptop_1", "bottle_5"],task:[A] Find and go any edible object.
-    response:8{_1=q,'what's the edible target?';?_1!=False{o,_1;a;->True}tc,45}->False
-    reason:there is no edible object in the scene, so we use sweeping and query to find the edible object
+    response:_1=sa,'what's the edible target?';?_1!=False{o,_1;a}
+    reason:edible object is abstract and there is no edible object in the scene, so we use sweeping_abstract to find the edible object
 Example 8:
     scene:["laptop_4", "lemon_3"],task:[Q] Is there anything edible behind you?
     response:tcc,180;_1=q,'is there anything edible?';l,_1
     reason:the question is about the scene behind you, so we turn 180 degrees and query the edible object
 Example 9:
-    scene:["chair_3", "laptop_9"],task:[A] Turn around until you can see some animal.
-    response:8{_1=q'what's the animal target?';?_1!=False{l,_1;->True}tc,45}->False
-    reason:we use sweeping and query to find the animal
+    scene:["chair_3", "laptop_9"],task:[A] Turn around with 30 degrees step until you can see some animal.
+    response:8{_1=q,'what's the animal target?';?_1!=False{l,_1;->True}tc,30}->False
+    reason:we use loop and query to find animal
 Example 10:
-    scene:["chair_3", "laptop_9"],task:[Q] If you can see a chair, go find a person.
-    response:_1=s,person;?_1==True{o,person;a}
+    scene:["chair_3", "laptop_9"],task:[A] If you can see a chair, go find a person, else go find an orange.
+    response:_1=s,person;?_1==True{o,person;a;->True}?_1==False{_2=s,orange;?_2==True{o,orange;a;->True}}->False
     reason:From the scene, we can see a chair, so we use sweeping to find a person
+Example 11:
+    scene:["chair_3", "laptop_9"],task:[A] Go to 
+    response:l,'Please give me more information.'
+    reason:The task is too vague, so we use log to output the advice
