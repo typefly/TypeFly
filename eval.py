@@ -24,8 +24,7 @@ task_list = [
     {
         "id": 1,
         "task": "Go to the person behind you",
-        "task-typo": "Go to ",
-        "scene": "[]",
+        "scene": "[chair_1 x:0.58 y:0.5 width:0.43 height:0.7 color:gray]",
         "minispec_plan": "tc,180;o,person;a",
         "python_plan": """
 drone.tc(180)
@@ -36,8 +35,8 @@ high_level_skillset.approach()
     {
         "id": 2,
         "task": "Take a picture of the chair.",
-        "scene": "[char_1 x:0.58 y:0.5 width:0.43 height:0.7 color:gray]",
-        "minispec_plan": "o,char_1;p",
+        "scene": "[chair_1 x:0.58 y:0.5 width:0.43 height:0.7 color:gray]",
+        "minispec_plan": "o,chair_1;p",
         "python_plan": """
 high_level_skillset.orienting("char_1")
 high_level_skillset.picture()
@@ -188,8 +187,13 @@ return False
     # },
     {
         "id": 13,
-        "task": "Please find a bttle in the kitchen",
+        "task": "If you can see more than two people behind you, then turn to the tallest person you can see.",
         "scene": "[person_0 x:0.7 y:0.4 width:0.1 height:0.1 color:red, person_3 x:0.5 y:0.5 width:0.1 height:0.1 color:orange, person_10 x:0.3 y:0.6 width:0.1 height:0.1 color:yellow]",
+    },
+    {
+        "id": 14,
+        "task": "Go to the biggest apple behind you",
+        "scene": "[apple_0 x:0.7 y:0.4 width:0.1 height:0.1 color:red, apple_2 x:0.5 y:0.5 width:0.15 height:0.1 color:orange, person_10 x:0.3 y:0.6 width:0.1 height:0.1 color:yellow]",
     }
 ]
 
@@ -205,8 +209,8 @@ def generate_plan():
     count = 1
 
     for task in task_list:
-        if task['id'] != 13:
-            continue
+        # if task['id'] != 13:
+        #     continue
         print_t(f"Task: {task['task']}")
         print_t(f"Scene: {task['scene']}")
         planning_time = []

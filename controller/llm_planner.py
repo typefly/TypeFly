@@ -16,14 +16,11 @@ class LLMPlanner():
         with open(os.path.join(current_directory, "./assets/planning_prompt.txt"), "r") as f:
             self.planning_prompt = f.read()
 
-        with open(os.path.join(current_directory, "./assets/verification_prompt.txt"), "r") as f:
-            self.verification_prompt = f.read()
+        with open(os.path.join(current_directory, "./assets/query_prompt.txt"), "r") as f:
+            self.query_prompt = f.read()
 
-        with open(os.path.join(current_directory, "./assets/execution_prompt.txt"), "r") as f:
-            self.execution_prompt = f.read()
-
-        with open(os.path.join(current_directory, "./assets/rules.txt"), "r") as f:
-            self.rules = f.read()
+        with open(os.path.join(current_directory, "./assets/guides.txt"), "r") as f:
+            self.guides = f.read()
 
         with open(os.path.join(current_directory, "./assets/minispec_syntax.txt"), "r") as f:
             self.minispec_syntax = f.read()
@@ -46,23 +43,15 @@ class LLMPlanner():
         prompt = self.planning_prompt.format(system_skill_description_high=self.high_level_skillset,
                                              system_skill_description_low=self.low_level_skillset,
                                              minispec_syntax=self.minispec_syntax,
-                                             rules=self.rules,
+                                             guides=self.guides,
                                              plan_examples=self.plan_examples,
                                              error_message=error_message,
                                              scene_description=scene_description,
                                              task_description=task_description)
         print_t(f"[P] Planning request: {task_description}")
         return self.llm.request(prompt)
-
-    def request_verification(self, prev_task_description: str, prev_task_response: str):
-        prompt = self.verification_prompt.format(rules=self.rules,
-                                                 scene_description=self.vision_skill.get_obj_list(),
-                                                 task_description=prev_task_description,
-                                                 response=prev_task_response)
-        print_t(f"[P] Verification request: {prev_task_description}")
-        return self.llm.request(prompt)
     
     def request_execution(self, question: str) -> Union[bool, str, int, float]:
-        prompt = self.execution_prompt.format(scene_description=self.vision_skill.get_obj_list(), question=question)
+        prompt = self.query_prompt.format(scene_description=self.vision_skill.get_obj_list(), question=question)
         print_t(f"[P] Execution request: {question}")
         return evaluate_value(self.llm.request(prompt))

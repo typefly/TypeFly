@@ -24,6 +24,7 @@ class TelloLLM():
         
         self.streamOn = True
         self.drone.takeoff()
+        self.drone.move_up(20)
         self.drone.streamon()
         print("> Application Start")
 
@@ -38,6 +39,8 @@ class TelloLLM():
             if frame is None:
                 continue
             print("### GET Frame: ", frame.shape)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            cv2.imwrite(f"./images/{aliveCount}.jpg", frame)
             cv2.imshow("Tello", frame)
             key = cv2.waitKey(10) & 0xff
             # Press esc to exit
