@@ -1,14 +1,15 @@
 <program> ::= { <block-statement> [';'] | <statement> ';' }
-<statement> ::= <function-call> | <return>
+<statement> ::= <variable-assign> | <function-call> | <return>
 <block-statement> ::= <loop> | <conditional>
 <loop> ::= <int> '{' <program> '}'
-<function-call> ::= <variable-assign> | <function-name> ',' <argument>
-<variable-assign> ::= <variable> '=' <function-name> ',' <argument>
+<function-call> ::= <function-name> { ',' <argument> }
+<variable-assign> ::= <variable> '=' <function-call>
 <conditional> ::= '?' <condition> '{' <program> '}'
 <return> ::= '->' <value>
-<condition> ::= <variable> <comparator> <value> { '&' <condition> | '|' <condition> }
+<condition> ::= <value> <comparator> <value> { '&' <condition> | '|' <condition> }
 <comparator> ::= '>' | '<' | '==' | '!='
 <function-name> ::= <alpha> { <alpha> }
-<argument> ::= <value> { ',' <value> }
+<argument> ::= <literal-value> { ',' <literal-value> }
 <variable> ::= '_' <int>
-<value> ::= <int> | <float> | <string> | <bool>
+<value> ::= <literal-value> | <variable> | <function-call>
+<literal-value> ::= <int> | <float> | <string> | <bool>
