@@ -67,6 +67,8 @@ class MiniSpecInterpreter:
 
     def evaluate_return(self, statement):
         _, value = statement.split('->')
+        if value.startswith('_'):
+            return self.get_env_value(value)
         return evaluate_value(value.strip())
     
     def execute_loop(self, statement):
@@ -78,7 +80,7 @@ class MiniSpecInterpreter:
                 return result
 
     def execute_conditional(self, statement):
-        condition, program = statement.split('{')
+        condition, program = statement.split('{', 1)
         condition = condition[1:].strip()
         program = program[:-1]
         if self.evaluate_condition(condition):

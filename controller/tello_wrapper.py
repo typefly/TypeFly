@@ -79,12 +79,12 @@ class TelloWrapper(DroneWrapper):
 
     def turn_ccw(self, degree: int) -> bool:
         self.drone.rotate_counter_clockwise(degree)
-        time.sleep(1.5)
+        time.sleep(0.5)
         return True
 
     def turn_cw(self, degree: int) -> bool:
         self.drone.rotate_clockwise(degree)
-        time.sleep(1.5)
+        time.sleep(0.5)
         return True
     
     def is_battery_good(self):
