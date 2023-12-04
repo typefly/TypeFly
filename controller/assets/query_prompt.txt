@@ -16,7 +16,7 @@ Output Format:
 
 Here are some examples:
 Example 1:
-Scene Description:[name:person_1,x:0.59,y:0.55,width:0.81,height:0.91,color:red, name:bottle_17,x:0.85,y:0.54,width:0.21,height:0.93,color:darkgreen]
+Scene Description:[person_1,x:0.59,y:0.55,width:0.81,height:0.91,color:red, bottle_17,x:0.85,y:0.54,width:0.21,height:0.93,color:darkgreen]
 Question:'What's the drinkable target?'
 Output:bottle_17
 Example 2:
@@ -24,11 +24,11 @@ Scene Description:[]
 Question:'Is the table in the room?'
 Output:False
 Example 3:
-Scene Description:[name:chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
+Scene Description:[chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
 Question:'How many chairs you can see?'
 Output:2
 Example 4:
-Scene Description:[name:bottle_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, name:chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
+Scene Description:[bottle_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
 Question:'What's the edible target?'
 Output:False
 """

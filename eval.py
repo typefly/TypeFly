@@ -6,20 +6,6 @@ from controller.minispec_interpreter import MiniSpecInterpreter
 from controller.utils import print_t
 from controller.llm_wrapper import LLMWrapper
 
-# 1 & Find an apple and go to it. & & & & &  \\
-# 2 & Go to the person behind you. & & & & & \\
-# 3 & Take a picture of the chair. & & & & &  \\
-# 4 & Find something edible. & & & & &  \\
-# 5 & Find something red and sweet. & & & & &  \\
-# 6 & Can you take pictures of each of the edible objects on the table? & & & & &  \\
-# 7 & How many kinds of fruit you can see? & & & & &  \\
-# 8 & Go to the largest item you can see. & & & & &  \\
-# 9 & Go to the object that is closest to the chair. & & & & &  \\
-# 10 & Could you find an apple? If so, go to it. & & & & &  \\
-# 11 & If you can see more than 2 people, turn to the left person. &  & & & & \\
-# 12 & Can you find something for me to eat? If you can, go for it and return, otherwise find and go to something drinkable. & & &  & & \\
-# 13 & Turn around until you see a person with a cup in hand. &  & & & &\\
-
 task_list = [
     {
         "id": 1,
