@@ -7,7 +7,10 @@ from flask import Flask, Response
 from threading import Thread
 from PIL import Image
 
-sys.path.append("..")
+# get parent directory
+PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.append(PARENT_DIR)
 from controller.llm_controller import LLMController
 from controller.utils import print_t
 
@@ -26,8 +29,8 @@ class TypeFly:
         self.ui = gr.Blocks(title="TypeFly")
         self.asyncio_loop = asyncio.get_event_loop()
         with self.ui:
-            gr.HTML(open('./header.html', 'r').read())
-            gr.HTML(open('./drone-pov.html', 'r').read())
+            gr.HTML(open(os.path.join(CURRENT_DIR, 'header.html'), 'r').read())
+            gr.HTML(open(os.path.join(CURRENT_DIR, 'drone-pov.html'), 'r').read())
             gr.ChatInterface(self.process_message, retry_btn=None).queue()
 
     def process_message(self, message, history):
@@ -36,8 +39,6 @@ class TypeFly:
             self.llm_controller.stop_controller()
             self.system_stop = True
             yield "Shutting down..."
-        elif message == "pic":
-            yield ('../test/images/kitchen.webp',)
         elif len(message) == 0:
             yield "[WARNING] Empty command!]"
         else:

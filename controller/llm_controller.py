@@ -21,7 +21,7 @@ class LLMController():
     def __init__(self, use_virtual_drone=True, message_queue: Optional[queue.Queue]=None):
         self.yolo_results_image_queue = queue.Queue(maxsize=30)
         self.shared_yolo_result = SharedYoloResult()
-        self.yolo_client = YoloGRPCClient(shared_yolo_result=self.shared_yolo_result)
+        self.yolo_client = YoloClient(shared_yolo_result=self.shared_yolo_result)
         self.vision = VisionSkillWrapper(self.shared_yolo_result)
         self.latest_frame = None
         self.controller_state = True
@@ -125,7 +125,7 @@ class LLMController():
         print_t("[C] Drone is taking off...")
         self.drone.connect()
         self.drone.takeoff()
-        self.drone.move_up(45)
+        self.drone.move_up(25)
         self.drone.start_stream()
         self.controller_wait_takeoff = False
 

@@ -6,26 +6,26 @@ from .llm_wrapper import LLMWrapper
 from .vision_skill_wrapper import VisionSkillWrapper
 from .utils import print_t, evaluate_value
 
-current_directory = os.path.dirname(os.path.abspath(__file__))
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class LLMPlanner():
     def __init__(self):
         self.llm = LLMWrapper()
 
         # read prompt from txt
-        with open(os.path.join(current_directory, "./assets/planning_prompt.txt"), "r") as f:
+        with open(os.path.join(CURRENT_DIR, "./assets/planning_prompt.txt"), "r") as f:
             self.planning_prompt = f.read()
 
-        with open(os.path.join(current_directory, "./assets/query_prompt.txt"), "r") as f:
+        with open(os.path.join(CURRENT_DIR, "./assets/query_prompt.txt"), "r") as f:
             self.query_prompt = f.read()
 
-        with open(os.path.join(current_directory, "./assets/guides.txt"), "r") as f:
+        with open(os.path.join(CURRENT_DIR, "./assets/guides.txt"), "r") as f:
             self.guides = f.read()
 
-        with open(os.path.join(current_directory, "./assets/minispec_syntax.txt"), "r") as f:
+        with open(os.path.join(CURRENT_DIR, "./assets/minispec_syntax.txt"), "r") as f:
             self.minispec_syntax = f.read()
 
-        with open(os.path.join(current_directory, "./assets/plan_examples.txt"), "r") as f:
+        with open(os.path.join(CURRENT_DIR, "./assets/plan_examples.txt"), "r") as f:
             self.plan_examples = f.read()
 
     def init(self, high_level_skillset: SkillSet, low_level_skillset: SkillSet, vision_skill: VisionSkillWrapper):

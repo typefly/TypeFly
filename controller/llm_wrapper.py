@@ -6,8 +6,8 @@ openai.api_key = os.environ.get('OPENAI_API_KEY')
 # MODEL_NAME = "gpt-3.5-turbo-16k"
 MODEL_NAME = "gpt-4"
 
-current_directory = os.path.dirname(os.path.abspath(__file__))
-chat_log_path = os.path.join(current_directory, "./assets/chat_log.txt")
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+chat_log_path = os.path.join(CURRENT_DIR, "assets/chat_log.txt")
 
 class LLMWrapper:
     def __init__(self, temperature=0.0):

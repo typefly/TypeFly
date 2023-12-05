@@ -3,17 +3,16 @@ from PIL import Image, ImageDraw, ImageFont
 from typing import Optional, Tuple
 from contextlib import asynccontextmanager
 
-import json
+import json, os
+import requests
 import queue
 import asyncio, aiohttp
 import threading
 
 from .utils import print_t
 
-# YOLO_SERVICE_IP = 'localhost'
-YOLO_SERVICE_IP = '172.29.249.77'
-YOLO_SERVICE_PORT = '50051'
-ROUTER_SERVICE_PORT = '50049'
+TYPEFLY_SERVICE_IP = os.environ.get("TYPEFLY_SERVICE_IP", "localhost")
+ROUTER_SERVICE_PORT = os.environ.get("ROUTER_SERVICE_PORT", "50049")
 
 class SharedYoloResult():
     def __init__(self) -> None:
@@ -28,9 +27,12 @@ class SharedYoloResult():
         with self.lock:
             self.result_with_image = val
 
+'''
+Access the YOLO service through http.
+'''
 class YoloClient():
     def __init__(self, shared_yolo_result: SharedYoloResult=None):
-        self.service_url = 'http://{}:{}/yolo'.format(YOLO_SERVICE_IP, ROUTER_SERVICE_PORT)
+        self.service_url = 'http://{}:{}/yolo'.format(TYPEFLY_SERVICE_IP, ROUTER_SERVICE_PORT)
         self.image_size = (640, 352)
         self.image_queue = queue.Queue() # queue element: (image_id, image)
         self.shared_yolo_result = shared_yolo_result
@@ -40,7 +42,7 @@ class YoloClient():
         self.image_id_lock = asyncio.Lock()
 
     def local_service(self):
-        return YOLO_SERVICE_IP == 'localhost'
+        return TYPEFLY_SERVICE_IP == 'localhost'
 
     def image_to_bytes(image):
         # compress and convert the image to bytes
@@ -74,6 +76,24 @@ class YoloClient():
                     yield response
         except aiohttp.ServerTimeoutError:
             print_t(f"[Y] Timeout error when connecting to {service_url}")
+
+    def detect_local(self, image):
+        image_bytes = YoloClient.image_to_bytes(image.resize(self.image_size))
+        self.image_queue.put(image)
+
+        files = {
+            'image': ('image', image_bytes),
+            'json_data': (None, json.dumps({'user_name': 'yolo', 'stream_mode': True, 'image_id': self.image_id}))
+        }
+
+        print_t(f"[Y] Sending request to {self.service_url}")
+
+        response = requests.post(self.service_url, files=files)
+        print_t(f"[Y] Response: {response.text}")
+        json_results = json.loads(response.text)
+        self.latest_result_with_image = (self.image_queue.get(), json_results)
+        if self.shared_yolo_result is not None:
+            self.shared_yolo_result.set(json_results)
 
     async def detect(self, image):
         image_bytes = YoloClient.image_to_bytes(image.resize(self.image_size))

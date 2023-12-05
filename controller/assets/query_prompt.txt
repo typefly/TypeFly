@@ -28,10 +28,10 @@ Scene Description:[chair_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, chai
 Question:'How many chairs you can see?'
 Output:2
 Example 4:
-Scene Description:[bottle_1,x:0.1,y:0.35,width:0.56,height:0.41,color:black, chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
+Scene Description:[bottle_3,x:0.1,y:0.35,width:0.56,height:0.41,color:black, chair_2,x:0.49,y:0.59,width:0.61,height:0.35,color:blue]
 Question:'What's the edible target?'
 Output:False
 """
 Scene Description:{scene_description}
 Question:{question}
-Please give the Output only
+Please give the content of Output only

@@ -15,9 +15,8 @@ sys.path.append(os.path.join(PARENT_DIR, "proto/generated"))
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 
-# YOLO_SERVICE_IP = 'localhost'
-YOLO_SERVICE_IP = '172.29.249.77'
-YOLO_SERVICE_PORT = '50050'
+TYPEFLY_SERVICE_IP = os.environ.get("TYPEFLY_SERVICE_IP", "localhost")
+YOLO_SERVICE_PORT = os.environ.get("YOLO_SERVICE_PORT", "50050").split(",")[0]
 
 '''
 Access the YOLO service through gRPC.
@@ -28,7 +27,7 @@ class YoloGRPCClient():
         if is_local_service:
             channel = grpc.insecure_channel(f'localhost:{YOLO_SERVICE_PORT}')
         else:
-            channel = grpc.aio.insecure_channel(f'{YOLO_SERVICE_IP}:{YOLO_SERVICE_PORT}')
+            channel = grpc.aio.insecure_channel(f'{TYPEFLY_SERVICE_IP}:{YOLO_SERVICE_PORT}')
         self.stub = hyrch_serving_pb2_grpc.YoloServiceStub(channel)
         self.image_size = (640, 352)
         self.image_queue = queue.Queue()
