@@ -16,7 +16,7 @@ class LLMWrapper:
         open(chat_log_path, "w").close()
 
     def request(self, prompt, model_name=MODEL_NAME):
-        response = openai.ChatCompletion.create(
+        response = openai.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=self.temperature,
@@ -25,7 +25,7 @@ class LLMWrapper:
         # save the message in a txt
         with open(chat_log_path, "a") as f:
             f.write(prompt + "\n---\n")
-            f.write(json.dumps(response) + "\n---\n")
+            f.write(response.model_dump_json(indent=2) + "\n---\n")
 
         # print(f"LLM response: {response}")
-        return response["choices"][0]["message"]["content"]
+        return response.choices[0].message.content

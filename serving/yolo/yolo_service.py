@@ -9,16 +9,16 @@ import torch
 from ultralytics import YOLO
 import multiprocessing
 
-PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PARENT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 ROOT_PATH = os.environ.get("ROOT_PATH", PARENT_DIR)
 SERVICE_PORT = os.environ.get("YOLO_SERVICE_PORT", "50050, 50051").split(",")
 
-MODEL_PATH = os.path.join(ROOT_PATH, "yolo/models/")
+MODEL_PATH = os.path.join(ROOT_PATH, "./servingyolo/models/")
 MODEL_TYPE = "yolov8m.pt"
 
 sys.path.append(ROOT_PATH)
-sys.path.append(os.path.join(ROOT_PATH, "../proto/generated"))
+sys.path.append(os.path.join(ROOT_PATH, "proto/generated"))
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 

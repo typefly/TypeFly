@@ -116,10 +116,10 @@ class LLMController():
             t2 = time.time()
             print_t(f"[C] Planning time: {t2 - t1}")
             self.append_message('[PLAN]: ' + result + f', received in ({t2 - t1:.2f}s)')
-            consent = input_t(f"[C] Get plan: {result}, executing?")
-            if consent == 'n':
-                print_t("[C] > Plan rejected <")
-                return
+            # consent = input_t(f"[C] Get plan: {result}, executing?")
+            # if consent == 'n':
+            #     print_t("[C] > Plan rejected <")
+            #     return
             self.execute_minispec(result)
         self.append_message('Task complete!')
         self.append_message('end')

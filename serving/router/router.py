@@ -2,12 +2,11 @@ import sys, os, json
 from quart import Quart, request, jsonify
 import asyncio
 
-PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
+PARENT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ROOT_PATH = os.environ.get("ROOT_PATH", PARENT_DIR)
 ROUTER_SERVICE_PORT = os.environ.get("ROUTER_SERVICE_PORT", "50049")
 
-sys.path.append(os.path.join(ROOT_PATH, "../proto/generated"))
+sys.path.append(os.path.join(ROOT_PATH, "proto/generated"))
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 

@@ -39,7 +39,7 @@ class TypeFly:
             self.system_stop = True
             yield "Shutting down..."
         elif len(message) == 0:
-            yield "[WARNING] Empty command!]"
+            return "[WARNING] Empty command!]"
         else:
             task_thread = Thread(target=self.llm_controller.execute_task_description, args=(message,))
             task_thread.start()
@@ -54,7 +54,7 @@ class TypeFly:
                     if msg == 'end':
                         # Indicate end of the task to Gradio chat
                         return "Command Complete!"
-                    complete_response += msg + '\n'
+                    complete_response += str(msg) + '\n'
                 yield complete_response
 
     def generate_mjpeg_stream(self):
