@@ -1,5 +1,4 @@
 all: 
-
 check-env-var = $(if $(strip $($(1))),,$(error Environment variable $(1) is not defined))
 
 deploy-grpc-yolo:
@@ -10,7 +9,7 @@ deploy-http-router:
 	$(call check-env-var,ROUTER_SERVICE_PORT)
 	python3 serving/router/router.py
 
-deploy-typefly:
+deploy-typefly-cam:
 	$(call check-env-var,TYPEFLY_SERVICE_IP)
 	$(call check-env-var,YOLO_SERVICE_PORT)
-	python3 serving/webui/typefly.py
+	python3 serving/webui/typefly.py --use_virtual_cam

@@ -18,13 +18,13 @@ from .minispec_interpreter import MiniSpecInterpreter
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class LLMController():
-    def __init__(self, use_virtual_drone=True, use_grpc=True, message_queue: Optional[queue.Queue]=None):
+    def __init__(self, use_virtual_drone=True, use_http=False, message_queue: Optional[queue.Queue]=None):
         self.yolo_results_image_queue = queue.Queue(maxsize=30)
         self.shared_yolo_result = SharedYoloResult()
-        if use_grpc:
-            self.yolo_client = YoloGRPCClient(shared_yolo_result=self.shared_yolo_result)
-        else:
+        if use_http:
             self.yolo_client = YoloClient(shared_yolo_result=self.shared_yolo_result)
+        else:
+            self.yolo_client = YoloGRPCClient(shared_yolo_result=self.shared_yolo_result)
         self.vision = VisionSkillWrapper(self.shared_yolo_result)
         self.latest_frame = None
         self.controller_state = True
