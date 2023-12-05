@@ -23,7 +23,7 @@ class TypeFly:
             os.makedirs(self.cache_folder)
         self.message_queue = queue.Queue()
         self.message_queue.put(self.cache_folder)
-        self.llm_controller = LLMController(use_virtual_cam, self.message_queue)
+        self.llm_controller = LLMController(use_virtual_cam, use_http, self.message_queue)
         self.system_stop = False
         self.ui = gr.Blocks(title="TypeFly")
         self.asyncio_loop = asyncio.get_event_loop()
