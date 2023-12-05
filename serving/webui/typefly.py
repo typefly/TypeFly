@@ -5,10 +5,8 @@ import io, time
 import gradio as gr
 from flask import Flask, Response
 from threading import Thread
-from PIL import Image
 
-# get parent directory
-PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PARENT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 sys.path.append(PARENT_DIR)
 from controller.llm_controller import LLMController
@@ -102,5 +100,5 @@ class TypeFly:
             os.remove(os.path.join(self.cache_folder, file))
 
 if __name__ == "__main__":
-    typefly = TypeFly(use_virtual_cam=True)
+    typefly = TypeFly(use_virtual_cam=False)
     typefly.run()
