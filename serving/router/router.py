@@ -21,7 +21,7 @@ service_lock = asyncio.Lock()
 @app.before_serving
 async def before_serving():
     global grpcServiceManager
-    grpcServiceManager.add_service("yolo", os.environ.get("TYPEFLY_SERVICE_IPS", "localhost"), os.environ.get("YOLO_SERVICE_PORT", "50050, 50051"))
+    grpcServiceManager.add_service("yolo", os.environ.get("VISION_SERVICE_IPS", "localhost"), os.environ.get("YOLO_SERVICE_PORT", "50050, 50051"))
     await grpcServiceManager._initialize_channels()
 
 @app.route('/yolo', methods=['POST'])

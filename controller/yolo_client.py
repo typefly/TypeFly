@@ -11,7 +11,7 @@ import threading
 
 from .utils import print_t
 
-TYPEFLY_SERVICE_IP = os.environ.get("TYPEFLY_SERVICE_IP", "localhost")
+VISION_SERVICE_IP = os.environ.get("VISION_SERVICE_IP", "localhost")
 ROUTER_SERVICE_PORT = os.environ.get("ROUTER_SERVICE_PORT", "50049")
 
 class SharedYoloResult():
@@ -32,7 +32,7 @@ Access the YOLO service through http.
 '''
 class YoloClient():
     def __init__(self, shared_yolo_result: SharedYoloResult=None):
-        self.service_url = 'http://{}:{}/yolo'.format(TYPEFLY_SERVICE_IP, ROUTER_SERVICE_PORT)
+        self.service_url = 'http://{}:{}/yolo'.format(VISION_SERVICE_IP, ROUTER_SERVICE_PORT)
         self.image_size = (640, 352)
         self.image_queue = queue.Queue() # queue element: (image_id, image)
         self.shared_yolo_result = shared_yolo_result
@@ -42,7 +42,7 @@ class YoloClient():
         self.image_id_lock = asyncio.Lock()
 
     def local_service(self):
-        return TYPEFLY_SERVICE_IP == 'localhost'
+        return VISION_SERVICE_IP == 'localhost'
 
     def image_to_bytes(image):
         # compress and convert the image to bytes
