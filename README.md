@@ -1,6 +1,8 @@
 # TypeFly
 TypeFly aims to generate robot task plan using large language model (LLM) and our custom programming language `MiniSpec`. Link to our [full Paper](https://drive.google.com/file/d/1COrozqEIk6v8DLxI3vCgoSUEWpnsc2mu/view) and [webpage](https://typefly.github.io/).
 
+Also, check out demo video here: [![Demo1](http://img.youtube.com/vi/HEJYaTLWKfY/0.jpg)](http://www.youtube.com/watch?v=HEJYaTLWKfY "Demo1") and [![Demo2](http://img.youtube.com/vi/QwnBniFaINE/0.jpg)](http://www.youtube.com/watch?v=QwnBniFaINE "Demo2")
+
 ## Hardware Requirement
 TypeFly works with DJI Tello drone by default. Since Tello drone requires your device to connect to its wifi and TypeFly requires Internet connection, you need to have both wifi adapter and ethernet adapter to run TypeFly.
 To support other drones, you need to implement the `DroneWrapper` interface in `controller/abs/drone_wrapper.py`.
