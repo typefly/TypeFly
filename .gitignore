@@ -167,3 +167,4 @@ proto/generated/*.py
 test.py
 cache/
 chat_log.txt
+results/

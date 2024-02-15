@@ -14,7 +14,7 @@ PARENT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 ROOT_PATH = os.environ.get("ROOT_PATH", PARENT_DIR)
 SERVICE_PORT = os.environ.get("YOLO_SERVICE_PORT", "50050, 50051").split(",")
 
-MODEL_PATH = os.path.join(ROOT_PATH, "./servingyolo/models/")
+MODEL_PATH = os.path.join(ROOT_PATH, "./serving/yolo/models/")
 MODEL_TYPE = "yolov8m.pt"
 
 sys.path.append(ROOT_PATH)

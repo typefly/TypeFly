@@ -1,6 +1,5 @@
 from djitellopy import Tello
-from threading import Thread
-import cv2, time
+import cv2
 
 class TelloLLM():
     def __init__(self):
