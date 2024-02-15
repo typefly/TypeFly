@@ -18,3 +18,7 @@ check_and_install() {
 for pkg in "${REQUIRED_PKG[@]}"; do
     check_and_install $pkg
 done
+
+if [ -z "${OPENAI_API_KEY}" ]; then
+  echo "WARNNING: OPENAI_API_KEY is not set"
+fi

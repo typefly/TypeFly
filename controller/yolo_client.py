@@ -11,6 +11,8 @@ import threading
 
 from .utils import print_t
 
+DIR = os.path.dirname(os.path.abspath(__file__))
+
 VISION_SERVICE_IP = os.environ.get("VISION_SERVICE_IP", "localhost")
 ROUTER_SERVICE_PORT = os.environ.get("ROUTER_SERVICE_PORT", "50049")
 
@@ -54,7 +56,7 @@ class YoloClient():
         def str_float_to_int(value, multiplier):
             return int(float(value) * multiplier)
         draw = ImageDraw.Draw(frame)
-        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", size=50)
+        font = ImageFont.truetype(os.path.join(DIR, "assets/Roboto-Medium.ttf"), size=50)
         w, h = frame.size
         for result in results:
             box = result["box"]

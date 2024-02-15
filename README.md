@@ -7,6 +7,9 @@ Also, check out the demo video here: [Demo 1: Find edible or drinkable items](ht
 TypeFly works with DJI Tello drone by default. Since Tello drone requires your device to connect to its wifi and TypeFly requires Internet connection, you need to have both wifi adapter and ethernet adapter to run TypeFly.
 To support other drones, you need to implement the `DroneWrapper` interface in `controller/abs/drone_wrapper.py`.
 
+## OPENAI API KEY Requirement
+TypeFly use GPT-4 API as the remote LLM planner, please make sure you have set the `OPENAI_API_KEY` environment variable.
+
 ## Vision Encoder
 TypeFly uses YOLOv8 to generate the scene description. We provide the implementation of gRPC YOLO service and a optional http router to serve as a scheduler when working with multiple drones. We recommand using [docker](https://docs.docker.com/engine/install/ubuntu/) to run the YOLO and router. To deploy the YOLO servive with docker, please install the [Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html), then run the following command:
 ```bash
