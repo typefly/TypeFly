@@ -3,11 +3,14 @@ from djitellopy import Tello
 
 from .abs.drone_wrapper import DroneWrapper
 
+MOVEMENT_MIN = 20
+MOVEMENT_MAX = 200
+
 def cap_distance(distance):
-    if distance < 20:
-        return 20
-    elif distance > 100:
-        return 100
+    if distance < MOVEMENT_MIN:
+        return MOVEMENT_MIN
+    elif distance > MOVEMENT_MAX:
+        return MOVEMENT_MAX
     return distance
 
 class TelloWrapper(DroneWrapper):

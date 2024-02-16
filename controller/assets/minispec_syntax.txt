@@ -5,7 +5,6 @@
 <function-call> ::= <function-name> { ',' <argument> }
 <variable-assign> ::= <variable> '=' <function-call>
 <conditional> ::= '?' <condition> '{' <program> '}'
-<return> ::= '->' <value>
 <condition> ::= <value> <comparator> <value> { '&' <condition> | '|' <condition> }
 <comparator> ::= '>' | '<' | '==' | '!='
 <function-name> ::= <alpha> { <alpha> }
@@ -13,3 +12,4 @@
 <variable> ::= '_' <int>
 <value> ::= <literal-value> | <variable> | <function-call>
 <literal-value> ::= <int> | <float> | <string> | <bool>
+<return> ::= '->' <value>

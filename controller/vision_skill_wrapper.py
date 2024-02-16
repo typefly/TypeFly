@@ -79,14 +79,14 @@ class VisionSkillWrapper():
         box = info['box']
         return (box['y1'] + box['y2']) / 2
     
-    def object_w(self, object_name: str) -> float:
+    def object_width(self, object_name: str) -> float:
         info = self.get_obj_info(object_name)
         if info is None:
             raise ValueError(f"Object {object_name} is not in sight.")
         box = info['box']
         return box['x2'] - box['x1']
     
-    def object_h(self, object_name: str) -> float:
+    def object_height(self, object_name: str) -> float:
         info = self.get_obj_info(object_name)
         if info is None:
             raise ValueError(f"Object {object_name} is not in sight.")
