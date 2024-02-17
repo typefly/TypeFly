@@ -221,15 +221,11 @@ class MiniSpecInterpreter:
         else:
             args = []
         print(f'Calling skill {name} with args {args}')
-        skill_instance = None
-        try:
-            skill_instance = MiniSpecInterpreter.low_level_skillset.get_skill_by_abbr(name)
-        except:
-            pass
+        skill_instance = MiniSpecInterpreter.low_level_skillset.get_skill(name)
         if skill_instance is not None:
             return MiniSpecReturnValue.from_tuple(skill_instance.execute(args))
 
-        skill_instance = MiniSpecInterpreter.high_level_skillset.get_skill_by_abbr(name)
+        skill_instance = MiniSpecInterpreter.high_level_skillset.get_skill(name)
         if skill_instance is not None:
             interpreter = MiniSpecInterpreter()
             val = interpreter.execute(skill_instance.execute(args))
@@ -354,10 +350,10 @@ class MiniSpecInterpreter:
         # Add logic to check function call syntax
         skill_instance = None
         try:
-            skill_instance = MiniSpecInterpreter.low_level_skillset.get_skill_by_abbr(name)
+            skill_instance = MiniSpecInterpreter.low_level_skillset.get_skill(name)
         except:
             try:
-                skill_instance = MiniSpecInterpreter.high_level_skillset.get_skill_by_abbr(name)
+                skill_instance = MiniSpecInterpreter.high_level_skillset.get_skill(name)
             except:
                 message.append(f'Skill {name} is not defined')
 

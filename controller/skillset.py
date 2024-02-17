@@ -1,12 +1,11 @@
 import re
 from enum import Enum
-from abc import ABC, abstractmethod
 from typing import Optional, List, Union
 from .abs.skill_item import SkillItem, SkillArg
 
 class SkillSetLevel(Enum):
-        LOW = "low"
-        HIGH = "high"
+    LOW = "low"
+    HIGH = "high"
 
 class SkillSet():
     def __init__(self, level = "low", lower_level_skillset: 'SkillSet' = None):
@@ -15,25 +14,22 @@ class SkillSet():
         self.lower_level_skillset = lower_level_skillset
     
     def get_skill(self, skill_name: str) -> Optional[SkillItem]:
-        """Returns a SkillItem by its name."""
-        if skill_name not in self.skills:
-            raise ValueError(f"No skill found with the name '{skill_name}'.")
-        return self.skills[skill_name]
-    
-    def get_skill_by_abbr(self, abbr: str) -> Optional[SkillItem]:
-        """Returns a SkillItem by its abbreviation."""
-        if abbr not in SkillItem.abbr_dict:
-            raise ValueError(f"No skill found with the abbreviation '{abbr}'.")
-        return self.get_skill(SkillItem.abbr_dict[abbr])
+        """Returns a SkillItem by its name or abbr."""
+        skill = None
+        if skill_name in self.skills:
+            skill = self.skills[skill_name]
+        elif skill_name in SkillItem.abbr_dict:
+            skill = self.skills.get(SkillItem.abbr_dict[skill_name])
+        return skill
     
     def add_skill(self, skill_item: SkillItem):
         """Adds a SkillItem to the set."""
         if skill_item.skill_name in self.skills:
             raise ValueError(f"A skill with the name '{skill_item.skill_name}' already exists.")
         # Set the low-level skillset for high-level skills
-        if self.level == SkillSetLevel.HIGH:
+        if self.level == SkillSetLevel.HIGH and isinstance(skill_item, HighLevelSkillItem):
             if self.lower_level_skillset is not None:
-                skill_item.set_low_level_skillset(self.lower_level_skillset)
+                skill_item.set_skillset(self.lower_level_skillset, self)
             else:
                 raise ValueError("Low-level skillset is not set.")
 
@@ -108,21 +104,27 @@ class HighLevelSkillItem(SkillItem):
     def get_argument(self) -> List[SkillArg]:
         return self.args
 
-    def set_low_level_skillset(self, low_level_skillset: SkillSet):
+    def set_skillset(self, low_level_skillset: SkillSet, high_level_skillset: SkillSet):
         self.low_level_skillset = low_level_skillset
+        self.high_level_skillset = high_level_skillset
         self.args = self.generate_argument_list()
 
     def generate_argument_list(self) -> List[SkillArg]:
         # Extract all skill calls with their arguments from the code
         skill_calls = re.findall(r'(\w+)\(([^\;\{\}\?]+)\)', self.definition)
-        # print(skill_calls)
 
-        # Store the program's arguments with their types
         arg_types = {}
 
         for skill_name, args in skill_calls:
             args = [a.strip() for a in args.split(',')]
-            function_args = self.low_level_skillset.get_skill_by_abbr(skill_name).get_argument()
+            skill = self.low_level_skillset.get_skill(skill_name)
+            if skill is None:
+                skill = self.high_level_skillset.get_skill(skill_name)
+
+            if skill is None:
+                raise ValueError(f"Skill '{skill_name}' not found in the low-level or high-level skillset.")
+
+            function_args = skill.get_argument()
             for i, arg in enumerate(args):
                 if arg.startswith('$') and arg not in arg_types:
                     # Match the positional argument with its type from the function definition
@@ -130,7 +132,6 @@ class HighLevelSkillItem(SkillItem):
 
         # Convert the mapped arguments to a user-friendly list in order of $position
         arg_types = dict(sorted(arg_types.items()))
-        # print(arg_types)
         arg_list = [arg for arg in arg_types.values()]
 
         return arg_list
