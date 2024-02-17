@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Union, Tuple
 from io import BytesIO
 from colorthief import ColorThief
 import webcolors
@@ -62,33 +62,33 @@ class VisionSkillWrapper():
                 return item
         return None
 
-    def is_visible(self, object_name: str) -> bool:
-        return self.get_obj_info(object_name) is not None
+    def is_visible(self, object_name: str) -> Tuple[bool, bool]:
+        return self.get_obj_info(object_name) is not None, False
         
-    def object_x(self, object_name: str) -> float:
+    def object_x(self, object_name: str) -> Tuple[Union[float, str], bool]:
         info = self.get_obj_info(object_name)
         if info is None:
-            raise ValueError(f"Object {object_name} is not in sight.")
+            return f'object_x: {object_name} is not in sight', True
         box = info['box']
-        return (box['x1'] + box['x2']) / 2
+        return (box['x1'] + box['x2']) / 2, False
     
-    def object_y(self, object_name: str) -> float:
+    def object_y(self, object_name: str) -> Tuple[Union[float, str], bool]:
         info = self.get_obj_info(object_name)
         if info is None:
-            raise ValueError(f"Object {object_name} is not in sight.")
+            return f'object_y: {object_name} is not in sight', True
         box = info['box']
-        return (box['y1'] + box['y2']) / 2
+        return (box['y1'] + box['y2']) / 2, False
     
-    def object_width(self, object_name: str) -> float:
+    def object_width(self, object_name: str) -> Tuple[Union[float, str], bool]:
         info = self.get_obj_info(object_name)
         if info is None:
-            raise ValueError(f"Object {object_name} is not in sight.")
+            return f'object_width: {object_name} not in sight', True
         box = info['box']
-        return box['x2'] - box['x1']
+        return box['x2'] - box['x1'], False
     
-    def object_height(self, object_name: str) -> float:
+    def object_height(self, object_name: str) -> Tuple[Union[float, str], bool]:
         info = self.get_obj_info(object_name)
         if info is None:
-            raise ValueError(f"Object {object_name} is not in sight.")
+            return f'object_height: {object_name} not in sight', True
         box = info['box']
-        return box['y2'] - box['y1']
+        return box['y2'] - box['y1'], False

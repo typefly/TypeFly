@@ -1,34 +1,66 @@
+from typing import List, Tuple, Union
 import re
+
 from .skillset import SkillSet
-from .utils import evaluate_value
+from .utils import split_args
+
+MiniSpecValueType = Union[int, float, bool, str, None]
+
+def evaluate_value(value) -> MiniSpecValueType:
+    if value.isdigit():
+        return int(value)
+    elif value.replace('.', '', 1).isdigit():
+        return float(value)
+    elif value == 'True':
+        return True
+    elif value == 'False':
+        return False
+    elif value == 'None' or len(value) == 0:
+        return None
+    else:
+        return value.strip('\'"')
+
+class MiniSpecReturnValue:
+    def __init__(self, value: MiniSpecValueType, replan):
+        self.value = value
+        self.replan = replan
+
+    def from_tuple(t: Tuple[MiniSpecValueType, bool]):
+        return MiniSpecReturnValue(t[0], t[1])
+    
+    def default():
+        return MiniSpecReturnValue(None, False)
+    
+    def __repr__(self) -> str:
+        return f'value={self.value}, replan={self.replan}'
 
 class MiniSpecInterpreter:
     low_level_skillset: SkillSet = None
     high_level_skillset: SkillSet = None
     def __init__(self):
         self.env = {}
-        if MiniSpecInterpreter.low_level_skillset is None or MiniSpecInterpreter.high_level_skillset is None:
+        if MiniSpecInterpreter.low_level_skillset is None or \
+            MiniSpecInterpreter.high_level_skillset is None:
             raise Exception('MiniSpecInterpreter: Skillset is not initialized')
 
-    def get_env_value(self, var):
+    def get_env_value(self, var) -> MiniSpecValueType:
         if var not in self.env:
             raise Exception(f'Variable {var} is not defined')
         return self.env[var]
     
-    def check_statement(self, code):
-        message = []
-        if code.count('{') != code.count('}'):
-            message.append('Syntax error: unbalanced brackets')
+    # def check_statement(self, code):
+    #     message = []
+    #     if code.count('{') != code.count('}'):
+    #         message.append('Syntax error: unbalanced brackets')
 
-        statements = self.split_statements(code)
-        for statement in statements:
-            message = message + self.check_statement(statement)
+    #     statements = self.split_statements(code)
+    #     for statement in statements:
+    #         message = message + self.check_statement(statement)
 
-    def split_statements(self, code):
+    def split_statements(self, code) -> List[str]:
         statements = []
         stack = []
         start = 0
-
         for i, char in enumerate(code):
             if char == '{':
                 stack.append('{')
@@ -46,79 +78,144 @@ class MiniSpecInterpreter:
 
         return [s for s in statements if s]
 
-    def execute(self, code):
+    def execute(self, code) -> MiniSpecReturnValue:
         statements = self.split_statements(code)
         for statement in statements:
             print(f'Executing statement: {statement}')
+            val = None
+            replan = False
             if not statement:
                 continue
-            if statement.startswith('->'):
+            elif statement.startswith('->'):
+                # return statement, won't trigger replan
                 return self.evaluate_return(statement)
-            elif statement[1:].lstrip().startswith('{'):
-                result = self.execute_loop(statement)
-                if result is not None:
-                    return result
+            elif re.match(r'^\d', statement):
+                # loop statement, may trigger replan
+                ret_val = self.execute_loop(statement)
             elif statement.startswith('?'):
-                result = self.execute_conditional(statement)
-                if result is not None:
-                    return result
+                # conditional statement, may trigger replan
+                ret_val = self.execute_conditional(statement)
             else:
-                self.execute_function_call(statement)
+                # function call, may trigger replan
+                ret_val = self.execute_function_call(statement)
 
-    def evaluate_return(self, statement):
+            if ret_val.replan:
+                return ret_val
+        return MiniSpecReturnValue.default()
+
+    def evaluate_return(self, statement) -> MiniSpecReturnValue:
         _, value = statement.split('->')
         if value.startswith('_'):
-            return self.get_env_value(value)
-        return evaluate_value(value.strip())
+            value = self.get_env_value(value)
+        else:
+            value = evaluate_value(value.strip())
+        return MiniSpecReturnValue(value, False)
     
-    def execute_loop(self, statement):
+    def execute_loop(self, statement) -> MiniSpecReturnValue:
         count, program = re.match(r'(\d+)\s*\{(.+)\}', statement).groups()
         for i in range(int(count)):
             print(f'Executing loop iteration {i}')
-            result = self.execute(program)
-            if result is not None:
-                return result
+            ret_val = self.execute(program)
+            if ret_val.replan:
+                return ret_val
+        return MiniSpecReturnValue.default()
 
-    def execute_conditional(self, statement):
+    def execute_conditional(self, statement) -> MiniSpecReturnValue:
         condition, program = statement.split('{', 1)
         condition = condition[1:].strip()
         program = program[:-1]
-        if self.evaluate_condition(condition):
+
+        condition = self.evaluate_condition(condition)
+        if condition.replan:
+            return condition
+        if condition.value:
             return self.execute(program)
+        return MiniSpecReturnValue.default()
 
-    def execute_function_call(self, statement):
-        if '=' in statement:
-            var, func = statement.split('=')
-            self.env[var.strip()] = self.call_function(func)
+    def execute_function_call(self, statement) -> MiniSpecReturnValue:
+        splits = statement.split('=', 1)
+        split_count = len(splits)
+        if split_count == 2:
+            var, func = splits
+            ret_val = self.call_function(func)
+            if not ret_val.replan:
+                self.env[var.strip()] = ret_val.value
+            return ret_val
+        elif split_count == 1:
+            return self.call_function(statement)
         else:
-            self.call_function(statement)
+            raise Exception('Invalid function call statement')
 
-    def evaluate_condition(self, condition) -> bool:
+    def evaluate_condition(self, condition) -> MiniSpecReturnValue:
         if '&' in condition:
             conditions = condition.split('&')
-            return all(map(self.evaluate_condition, conditions))
+            cond = True
+            for c in conditions:
+                ret_val = self.evaluate_condition(c)
+                if ret_val.replan:
+                    return ret_val
+                cond = cond and ret_val.value
+            return MiniSpecReturnValue(cond, False)
         if '|' in condition:
             conditions = condition.split('|')
-            return any(map(self.evaluate_condition, conditions))
-        var, comparator, value = re.match(r'(_\d+)\s*(==|!=|<|>)\s*(.+)', condition).groups()
-        var_value = self.get_env_value(var)
-        if comparator == '>':
-            return var_value > evaluate_value(value)
-        elif comparator == '<':
-            return var_value < evaluate_value(value)
-        elif comparator == '==':
-            return var_value == evaluate_value(value)
-        elif comparator == '!=':
-            return var_value != evaluate_value(value)
+            for c in conditions:
+                ret_val = self.evaluate_condition(c)
+                if ret_val.replan:
+                    return ret_val
+                if ret_val.value == True:
+                    return MiniSpecReturnValue(True, False)
+            return MiniSpecReturnValue(False, False)
+        
+        operand_1, comparator, operand_2 = re.split(r'(>|<|==|!=)', condition)
 
-    def call_function(self, func):
-        name, args = re.match(r'(\w+)(?:,(.+))?', func).groups()
-        if args:
-            args = [segment for segment in re.findall(r'(?:["\'].*?["\']|[^",]*)(?:,|$)', args) if segment]
-            # args = args.split(',')
-            # replace _1, _2, ... with their values
+        operand_1 = self.evaluate_operand(operand_1)
+        if operand_1.replan:
+            return operand_1
+        operand_2 = self.evaluate_operand(operand_2)
+        if operand_2.replan:
+            return operand_2
+        
+        if type(operand_1.value) != type(operand_2.value):
+            raise Exception('Invalid comparison, type mismatch')
+        
+        if comparator == '>':
+            cmp = operand_1.value > operand_2.value
+        elif comparator == '<':
+            cmp = operand_1.value < operand_2.value
+        elif comparator == '==':
+            cmp = operand_1.value == operand_2.value
+        elif comparator == '!=':
+            cmp = operand_1.value != operand_2.value
+        else:
+            raise Exception(f'Invalid comparator: {comparator}')
+        
+        return MiniSpecReturnValue(cmp, False)
+        
+    def evaluate_operand(self, operand) -> MiniSpecReturnValue:
+        operand = operand.strip()
+        if len(operand) == 0:
+            raise Exception('Empty operand')
+        if operand.startswith('_'):
+            # variable
+            return MiniSpecReturnValue(self.get_env_value(operand), False)
+        elif operand == 'True' or operand == 'False':
+            # boolean
+            return MiniSpecReturnValue(evaluate_value(operand), False)
+        elif operand[0].isalpha():
+            # function call
+            return self.execute_function_call(operand)
+        else:
+            # value
+            return MiniSpecReturnValue(evaluate_value(operand), False)
+
+    def call_function(self, func) -> MiniSpecReturnValue:
+        splits = func.split('(', 1)
+        name = splits[0].strip()
+        if len(splits) == 2:
+            args = splits[1].strip()[:-1]
+            args = split_args(args)
             for i in range(0, len(args)):
-                args[i] = args[i].strip().strip("'")
+                args[i] = args[i].strip().strip('\'"')
                 if args[i].startswith('_'):
                     args[i] = self.get_env_value(args[i])
         else:
@@ -130,12 +227,15 @@ class MiniSpecInterpreter:
         except:
             pass
         if skill_instance is not None:
-            return skill_instance.execute(args)
+            return MiniSpecReturnValue.from_tuple(skill_instance.execute(args))
 
         skill_instance = MiniSpecInterpreter.high_level_skillset.get_skill_by_abbr(name)
         if skill_instance is not None:
             interpreter = MiniSpecInterpreter()
-            return interpreter.execute(skill_instance.execute(args))
+            val = interpreter.execute(skill_instance.execute(args))
+            if val.value == 'Replan':
+                return MiniSpecReturnValue(f'High-level skill {skill_instance.get_name()} failed', True)
+            return val
         raise Exception(f'Skill {name} is not defined')
     
     '''

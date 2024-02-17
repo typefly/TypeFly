@@ -1,6 +1,6 @@
 from PIL import Image
 import queue, time, os, json
-from typing import Optional
+from typing import Optional, Tuple
 import asyncio
 import uuid
 
@@ -57,14 +57,14 @@ class LLMController():
         self.low_level_skillset.add_skill(LowLevelSkillItem("move_down", self.drone.move_down, "Move down by a distance", args=[SkillArg("distance", int)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("turn_cw", self.drone.turn_cw, "Rotate clockwise/right by certain degrees", args=[SkillArg("degrees", int)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("turn_ccw", self.drone.turn_ccw, "Rotate counterclockwise/left by certain degrees", args=[SkillArg("degrees", int)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("delay", self.delay, "Wait for specified microseconds", args=[SkillArg("milliseconds", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("delay", self.skill_delay, "Wait for specified microseconds", args=[SkillArg("milliseconds", int)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("is_visible", self.vision.is_visible, "Check the visibility of target object", args=[SkillArg("object_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("object_x", self.vision.object_x, "Get object's X-coordinate in (0,1)", args=[SkillArg("object_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("object_y", self.vision.object_y, "Get object's Y-coordinate in (0,1)", args=[SkillArg("object_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("object_width", self.vision.object_width, "Get object's width in (0,1)", args=[SkillArg("object_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("object_height", self.vision.object_height, "Get object's height in (0,1)", args=[SkillArg("object_name", str)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("log", self.log, "Output text to console", args=[SkillArg("text", str)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("picture", self.picture, "Take a picture"))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("log", self.skill_log, "Output text to console", args=[SkillArg("text", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("picture", self.skill_picture, "Take a picture"))
         self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.planner.request_execution, "Query the LLM for reasoning", args=[SkillArg("question", str)]))
 
         # load high-level skills
@@ -78,18 +78,20 @@ class LLMController():
         MiniSpecInterpreter.high_level_skillset = self.high_level_skillset
         self.planner.init(high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset, vision_skill=self.vision)
 
-    def picture(self):
+    def skill_picture(self) -> Tuple[None, bool]:
         img_path = os.path.join(self.cache_folder, f"{uuid.uuid4()}.jpg")
         Image.fromarray(self.latest_frame).save(img_path)
         self.append_message((img_path,))
-        return True
+        return None, False
 
-    def log(self, text: str):
+    def skill_log(self, text: str) -> Tuple[None, bool]:
         self.append_message(text)
         print_t(f"[LOG] {text}")
+        return None, False
 
-    def delay(self, ms: int):
+    def skill_delay(self, ms: int) -> Tuple[None, bool]:
         time.sleep(ms / 1000.0)
+        return None, False
 
     def append_message(self, message: str):
         if self.message_queue is not None:

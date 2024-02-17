@@ -1,4 +1,5 @@
 import cv2
+from typing import Tuple
 from .abs.drone_wrapper import DroneWrapper
 
 class FrameReader:
@@ -46,34 +47,40 @@ class VirtualDroneWrapper(DroneWrapper):
             return None
         return FrameReader(self.cap)
 
-    def move_forward(self, distance: int) -> bool:
+    def move_forward(self, distance: int) -> Tuple[bool, bool]:
         print(f"-> Moving forward {distance} cm")
-        return True
+        return True, False
 
-    def move_backward(self, distance: int) -> bool:
+    def move_backward(self, distance: int) -> Tuple[bool, bool]:
         print(f"-> Moving backward {distance} cm")
-        return True
+        return True, False
 
-    def move_left(self, distance: int) -> bool:
+    def move_left(self, distance: int) -> Tuple[bool, bool]:
         print(f"-> Moving left {distance} cm")
-        return True
+        return True, False
 
-    def move_right(self, distance: int) -> bool:
+    def move_right(self, distance: int) -> Tuple[bool, bool]:
         print(f"-> Moving right {distance} cm")
-        return True
+        return True, False
 
-    def move_up(self, distance: int) -> bool:
+    def move_up(self, distance: int) -> Tuple[bool, bool]:
         print(f"-> Moving up {distance} cm")
-        return True
+        return True, False
 
-    def move_down(self, distance: int) -> bool:
+    def move_down(self, distance: int) -> Tuple[bool, bool]:
         print(f"-> Moving down {distance} cm")
-        return True
+        return True, False
 
-    def turn_ccw(self, degree: int) -> bool:
+    def turn_ccw(self, degree: int) -> Tuple[bool, bool]:
         print(f"-> Turning CCW {degree} degrees")
-        return True
+        if degree >= 90:
+            print("-> Turning CCW over 90 degrees")
+            return True, True
+        return True, False
 
-    def turn_cw(self, degree: int) -> bool:
+    def turn_cw(self, degree: int) -> Tuple[bool, bool]:
         print(f"-> Turning CW {degree} degrees")
-        return True
+        if degree >= 90:
+            print("-> Turning CW over 90 degrees")
+            return True, True
+        return True, False

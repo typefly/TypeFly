@@ -1,18 +1,18 @@
 Example 1:
     scene:[],task:[A] Find a bottle and tell me it's height.
-    response:_1=s,bottle;?_1==True{o,bottle;_2=oh,bottle;l,_2}
+    response:?s(bottle)==True{o(bottle);_2=oh(bottle);l(_2)}
     reason:no bottle instance in the scene, so we use sweeping to find bottle, then orienting and use object_height to get the height and log to output the height
 Example 2:
     scene:[apple_5],task:[A] Find an apple.
-    response:o,apple;a
+    response:g(apple)
     reason:there is an apple instance in the scene, so we orienting and approach the apple_5
 Example 3:
     scene:[apple_3],task:[Q] Is there an apple on your left?
-    response:tu,90;_1=iv,apple;?_1==True{->l,'Yes';->True}l,'No';->False
+    response:tu(90);?iv(apple)==True{l('Yes');->True}l('No');->False
     reason:turn left 90 degrees, then use is_visible to check whether there is an apple on your left
 Example 4:
     scene:[chair_13, laptop_2],task:[A] Go to the chair behind you.
-    response:tc,180;o,chair;a
+    response:tc(180);g(chair)
     reason:the chair_13 is not the target because we want the one behind you. So we turn 180 degrees then orienting and approach the general object chair
 Example 5:
     scene:[chair_3, laptop_1, bottle_5],task:[A] Find and go any edible object.

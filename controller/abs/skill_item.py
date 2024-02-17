@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import List, Union, Tuple
 
 class SkillArg:
     def __init__(self, arg_name: str, arg_type: type):
@@ -18,7 +19,7 @@ class SkillItem(ABC):
         pass
 
     @abstractmethod
-    def get_argument(self) -> [SkillArg]:
+    def get_argument(self) -> List[SkillArg]:
         pass
 
     @abstractmethod
@@ -26,7 +27,7 @@ class SkillItem(ABC):
         pass
 
     @abstractmethod
-    def execute(self, arg_list: [str]):
+    def execute(self, arg_list: List[Union[int, float, str]]) -> Tuple[Union[int, float, bool, str], bool]:
         pass
 
     abbr_dict = {}
@@ -48,7 +49,7 @@ class SkillItem(ABC):
         self.abbr_dict[abbr] = word
         return abbr
 
-    def parse_args(self, args_str_list: [str], allow_positional_args: bool = False):
+    def parse_args(self, args_str_list: List[Union[int, float, str]], allow_positional_args: bool = False):
         """Parses the string of arguments and converts them to the expected types."""
         # Check the number of arguments
         if len(args_str_list) != len(self.args):

@@ -1,7 +1,7 @@
 import re
 from enum import Enum
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Optional, List, Union
 from .abs.skill_item import SkillItem, SkillArg
 
 class SkillSetLevel(Enum):
@@ -54,7 +54,7 @@ class SkillSet():
 
 class LowLevelSkillItem(SkillItem):
     def __init__(self, skill_name: str, skill_callable: callable,
-                 skill_description: str = "", args: [SkillArg] = []):
+                 skill_description: str = "", args: List[SkillArg] = []):
         self.skill_name = skill_name
         self.abbr = self.generate_abbreviation(skill_name)
         self.abbr_dict[self.abbr] = skill_name
@@ -71,7 +71,7 @@ class LowLevelSkillItem(SkillItem):
     def get_argument(self) -> List[SkillArg]:
         return self.args
     
-    def execute(self, arg_list: [str]):
+    def execute(self, arg_list: List[Union[int, float, str]]):
         """Executes the skill with the provided arguments."""
         if callable(self.skill_callable):
             parsed_args = self.parse_args(arg_list)
@@ -105,16 +105,16 @@ class HighLevelSkillItem(SkillItem):
     def get_skill_description(self) -> str:
         return self.skill_description
     
-    def get_argument(self) -> [SkillArg]:
+    def get_argument(self) -> List[SkillArg]:
         return self.args
 
     def set_low_level_skillset(self, low_level_skillset: SkillSet):
         self.low_level_skillset = low_level_skillset
         self.args = self.generate_argument_list()
 
-    def generate_argument_list(self) -> [SkillArg]:
+    def generate_argument_list(self) -> List[SkillArg]:
         # Extract all skill calls with their arguments from the code
-        skill_calls = re.findall(r'(\w+),([^\;\{\}\?]+)', self.definition)
+        skill_calls = re.findall(r'(\w+)\(([^\;\{\}\?]+)\)', self.definition)
         # print(skill_calls)
 
         # Store the program's arguments with their types
@@ -135,7 +135,7 @@ class HighLevelSkillItem(SkillItem):
 
         return arg_list
 
-    def execute(self, arg_list: [str]):
+    def execute(self, arg_list: List[Union[int, float, str]]):
         """Executes the skill with the provided arguments."""
         if self.low_level_skillset is None:
             raise ValueError("Low-level skillset is not set.")

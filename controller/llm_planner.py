@@ -1,10 +1,10 @@
 import os, re
-from typing import Union
 
 from .skillset import SkillSet
 from .llm_wrapper import LLMWrapper
 from .vision_skill_wrapper import VisionSkillWrapper
-from .utils import print_t, evaluate_value
+from .utils import print_t
+from .minispec_interpreter import MiniSpecValueType, evaluate_value
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -51,7 +51,7 @@ class LLMPlanner():
         print_t(f"[P] Planning request: {task_description}")
         return self.llm.request(prompt)
     
-    def request_execution(self, question: str) -> Union[bool, str, int, float]:
+    def request_execution(self, question: str) -> MiniSpecValueType:
         prompt = self.query_prompt.format(scene_description=self.vision_skill.get_obj_list(), question=question)
         print_t(f"[P] Execution request: {question}")
-        return evaluate_value(self.llm.request(prompt))
+        return evaluate_value(self.llm.request(prompt)), False
