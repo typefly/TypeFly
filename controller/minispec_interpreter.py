@@ -254,7 +254,7 @@ class MiniSpecInterpreter:
         for statement in statements:
             if statement.startswith('->'):
                 message = message + self.check_return_syntax(statement)
-            elif statement[1:].lstrip().startswith('{'):
+            elif re.match(r'^\d', statement):
                 message = message + self.check_loop_syntax(statement)
             elif statement.startswith('?'):
                 message = message + self.check_conditional_syntax(statement)
@@ -293,20 +293,30 @@ class MiniSpecInterpreter:
         program = program[:-1]
         condition = re.split(r'[&|]', condition)
         for cond in condition:
-            match_res = re.match(r'(_\d+)\s*(==|!=|<|>)\s*(.+)', cond)
-            if not match_res:
-                message.append(f'Invalid condition: {cond}')
-                continue
-            var, comparator, value = match_res.groups()
-            if not var.startswith('_'):
-                message.append(f'Invalid variable name: {var}')
-            if var not in self.assigned_variables:
-                message.append(f'Variable {var} is used before assignment')
+            operand_1, comparator, operand_2 = re.split(r'(>|<|==|!=)', cond)
 
             if comparator not in ['==', '!=', '<', '>']:
                 message.append(f'Invalid comparator: {comparator}')
+            
+            message = message + self.check_operand_syntax(operand_1)
+            message = message + self.check_operand_syntax(operand_2)
         # Add logic to check condition syntax
         message = message + self.check_statement(program)
+        return message
+    
+    def check_operand_syntax(self, operand):
+        """
+        Checks the syntax of an operand.
+        """
+        message = []
+        if operand.startswith('_'):
+            if operand not in self.assigned_variables:
+                message.append(f'Variable {operand} is used before assignment')
+        elif operand == 'True' or operand == 'False':
+            pass
+        elif operand[0].isalpha():
+            message = message + self.check_function_call(operand)
+
         return message
 
     def check_function_call_syntax(self, statement):
@@ -330,36 +340,32 @@ class MiniSpecInterpreter:
         Check a function call and adds it to the function_calls list.
         """
         message = []
-        match_res = re.match(r'(\w+)(?:,(.+))?', func)
-        if not match_res:
-            message.append(f'Invalid function call: {func}')
+
+        if func.count('(') != func.count(')'):
+            message.append(f'Syntax error: unbalanced parentheses for {func}')
             return message
-        name, args = match_res.groups()
-        # print(f'Checking syntax for skill {name} with args {args}')
-        if args:
-            args = [segment for segment in re.findall(r'(?:["\'].*?["\']|[^",]*)(?:,|$)', args) if segment]
-            # Check if variables used in args are assigned
-            for arg in args:
-                if arg.startswith('_') and arg not in self.assigned_variables:
-                    raise Exception(f'Variable {arg} is used before assignment')
+
+        splits = func.split('(', 1)
+        name = splits[0].strip()
+        if len(splits) == 2:
+            args = splits[1].strip()[:-1]
+            args = split_args(args)
+            for i in range(0, len(args)):
+                args[i] = args[i].strip().strip('\'"')
+                if args[i].startswith('_') and args[i] not in self.assigned_variables:
+                    message.append(f'Variable {args[i]} is used before assignment')
         else:
             args = []
-            
-        # print(f'Checking syntax for skill {name} with args {args}')
 
         # Add logic to check function call syntax
-        skill_instance = None
-        try:
-            skill_instance = MiniSpecInterpreter.low_level_skillset.get_skill(name)
-        except:
-            try:
-                skill_instance = MiniSpecInterpreter.high_level_skillset.get_skill(name)
-            except:
-                message.append(f'Skill {name} is not defined')
+        skill_instance = MiniSpecInterpreter.low_level_skillset.get_skill(name)
+        if skill_instance is None:
+            skill_instance = MiniSpecInterpreter.high_level_skillset.get_skill(name)
+        if skill_instance is None:
+            message.append(f'Skill {name} is not defined')
 
-        if skill_instance is not None:
-            try:
-                skill_instance.parse_args(args, allow_positional_args=True)
-            except Exception as e:
-                message = message + [str(e)]
+        try:
+            skill_instance.parse_args(args, allow_positional_args=True)
+        except Exception as e:
+            message = message + [str(e)]
         return message
