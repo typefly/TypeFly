@@ -112,7 +112,7 @@ class LLMController():
             self.append_message("[Warning] Controller is waiting for takeoff...")
             return
         self.append_message('[TASK]: ' + task_description)
-        for _ in range(1):
+        while True:
             t1 = time.time()
             result = self.planner.request_planning(task_description)
             t2 = time.time()
@@ -122,8 +122,13 @@ class LLMController():
             # if consent == 'n':
             #     print_t("[C] > Plan rejected <")
             #     return
-            self.execute_minispec(result)
-        self.append_message('Task complete!')
+            ret_val = self.execute_minispec(result)
+            if ret_val.replan:
+                print_t("[C] > Replanning <: " + ret_val.value)
+                continue
+            else:
+                break
+        self.append_message(f'Task complete with {ret_val.value}')
         self.append_message('end')
 
     def start_robot(self):

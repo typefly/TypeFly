@@ -7,7 +7,7 @@
     {
         "skill_name": "sweeping_abstract",
         "skill_description": "Rotate to find an abstract object by a description when it's *not* in current scene",
-        "definition": "8{?q($1)!=False{->_1}tc(45)}->False"
+        "definition": "8{_1=q($1);?_1!=False{->_1}tc(45)}->False"
     },
     {
         "skill_name": "approach",

@@ -21,7 +21,7 @@ def evaluate_value(value) -> MiniSpecValueType:
         return value.strip('\'"')
 
 class MiniSpecReturnValue:
-    def __init__(self, value: MiniSpecValueType, replan):
+    def __init__(self, value: MiniSpecValueType, replan: bool):
         self.value = value
         self.replan = replan
 
@@ -39,6 +39,7 @@ class MiniSpecInterpreter:
     high_level_skillset: SkillSet = None
     def __init__(self):
         self.env = {}
+        self.ret = False
         if MiniSpecInterpreter.low_level_skillset is None or \
             MiniSpecInterpreter.high_level_skillset is None:
             raise Exception('MiniSpecInterpreter: Skillset is not initialized')
@@ -47,15 +48,6 @@ class MiniSpecInterpreter:
         if var not in self.env:
             raise Exception(f'Variable {var} is not defined')
         return self.env[var]
-    
-    # def check_statement(self, code):
-    #     message = []
-    #     if code.count('{') != code.count('}'):
-    #         message.append('Syntax error: unbalanced brackets')
-
-    #     statements = self.split_statements(code)
-    #     for statement in statements:
-    #         message = message + self.check_statement(statement)
 
     def split_statements(self, code) -> List[str]:
         statements = []
@@ -81,7 +73,6 @@ class MiniSpecInterpreter:
     def execute(self, code) -> MiniSpecReturnValue:
         statements = self.split_statements(code)
         for statement in statements:
-            print(f'Executing statement: {statement}')
             val = None
             replan = False
             if not statement:
@@ -101,6 +92,9 @@ class MiniSpecInterpreter:
 
             if ret_val.replan:
                 return ret_val
+            
+            if self.ret:
+                return ret_val
         return MiniSpecReturnValue.default()
 
     def evaluate_return(self, statement) -> MiniSpecReturnValue:
@@ -109,12 +103,12 @@ class MiniSpecInterpreter:
             value = self.get_env_value(value)
         else:
             value = evaluate_value(value.strip())
+        self.ret = True
         return MiniSpecReturnValue(value, False)
     
     def execute_loop(self, statement) -> MiniSpecReturnValue:
         count, program = re.match(r'(\d+)\s*\{(.+)\}', statement).groups()
         for i in range(int(count)):
-            print(f'Executing loop iteration {i}')
             ret_val = self.execute(program)
             if ret_val.replan:
                 return ret_val
@@ -220,7 +214,6 @@ class MiniSpecInterpreter:
                     args[i] = self.get_env_value(args[i])
         else:
             args = []
-        print(f'Calling skill {name} with args {args}')
         skill_instance = MiniSpecInterpreter.low_level_skillset.get_skill(name)
         if skill_instance is not None:
             return MiniSpecReturnValue.from_tuple(skill_instance.execute(args))

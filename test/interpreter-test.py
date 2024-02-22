@@ -12,4 +12,4 @@ MiniSpecInterpreter.high_level_skillset = controller.high_level_skillset
 interpreter = MiniSpecInterpreter()
 
 # print(interpreter.execute("8{_1=mr(50);?_1!=False{g('tiger');->True}tc(45)}"))
-print(interpreter.check_syntax("g('tiger'"))
+print(interpreter.execute("g('person')"))
