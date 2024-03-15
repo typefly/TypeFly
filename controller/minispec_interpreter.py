@@ -40,6 +40,7 @@ class MiniSpecInterpreter:
     def __init__(self):
         self.env = {}
         self.ret = False
+        self.execution_status = []
         if MiniSpecInterpreter.low_level_skillset is None or \
             MiniSpecInterpreter.high_level_skillset is None:
             raise Exception('MiniSpecInterpreter: Skillset is not initialized')
@@ -73,8 +74,6 @@ class MiniSpecInterpreter:
     def execute(self, code) -> MiniSpecReturnValue:
         statements = self.split_statements(code)
         for statement in statements:
-            val = None
-            replan = False
             if not statement:
                 continue
             elif statement.startswith('->'):
@@ -203,6 +202,7 @@ class MiniSpecInterpreter:
             return MiniSpecReturnValue(evaluate_value(operand), False)
 
     def call_function(self, func) -> MiniSpecReturnValue:
+        self.execution_status.append(func)
         splits = func.split('(', 1)
         name = splits[0].strip()
         if len(splits) == 2:
@@ -222,7 +222,7 @@ class MiniSpecInterpreter:
         if skill_instance is not None:
             interpreter = MiniSpecInterpreter()
             val = interpreter.execute(skill_instance.execute(args))
-            if val.value == 'Replan':
+            if val.value == 'rp':
                 return MiniSpecReturnValue(f'High-level skill {skill_instance.get_name()} failed', True)
             return val
         raise Exception(f'Skill {name} is not defined')

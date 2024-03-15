@@ -1,32 +1,79 @@
 Example 1:
-    scene:[],task:[A] Find a bottle and tell me it's height.
-    response:?s(bottle)==True{o(bottle);_2=oh(bottle);l(_2)}
-    reason:no bottle instance in the scene, so we use sweeping to find bottle, then orienting and use object_height to get the height and log to output the height
+Scene: []
+Task: [A] Find a bottle, tell me it's height and take a picture of it.
+Previous Response:
+Execution Status:
+Response: ?s('bottle')==True{g('bottle');_2=oh('bottle');l(_2);tp}
+Reason: no bottle instance in the scene, so we use scan to find bottle, then go and use object_height to get the height and log to output the height, finally use picture to take a picture of the bottle
+
 Example 2:
-    scene:[apple_5],task:[A] Find an apple.
-    response:g(apple)
-    reason:there is an apple instance in the scene, so we orienting and approach the apple_5
+Scene: [apple_5]
+Task: [A] Find an apple.
+Previous Response:
+Execution Status:
+Response: g('apple')
+Reason: there is an apple instance in the scene, we just go to the apple_5
+
 Example 3:
-    scene:[apple_3],task:[Q] Is there an apple on your left?
-    response:tu(90);?iv(apple)==True{l('Yes');->True}l('No');->False
-    reason:turn left 90 degrees, then use is_visible to check whether there is an apple on your left
+Scene: [apple_3]
+Task: [Q] Is there an apple and an orange on your left?
+Previous Response:
+Execution Status:
+Response: tu(90);?iv('apple')==True&iv('orange'){l('Yes');->True}l('No');->False
+Reason: turn left 90 degrees, then use is_visible to check whether there is an apple on your left
+
 Example 4:
-    scene:[chair_13, laptop_2],task:[A] Go to the chair behind you.
-    response:tc(180);g(chair)
-    reason:the chair_13 is not the target because we want the one behind you. So we turn 180 degrees then orienting and approach the general object chair
+Scene: [chair_13,laptop_2]
+Task: [A] Go to the chair behind you.
+Previous Response:
+Execution Status:
+Response: tc(180);g('chair')
+Reason: the chair_13 is not the target because we want the one behind you. So we turn 180 degrees then go to the general object chair
+
 Example 5:
-    scene:[chair_3, laptop_1, bottle_5],task:[A] Find and go any edible object.
-    response:;_1=sa('what's the edible target?');?_1!=False{g(_1)}
-    reason:edible object is abstract and there is no edible object in the scene, so we use sweeping_abstract to find the edible object
+Scene: [chair_3,laptop_1,bottle_5]
+Task: [A] Find and go any edible object.
+Previous Response:
+Execution Status:
+Response: ;_1=sa('Any edible target here?');?_1!=False{g(_1)}
+Reason: edible object is abstract and there is no edible object in the scene, so we use scan_abstract to find the edible object
+
 Example 6:
-    scene:[chair_3, laptop_9],task:[A] Turn around with 30 degrees step until you can see some animal.
-    response:8{_1=q('what's the animal target?');?_1!=False{l(_1);->True}tc(30)}->False
-    reason:we use loop and query to find animal
+Scene: [chair_3,laptop_9]
+Task: [A] Turn around with 30 degrees step until you can see some animal.
+Previous Response:
+Execution Status:
+Response: 12{_1=p('Any animal target here?');?_1!=False{l(_1);->True}tc(30)}->False
+Reason: we use loop and probe to find animal
+
 Example 7:
-    scene:[chair_3, laptop_9],task:[A] If you can see a chair, go find a person, else go find an orange.
-    response:_1=s(person);?_1==True{g(person);->True}?_1==False{_2=s(orange);?_2==True{g(orange);->True}}->False
-    reason:From the scene, we can see a chair, so we use sweeping to find a person
+Scene: [chair_3,laptop_9]
+Task: [A] If you can see a chair, go find a person, else go find an orange.
+Previous Response:
+Execution Status:
+Response: _1=s('person');?_1==True{g('person');->True}->False
+Reason: From the scene, we can see a chair, so we use scan to find a person
+
 Example 8:
-    scene:[chair_3, laptop_9],task:[A] Go to 
-    response:l('Please give me more information.')
-    reason:The task is too vague, so we use log to output the advice
+Scene: [chair_3,laptop_9]
+Task: [A] Go to 
+Previous Response:
+Execution Status:
+Response: l('Please give me more information.')
+Reason: The task is too vague, so we use log to output the advice
+
+Example 9:
+Scene: [chair_1 x:0.58 y:0.5 width:0.43 height:0.7 color:gray, apple_1 x:0.6 y:0.3 width:0.08 height:0.09 color:red]
+Task: [A] Turn around and go to the apple
+Previous Response: tc(180);g('apple')
+Execution Status: ['tc(180)']
+Response: mu(40);g('apple')
+Reason: after turning around, we will do replan. We found that the chair is blocking the apple, so we use moving_up to get over the chair and then go to the apple
+
+Example 10:
+Scene: [apple_1 x:0.34 y:0.3 width:0.09 height:0.1 color:red, apple_2 x:0.3 y:0.5 width:0.15 height:0.12 color:red]
+Task: [A] Go to biggest apple
+Previous Response:
+Execution Status:
+Response: g('apple_2')
+Reason: from the scene, we tell directly that apple_2 is the biggest apple

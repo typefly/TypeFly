@@ -27,7 +27,7 @@ class LLMController():
             self.yolo_client = YoloGRPCClient(shared_yolo_result=self.shared_yolo_result)
         self.vision = VisionSkillWrapper(self.shared_yolo_result)
         self.latest_frame = None
-        self.controller_state = True
+        self.controller_active = True
         self.controller_wait_takeoff = True
         self.message_queue = message_queue
         if message_queue is None:
@@ -63,9 +63,10 @@ class LLMController():
         self.low_level_skillset.add_skill(LowLevelSkillItem("object_y", self.vision.object_y, "Get object's Y-coordinate in (0,1)", args=[SkillArg("object_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("object_width", self.vision.object_width, "Get object's width in (0,1)", args=[SkillArg("object_name", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("object_height", self.vision.object_height, "Get object's height in (0,1)", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("probe", self.planner.request_execution, "Probe the LLM for reasoning", args=[SkillArg("question", str)]))
         self.low_level_skillset.add_skill(LowLevelSkillItem("log", self.skill_log, "Output text to console", args=[SkillArg("text", str)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("picture", self.skill_picture, "Take a picture"))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("query", self.planner.request_execution, "Query the LLM for reasoning", args=[SkillArg("question", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("take_picture", self.skill_take_picture, "Take a picture"))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("re_plan", self.skill_re_plan, "Replanning"))
 
         # load high-level skills
         self.high_level_skillset = SkillSet(level="high", lower_level_skillset=self.low_level_skillset)
@@ -78,7 +79,10 @@ class LLMController():
         MiniSpecInterpreter.high_level_skillset = self.high_level_skillset
         self.planner.init(high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset, vision_skill=self.vision)
 
-    def skill_picture(self) -> Tuple[None, bool]:
+        self.current_plan = None
+        self.execution_status = None
+
+    def skill_take_picture(self) -> Tuple[None, bool]:
         img_path = os.path.join(self.cache_folder, f"{uuid.uuid4()}.jpg")
         Image.fromarray(self.latest_frame).save(img_path)
         self.append_message((img_path,))
@@ -88,6 +92,9 @@ class LLMController():
         self.append_message(text)
         print_t(f"[LOG] {text}")
         return None, False
+    
+    def skill_re_plan(self, value: str) -> Tuple[None, bool]:
+        return None, True
 
     def skill_delay(self, ms: int) -> Tuple[None, bool]:
         time.sleep(ms / 1000.0)
@@ -98,14 +105,16 @@ class LLMController():
             self.message_queue.put(message)
 
     def stop_controller(self):
-        self.controller_state = False
+        self.controller_active = False
 
     def get_latest_frame(self):
         return self.yolo_results_image_queue.get()
     
     def execute_minispec(self, minispec: str):
         interpreter = MiniSpecInterpreter()
-        return interpreter.execute(minispec)
+        ret_val = interpreter.execute(minispec)
+        self.execution_status = interpreter.execution_status
+        return ret_val
 
     def execute_task_description(self, task_description: str):
         if self.controller_wait_takeoff:
@@ -114,22 +123,24 @@ class LLMController():
         self.append_message('[TASK]: ' + task_description)
         while True:
             t1 = time.time()
-            result = self.planner.request_planning(task_description)
+            self.current_plan = self.planner.request_planning(task_description, previous_response=self.current_plan, execution_status=self.execution_status)
             t2 = time.time()
             print_t(f"[C] Planning time: {t2 - t1}")
-            self.append_message('[PLAN]: ' + result + f', received in ({t2 - t1:.2f}s)')
-            # consent = input_t(f"[C] Get plan: {result}, executing?")
+            self.append_message('[PLAN]: ' + self.current_plan + f', received in ({t2 - t1:.2f}s)')
+            # consent = input_t(f"[C] Get plan: {self.current_plan}, executing?")
             # if consent == 'n':
             #     print_t("[C] > Plan rejected <")
             #     return
-            ret_val = self.execute_minispec(result)
+            ret_val = self.execute_minispec(self.current_plan)
             if ret_val.replan:
-                print_t("[C] > Replanning <: " + ret_val.value)
+                print_t(f"[C] > Replanning <: {ret_val.value}")
                 continue
             else:
                 break
         self.append_message(f'Task complete with {ret_val.value}')
         self.append_message('end')
+        self.current_plan = None
+        self.execution_status = None
 
     def start_robot(self):
         print_t("[C] Drone is taking off...")
@@ -148,7 +159,7 @@ class LLMController():
     def capture_loop(self, asyncio_loop):
         print_t("[C] Start capture loop...")
         frame_reader = self.drone.get_frame_reader()
-        while self.controller_state:
+        while self.controller_active:
             self.drone.keep_active()
             self.latest_frame = frame_reader.frame
             image = Image.fromarray(self.latest_frame)
