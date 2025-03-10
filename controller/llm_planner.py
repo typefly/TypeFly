@@ -2,7 +2,7 @@ import os, ast
 from typing import Optional
 
 from .skillset import SkillSet
-from .llm_wrapper import LLMWrapper, GPT3, GPT4
+from .llm_wrapper import LLMWrapper, ModelType
 from .vision_skill_wrapper import VisionSkillWrapper
 from .utils import print_t
 from .minispec_interpreter import MiniSpecValueType, evaluate_value
@@ -13,10 +13,10 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 class LLMPlanner():
     def __init__(self, robot_type: RobotType):
         self.llm = LLMWrapper()
-        self.model_name = GPT4
+        self.model_type = ModelType.GPT4
 
         type_folder_name = 'tello'
-        if robot_type == RobotType.GEAR:
+        if robot_type == RobotType.GO2:
             type_folder_name = 'gear'
 
         # read prompt from txt
@@ -31,9 +31,6 @@ class LLMPlanner():
 
         with open(os.path.join(CURRENT_DIR, f"./assets/{type_folder_name}/plan_examples.txt"), "r") as f:
             self.plan_examples = f.read()
-
-    def set_model(self, model_name):
-        self.model_name = model_name
 
     def init(self, high_level_skillset: SkillSet, low_level_skillset: SkillSet, vision_skill: VisionSkillWrapper):
         self.high_level_skillset = high_level_skillset
@@ -56,9 +53,9 @@ class LLMPlanner():
                                              task_description=task_description,
                                              execution_history=execution_history)
         print_t(f"[P] Planning request: {task_description}")
-        return self.llm.request(prompt, self.model_name, stream=False)
+        return self.llm.request(prompt, self.model_type, stream=False)
     
     def probe(self, question: str) -> MiniSpecValueType:
         prompt = self.prompt_probe.format(scene_description=self.vision_skill.get_obj_list(), question=question)
         print_t(f"[P] Execution request: {question}")
-        return evaluate_value(self.llm.request(prompt, self.model_name)), False
+        return evaluate_value(self.llm.request(prompt, self.model_type)), False

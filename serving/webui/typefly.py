@@ -7,29 +7,33 @@ from flask import Flask, Response
 from threading import Thread
 import argparse
 
-PARENT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-sys.path.append(PARENT_DIR)
+PROJ_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(PROJ_DIR)
 from controller.llm_controller import LLMController
 from controller.utils import print_t
-from controller.llm_wrapper import GPT4, LLAMA3
 from controller.abs.robot_wrapper import RobotType
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class TypeFly:
-    def __init__(self, robot_type, use_http=False):
+    def __init__(self, robot_type):
          # create a cache folder
         self.cache_folder = os.path.join(CURRENT_DIR, 'cache')
-        if not os.path.exists(self.cache_folder):
-            os.makedirs(self.cache_folder)
+        os.makedirs(self.cache_folder, exist_ok=True)
+
         self.message_queue = queue.Queue()
-        self.message_queue.put(self.cache_folder)
-        self.llm_controller = LLMController(robot_type, use_http, self.message_queue)
+        self.llm_controller = LLMController(robot_type, self.message_queue)
         self.system_stop = False
+
+        self.asyncio_loop = asyncio.new_event_loop()
+        self.asyncio_thread = Thread(target=self.run_async_loop, daemon=True)
+        self.asyncio_thread.start()
+
         self.ui = gr.Blocks(title="TypeFly")
-        self.asyncio_loop = asyncio.get_event_loop()
-        self.use_llama3 = False
+        self.setup_ui()
+
+    def setup_ui(self):
+        """Sets up the Gradio UI components."""
         default_sentences = [
             "Find something I can eat.",
             "What you can see?",
@@ -41,17 +45,11 @@ class TypeFly:
             gr.HTML(open(os.path.join(CURRENT_DIR, 'header.html'), 'r').read())
             gr.HTML(open(os.path.join(CURRENT_DIR, 'drone-pov.html'), 'r').read())
             gr.ChatInterface(self.process_message, retry_btn=None, fill_height=False, examples=default_sentences).queue()
-            # TODO: Add checkbox to switch between llama3 and gpt4
-            # gr.Checkbox(label='Use llama3', value=False).select(self.checkbox_llama3)
 
-    def checkbox_llama3(self):
-        self.use_llama3 = not self.use_llama3
-        if self.use_llama3:
-            print_t(f"Switch to llama3")
-            self.llm_controller.planner.set_model(LLAMA3)
-        else:
-            print_t(f"Switch to gpt4")
-            self.llm_controller.planner.set_model(GPT4)
+    def run_async_loop(self):
+        """Runs an asyncio event loop in a separate thread."""
+        asyncio.set_event_loop(self.asyncio_loop)
+        self.asyncio_loop.run_forever()
 
     def process_message(self, message, history):
         print_t(f"[S] Receiving task description: {message}")
@@ -62,16 +60,14 @@ class TypeFly:
         elif len(message) == 0:
             return "[WARNING] Empty command!]"
         else:
-            task_thread = Thread(target=self.llm_controller.execute_task_description, args=(message,))
+            task_thread = Thread(target=self.llm_controller.handle_task, args=(message,))
             task_thread.start()
             complete_response = ''
             while True:
                 msg = self.message_queue.get()
-                if isinstance(msg, tuple):
-                    # history.append((message, complete_response))
+                if isinstance(msg, tuple): # (image,)
                     history.append((None, msg))
-                    # complete_response = ''
-                elif isinstance(msg, str):
+                elif isinstance(msg, str): # "text"
                     if msg == 'end':
                         # Indicate end of the task to Gradio chat
                         return "Command Complete!"
@@ -99,11 +95,11 @@ class TypeFly:
             time.sleep(1.0 / 30.0)
 
     def run(self):
-        asyncio_thread = Thread(target=self.asyncio_loop.run_forever)
-        asyncio_thread.start()
+        # asyncio_thread = Thread(target=self.asyncio_loop.run_forever)
+        # asyncio_thread.start()
 
         self.llm_controller.start_robot()
-        llmc_thread = Thread(target=self.llm_controller.capture_loop, args=(self.asyncio_loop,))
+        llmc_thread = Thread(target=self.llm_controller.capture_loop, args=(self.asyncio_loop,), daemon=True)
         llmc_thread.start()
 
         app = Flask(__name__)
@@ -112,32 +108,36 @@ class TypeFly:
             return Response(self.generate_mjpeg_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
         flask_thread = Thread(target=app.run, kwargs={'host': 'localhost', 'port': 50000, 'debug': True, 'use_reloader': False})
         flask_thread.start()
+
+        # Start the Gradio UI
         self.ui.launch(show_api=False, server_port=50001, prevent_thread_lock=True)
-        while True:
+
+        while not self.system_stop:
             time.sleep(1)
-            if self.system_stop:
-                break
 
         llmc_thread.join()
-        asyncio_thread.join()
+        
+        self.shutdown(llmc_thread)
 
+    def shutdown(self, llmc_thread):
+        """Shuts down the system gracefully."""
         self.llm_controller.stop_robot()
+        llmc_thread.join()
 
-        # clean self.cache_folder
-        for file in os.listdir(self.cache_folder):
-            os.remove(os.path.join(self.cache_folder, file))
+        # Stop asyncio loop
+        self.asyncio_loop.call_soon_threadsafe(self.asyncio_loop.stop)
+        self.asyncio_thread.join()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--use_virtual_robot', action='store_true')
-    parser.add_argument('--use_http', action='store_true')
-    parser.add_argument('--gear', action='store_true')
+    parser.add_argument('--virtual', action='store_true')
+    parser.add_argument('--go2', action='store_true')
 
     args = parser.parse_args()
     robot_type = RobotType.TELLO
-    if args.use_virtual_robot:
+    if args.virtual:
         robot_type = RobotType.VIRTUAL
-    elif args.gear:
-        robot_type = RobotType.GEAR
-    typefly = TypeFly(robot_type, use_http=args.use_http)
+    elif args.go2:
+        robot_type = RobotType.GO2
+    typefly = TypeFly(robot_type)
     typefly.run()

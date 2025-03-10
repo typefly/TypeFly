@@ -1,41 +1,45 @@
 from abc import ABC, abstractmethod
 from enum import Enum
+from typing import Optional
 
 class RobotType(Enum):
     VIRTUAL = 0
     TELLO = 1
-    GEAR = 2
+    GO2 = 2
+
+class RobotObservation(ABC):
+    @property
+    @abstractmethod
+    def image(self):
+        pass
+
+    @property
+    def depth(self):
+        return None
+
+    @property
+    def orientation(self):
+        return None
+
+    @property
+    def position(self):
+        return None
 
 class RobotWrapper(ABC):
-    movement_x_accumulator = 0
-    movement_y_accumulator = 0
-    rotation_accumulator = 0
     @abstractmethod
-    def connect(self):
+    def start(self) -> bool:
         pass
 
     @abstractmethod
-    def keep_active(self):
+    def stop(self):
+        pass
+
+    @abstractmethod # some robots need to be kept active
+    def keep_alive(self):
         pass
 
     @abstractmethod
-    def takeoff(self) -> bool:
-        pass
-
-    @abstractmethod
-    def land(self):
-        pass
-
-    @abstractmethod
-    def start_stream(self):
-        pass
-
-    @abstractmethod
-    def stop_stream(self):
-        pass
-
-    @abstractmethod
-    def get_frame_reader(self):
+    def get_observation(self) -> Optional[RobotObservation]:
         pass
 
     @abstractmethod
