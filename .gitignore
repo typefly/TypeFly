@@ -168,3 +168,4 @@ test.py
 cache/
 chat_log.txt
 results/
+eval/
