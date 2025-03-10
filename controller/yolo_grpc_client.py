@@ -43,7 +43,8 @@ class YoloGRPCClient():
     def is_local_service(self):
         return VISION_SERVICE_IP == 'localhost'
 
-    def image_to_bytes(image):
+    @staticmethod
+    def image_to_bytes(image: Image.Image) -> bytes:
         # compress and convert the image to bytes
         imgByteArr = BytesIO()
         image.save(imgByteArr, format='WEBP')
