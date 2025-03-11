@@ -70,12 +70,12 @@ class YoloClient():
         return self.shared_frame
     
     @asynccontextmanager
-    async def get_aiohttp_session_response(service_url, data, timeout_seconds=3):
+    async def get_aiohttp_session_response(service_url, form_data, timeout_seconds=3):
         timeout = aiohttp.ClientTimeout(total=timeout_seconds)
         try:
             # The ClientSession now uses the defined timeout
             async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(service_url, data=data) as response:
+                async with session.post(service_url, data=form_data) as response:
                     response.raise_for_status()  # Optional: raises exception for 4XX/5XX responses
                     yield response
         except aiohttp.ServerTimeoutError:
@@ -97,12 +97,11 @@ class YoloClient():
                 'image_id': self.frame_id,
                 'conf': conf
             }
-            http_load = {
-                'image': image_bytes,
-                'json_data': json.dumps(config)
-            }
+            form_data = aiohttp.FormData()
+            form_data.add_field('image', image_bytes, filename='frame.webp', content_type='image/webp')
+            form_data.add_field('json_data', json.dumps(config), content_type='application/json')
 
-        async with YoloClient.get_aiohttp_session_response(self.service_url, http_load) as response:
+        async with YoloClient.get_aiohttp_session_response(self.service_url, form_data) as response:
             results = await response.text()
 
         try:
