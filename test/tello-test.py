@@ -10,7 +10,7 @@ class TelloLLM():
     def check_battery(self):
         self.battery = self.drone.query_battery()
         print(f"> Battery level: {self.battery}% ", end='')
-        if self.battery < 30:
+        if self.battery < 20:
             print('is too low [WARNING]')
         else:
             print('[OK]')

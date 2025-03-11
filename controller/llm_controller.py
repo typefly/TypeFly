@@ -187,16 +187,17 @@ class LLMController():
         print_t("[C] Start capture loop...")
         observation = self.robot.get_observation()
         while self.controller_active:
+            start_time = time.time()
             self.robot.keep_alive()
             self.latest_frame = observation.image
-            frame = Frame(observation.image, observation.depth)
+            frame = Frame(self.latest_frame, observation.depth)
 
-            # if self.yolo_client.is_local_service():
-            #     self.yolo_client.detect_local(frame)
-            # else:
-                # asynchronously send image to yolo server
-            asyncio_loop.call_soon_threadsafe(asyncio.create_task, self.yolo_client.detect(frame))
-            time.sleep(0.10)
+            asyncio_loop.call_soon_threadsafe(
+                asyncio.create_task,
+                self.yolo_client.detect(frame)
+            )
+            frame_read_time = time.time() - start_time
+            time.sleep(max(0, 0.1 - frame_read_time))
         # Cancel all running tasks (if any)
         for task in asyncio.all_tasks(asyncio_loop):
             task.cancel()

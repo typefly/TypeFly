@@ -2,18 +2,15 @@ import sys, os, gc
 from concurrent import futures
 from PIL import Image
 from io import BytesIO
-import json
+import json, time
 import grpc
 import torch
 from ultralytics import YOLO
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
 
 PROJ_DIR = os.environ.get("PROJ_PATH", os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models/")
-MODEL_TYPE = "yolov8x.pt"
+MODEL_TYPE = "yolov8m.pt"
 
 sys.path.append(os.path.join(PROJ_DIR, "proto/generated"))
 import hyrch_serving_pb2
@@ -22,11 +19,12 @@ import hyrch_serving_pb2_grpc
 def load_model():
     model = YOLO(MODEL_PATH + MODEL_TYPE)
     if torch.cuda.is_available():
-        device = torch.device('cuda:0')
-    else:
-        device = torch.device('cpu')
-    model.to(device)
-    print(f"GPU memory usage: {torch.cuda.memory_allocated()}")
+        model.to('cuda')
+        print(f"GPU memory usage: {torch.cuda.memory_allocated()}")
+    elif torch.backends.mps.is_available():
+        model.to('mps')
+        print(f"MPS memory usage: {torch.mps.current_allocated_memory()}")
+    
     return model
 
 def release_model(model):
@@ -97,8 +95,11 @@ class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
         return image, info
     
     def Detect(self, request, context):
-        print(f"Received Detect request from {context.peer()} on port {self.port}")
+        # print(f"Received Detect request from {context.peer()} on port {self.port}")
+        
+        # start_time = time.time()
         image, info = self.parse_request(request)
+        print(f"Received Detect request {info['image_id']}")
 
         if self.tracking_mode:
             yolo_result = self.model.track(image, verbose=False, conf=info['conf'], tracker="bytetrack.yaml")[0]
@@ -106,6 +107,7 @@ class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
             yolo_result = self.model(image, verbose=False, conf=info['conf'])[0]
 
         info['result'] = YoloService.format_result(yolo_result)
+        # print(f"Detection took {time.time() - start_time} seconds")
         return hyrch_serving_pb2.DetectResponse(json_data=json.dumps(info))
 
 def serve(port):
@@ -117,4 +119,5 @@ def serve(port):
     server.wait_for_termination()
 
 if __name__ == "__main__":
+    # test the service
     serve(50050)

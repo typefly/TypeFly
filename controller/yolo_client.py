@@ -6,9 +6,7 @@ import numpy as np
 from contextlib import asynccontextmanager
 
 import json, os
-import requests
-import queue
-import asyncio, aiohttp
+import asyncio, aiohttp, threading
 
 from .utils import print_t
 from .shared_frame import SharedFrame, Frame
@@ -26,14 +24,11 @@ class YoloClient():
     def __init__(self, shared_frame: SharedFrame=None):
         self.service_url = 'http://{}:{}/process'.format(EDGE_SERVICE_IP, EDGE_SERVICE_PORT)
         self.image_size = (640, 352)
-        self.frame_queue = queue.Queue() # queue element: (frame_id, frame)
+        self.frame_queue = asyncio.Queue() # queue element: (frame_id, frame)
         self.shared_frame = shared_frame
         self.frame_id = 0
         self.frame_id_lock = asyncio.Lock()
         print_t(f"[Y] YoloClient initialized with service url: {self.service_url}")
-
-    def is_local_service(self) -> bool:
-        return EDGE_SERVICE_IP == 'localhost'
 
     @staticmethod
     def image_to_bytes(image: Image.Image) -> bytes:
@@ -86,38 +81,15 @@ class YoloClient():
         except aiohttp.ServerTimeoutError:
             print_t(f"[Y] Timeout error when connecting to {service_url}")
 
-    def detect_local(self, frame: Frame, conf=0.2):
-        image = frame.image
-        image_bytes = YoloClient.image_to_bytes(image.resize(self.image_size))
-        self.frame_queue.put(frame)
-
-        config = {
-            'robot_info': RobotInfo('robot', 'drone').to_json(),
-            'service_type': 'yolo',
-            'tracking_mode': False,
-            'image_id': self.frame_id,
-            'conf': conf
-        }
-        http_load = {
-            'image': ('image', image_bytes),
-            'json_data': (None, json.dumps(config))
-        }
-
-        response = requests.post(self.service_url, files=http_load)
-        json_results = json.loads(response.text)
-        if self.shared_frame is not None:
-            self.shared_frame.set(self.frame_queue.get(), json_results)
-
     async def detect(self, frame: Frame, conf=0.3):
-        if self.is_local_service():
-            self.detect_local(frame, conf)
-            return
-        
         image = frame.image
         image_bytes = YoloClient.image_to_bytes(image.resize(self.image_size))
 
         async with self.frame_id_lock:
-            self.frame_queue.put((self.frame_id, frame))
+            self.frame_id += 1
+            # print_t(f"[Y] Sending request with image id: {self.frame_id} {self.frame_queue.qsize()}")
+            await self.frame_queue.put((self.frame_id, frame))
+            
             config = {
                 'robot_info': RobotInfo('robot', 'drone').to_json(),
                 'service_type': 'yolo',
@@ -129,7 +101,6 @@ class YoloClient():
                 'image': image_bytes,
                 'json_data': json.dumps(config)
             }
-            self.frame_id += 1
 
         async with YoloClient.get_aiohttp_session_response(self.service_url, http_load) as response:
             results = await response.text()
@@ -146,27 +117,19 @@ class YoloClient():
         
         # Safe queue processing
         result_image_id = json_results['image_id']
-        try:
-            # discard old images
-            if self.frame_queue.empty():
-                print_t("[Y] Frame queue empty, cannot process results")
-                return
-                
+        # print_t(f"[Y] Received results for image id: {result_image_id} {self.frame_queue.qsize()}")
+        async with self.frame_id_lock:
             # Discard frames older than our result
-            while not self.frame_queue.empty() and self.frame_queue.queue[0][0] < result_image_id:
-                discarded = self.frame_queue.get()
-                print_t(f"[Y] Discarded old frame: {discarded[0]}")
-                
-            # Check if we have the matching frame
-            if not self.frame_queue.empty() and self.frame_queue.queue[0][0] == result_image_id:
-                matched_frame = self.frame_queue.get()
-            else:
-                print_t(f"[Y] No matching frame for result id: {result_image_id}")
-                return
-                
-        except Exception as e:
-            print_t(f"[Y] Error processing frame queue: {e}")
-            return
+            while not self.frame_queue.empty():
+                head_frame = await self.frame_queue.get()
+                if head_frame[0] == result_image_id:
+                    matched_frame = head_frame
+                    break
+                elif head_frame[0] > result_image_id:
+                    print_t(f"[Y] Discarded old result: {head_frame[0]}")
+                    return
+                else:
+                    print_t(f"[Y] Discarded old frame: {head_frame[0]}")
 
         # Update shared frame with results
         if self.shared_frame is not None and matched_frame is not None:

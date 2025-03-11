@@ -64,7 +64,7 @@ def cap_distance(distance):
 class TelloWrapper(RobotWrapper):
     def __init__(self):
         self.drone = Tello()
-        self.active_count = 0
+        self.alive_count = 0
         self.stream_on = False
 
     def start(self) -> bool:
@@ -83,10 +83,10 @@ class TelloWrapper(RobotWrapper):
         self.stream_on = False
         self.drone.streamoff()
 
-    def keep_active(self):
-        if self.active_count % 20 == 0:
+    def keep_alive(self):
+        if self.alive_count % 20 == 0:
             self.drone.send_control_command("command")
-        self.active_count += 1
+        self.alive_count += 1
 
     def get_observation(self) -> Optional[RobotObservation]:
         if not self.stream_on:
