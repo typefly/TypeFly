@@ -6,7 +6,9 @@ import json
 import grpc
 import torch
 from ultralytics import YOLO
-import multiprocessing
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 PROJ_DIR = os.environ.get("PROJ_PATH", os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -107,23 +109,12 @@ class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
         return hyrch_serving_pb2.DetectResponse(json_data=json.dumps(info))
 
 def serve(port):
-    print(f"Starting YoloService at port {port}")
+    print(f"Starting Yolo service at port {port}")
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
     hyrch_serving_pb2_grpc.add_YoloServiceServicer_to_server(YoloService(port), server)
     server.add_insecure_port(f'[::]:{port}')
     server.start()
     server.wait_for_termination()
 
-if __name__ == '__main__':
-    # Create a pool of processes
-    process_count = len(SERVICE_PORT)
-    processes = []
-
-    for i in range(process_count):
-        process = multiprocessing.Process(target=serve, args=(SERVICE_PORT[i],))
-        process.start()
-        processes.append(process)
-
-    # Wait for all processes to complete
-    for process in processes:
-        process.join()
+if __name__ == "__main__":
+    serve(50050)

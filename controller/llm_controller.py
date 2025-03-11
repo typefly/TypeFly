@@ -7,7 +7,6 @@ import appdirs
 
 from .shared_frame import SharedFrame, Frame
 from .yolo_client import YoloClient
-from .yolo_grpc_client import YoloGRPCClient
 from .platforms.tello_wrapper import TelloWrapper
 from .platforms.virtual_robot_wrapper import VirtualRobotWrapper
 from .abs.robot_wrapper import RobotWrapper
@@ -192,11 +191,11 @@ class LLMController():
             self.latest_frame = observation.image
             frame = Frame(observation.image, observation.depth)
 
-            if self.yolo_client.is_local_service():
-                self.yolo_client.detect_local(frame)
-            else:
+            # if self.yolo_client.is_local_service():
+            #     self.yolo_client.detect_local(frame)
+            # else:
                 # asynchronously send image to yolo server
-                asyncio_loop.call_soon_threadsafe(asyncio.create_task, self.yolo_client.detect(frame))
+            asyncio_loop.call_soon_threadsafe(asyncio.create_task, self.yolo_client.detect(frame))
             time.sleep(0.10)
         # Cancel all running tasks (if any)
         for task in asyncio.all_tasks(asyncio_loop):

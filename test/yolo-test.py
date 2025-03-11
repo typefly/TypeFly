@@ -13,12 +13,12 @@ def detect_local(image: Image, conf=0.2):
         'tracking_mode': False,
         'conf': conf
     }
-    files = {
+    http_load = {
         'image': ('image', image_bytes),
         'json_data': (None, json.dumps(json_data))
     }
 
-    response = requests.post(f"http://{"127.0.0.1"}:{50049}/process", files=files)
+    response = requests.post(f"http://{'127.0.0.1'}:{50049}/process", files=http_load)
     print(f"[Y] Response: {response.json()}")
 
 image = Image.open("./images/kitchen.webp")

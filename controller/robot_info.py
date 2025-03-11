@@ -33,5 +33,3 @@ class RobotInfo:
     def from_json(cls, json_str: str):
         data = json.loads(json_str)
         return cls.from_dict(data)
-
-    

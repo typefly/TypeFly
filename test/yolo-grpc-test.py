@@ -3,7 +3,7 @@ from PIL import Image
 import json, sys, os
 import grpc
 
-def image_to_bytes(image):
+def image_to_bytes(image: Image.Image) -> bytes:
     # compress and convert the image to bytes
     imgByteArr = BytesIO()
     image.save(imgByteArr, format='WEBP')
@@ -15,17 +15,20 @@ sys.path.append(os.path.join(PARENT_DIR, "proto/generated"))
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 
-VISION_SERVICE_IP = os.environ.get("VISION_SERVICE_IP", "localhost")
-YOLO_SERVICE_PORT = os.environ.get("YOLO_SERVICE_PORT", "50050").split(",")[0]
+VISION_SERVICE_IP = "localhost"
+YOLO_SERVICE_PORT = 50050
 
 channel = grpc.insecure_channel(f'{VISION_SERVICE_IP}:{YOLO_SERVICE_PORT}')
 stub = hyrch_serving_pb2_grpc.YoloServiceStub(channel)
 
-detect_request = hyrch_serving_pb2.DetectRequest(image_data=image_to_bytes(Image.open("./images/kitchen.webp")), conf=0.3)
-response = stub.DetectStream(detect_request)
-
-class_request = hyrch_serving_pb2.SetClassRequest(class_names=['shoes'])
-stub.SetClasses(class_request)
+json_data = {
+    'robot_info': '{"robot_id": "robot", "robot_type": "drone"}',
+    'service_type': 'yolo',
+    'tracking_mode': False,
+    'conf': 0.3
+}
+detect_request = hyrch_serving_pb2.DetectRequest(image_data=image_to_bytes(Image.open("./images/kitchen.webp")), json_data=json.dumps(json_data))
+response = stub.Detect(detect_request)
 
 json_results = json.loads(response.json_data)
 print(json_results)

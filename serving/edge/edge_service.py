@@ -64,6 +64,8 @@ async def process():
 
     if service_type == "yolo":
         stub = hyrch_serving_pb2_grpc.YoloServiceStub(channel)
+        print(f"Sending request: {json_str}")
+        print(f"Sending request to YOLO service with image size: {len(image_bytes)}")
         response = await stub.Detect(hyrch_serving_pb2.DetectRequest(json_data=json_str, image_data=image_bytes))
 
     return response.json_data
@@ -81,7 +83,7 @@ def start_yolo_service():
 
 if __name__ == "__main__":
     processes = start_yolo_service()
-    def cleanup(signum, frame):
+    def cleanup(_signalnum, _frame):
         print("Shutting down YOLO services...")
         for p in processes:
             p.terminate()

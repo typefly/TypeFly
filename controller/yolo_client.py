@@ -30,6 +30,7 @@ class YoloClient():
         self.shared_frame = shared_frame
         self.frame_id = 0
         self.frame_id_lock = asyncio.Lock()
+        print_t(f"[Y] YoloClient initialized with service url: {self.service_url}")
 
     def is_local_service(self) -> bool:
         return EDGE_SERVICE_IP == 'localhost'
@@ -97,15 +98,12 @@ class YoloClient():
             'image_id': self.frame_id,
             'conf': conf
         }
-        files = {
+        http_load = {
             'image': ('image', image_bytes),
             'json_data': (None, json.dumps(config))
         }
 
-        print_t(f"[Y] Sending request to {self.service_url}")
-
-        response = requests.post(self.service_url, files=files)
-        print_t(f"[Y] Response: {response.text}")
+        response = requests.post(self.service_url, files=http_load)
         json_results = json.loads(response.text)
         if self.shared_frame is not None:
             self.shared_frame.set(self.frame_queue.get(), json_results)
