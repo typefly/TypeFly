@@ -1,12 +1,14 @@
 import aiohttp
-import json
+import json, os
 import asyncio
+
+EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
 
 async def detect():
     image_path = '../test/images/kitchen.webp'
     
     config = {
-        'robot_info': '{"robot_id": "robot", "robot_type": "drone"}',
+        'robot_info': '{"robot_id": "robot", "robot_type": "drone", "ip": "127.0.0.1"}',
         'service_type': 'yolo',
         'tracking_mode': False,
         'image_id': 1,
@@ -19,7 +21,7 @@ async def detect():
 
     async with aiohttp.ClientSession() as session:
         print("Sending request")
-        async with session.post("http://0.0.0.0:50049/process", data=form_data) as response:
+        async with session.post(f"http://{EDGE_SERVICE_IP}:50049/process", data=form_data) as response:
             content = await response.text()
             print("Received response")
             print(content)

@@ -3,6 +3,8 @@ from PIL import Image
 import json, sys, os
 import grpc
 
+EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
+
 def image_to_bytes(image: Image.Image) -> bytes:
     # compress and convert the image to bytes
     imgByteArr = BytesIO()
@@ -15,14 +17,11 @@ sys.path.append(os.path.join(PARENT_DIR, "proto/generated"))
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 
-VISION_SERVICE_IP = "localhost"
-YOLO_SERVICE_PORT = 50050
-
-with grpc.insecure_channel(f'{VISION_SERVICE_IP}:{YOLO_SERVICE_PORT}') as channel:
+with grpc.insecure_channel(f'{EDGE_SERVICE_IP}:50049') as channel:
     stub = hyrch_serving_pb2_grpc.YoloServiceStub(channel)
 
     json_data = {
-        'robot_info': '{"robot_id": "robot", "robot_type": "drone"}',
+        'robot_info': '{"robot_id": "robot", "robot_type": "drone", "ip": "127.0.0.1"}',
         'service_type': 'yolo',
         'tracking_mode': False,
         'conf': 0.3

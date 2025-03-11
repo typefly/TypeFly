@@ -1,38 +1,46 @@
 import queue
 import sys, os
 import asyncio
-import io, time
+import io, time, json
+from typing import List
 import gradio as gr
 from flask import Flask, Response
 from threading import Thread
-import argparse
 
 PROJ_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(PROJ_DIR)
 from controller.llm_controller import LLMController
 from controller.utils import print_t
-from controller.abs.robot_wrapper import RobotType
+from controller.robot_info import RobotInfo
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-class TypeFly:
-    def __init__(self, robot_type):
-         # create a cache folder
-        self.cache_folder = os.path.join(CURRENT_DIR, 'cache')
-        os.makedirs(self.cache_folder, exist_ok=True)
+def generate_drone_povs(robot_info_list: List[RobotInfo]):
+    """Generate HTML string for multiple drone POVs."""
+    num = len(robot_info_list)
+    html_content = "<h2>Robot POVs</h2><div style='display: flex; gap: 10px;'>"
+    for robot in robot_info_list:
+        html_content += f"""
+        <div>
+            <h3>{robot.robot_type}</h3>
+            <img src="http://localhost:50000/robot-pov/{robot.robot_id}/" alt="{robot.robot_id}-pov" 
+                 style="border-radius: 10px; object-fit: contain; width: {1/num};">
+        </div>
+        """
+    html_content += "</div>"
+    return html_content
 
+class TypeFly:
+    def __init__(self, robot_info_list: List[RobotInfo]):
+        self.robot_info_list = robot_info_list
         self.message_queue = queue.Queue()
-        self.llm_controller = LLMController(robot_type, self.message_queue)
+        self.llm_controller = LLMController(robot_info_list, self.message_queue)
         self.system_stop = False
 
-        self.asyncio_loop = asyncio.new_event_loop()
-        self.asyncio_thread = Thread(target=self.run_async_loop, daemon=True)
-        self.asyncio_thread.start()
-
         self.ui = gr.Blocks(title="TypeFly")
-        self.setup_ui()
+        self.setup_ui(robot_info_list)
 
-    def setup_ui(self):
+    def setup_ui(self, robot_info_list: List[RobotInfo]):
         """Sets up the Gradio UI components."""
         default_sentences = [
             "Find something I can eat.",
@@ -43,15 +51,10 @@ class TypeFly:
         ]
         with self.ui:
             gr.HTML(open(os.path.join(CURRENT_DIR, 'header.html'), 'r').read())
-            gr.HTML(open(os.path.join(CURRENT_DIR, 'drone-pov.html'), 'r').read())
-            gr.ChatInterface(self.process_message, retry_btn=None, fill_height=False, examples=default_sentences).queue()
+            gr.HTML(generate_drone_povs(robot_info_list))
+            gr.ChatInterface(self.ui_process_message, retry_btn=None, fill_height=False, examples=default_sentences).queue()
 
-    def run_async_loop(self):
-        """Runs an asyncio event loop in a separate thread."""
-        asyncio.set_event_loop(self.asyncio_loop)
-        self.asyncio_loop.run_forever()
-
-    def process_message(self, message, history):
+    def ui_process_message(self, message, history):
         print_t(f"[S] Receiving task description: {message}")
         if message == "exit":
             self.llm_controller.stop_controller()
@@ -80,13 +83,41 @@ class TypeFly:
                         complete_response += msg + '\n'
                 yield complete_response
 
-    def generate_mjpeg_stream(self):
+    # def generate_mjpeg_stream(self):
+    #     while True:
+    #         if self.system_stop:
+    #             break
+    #         frame = self.llm_controller.get_latest_frame(self.robot_info_list[0], True)
+    #         if frame is None:
+    #             continue
+    #         buf = io.BytesIO()
+    #         frame.save(buf, format='JPEG')
+    #         buf.seek(0)
+    #         yield (b'--frame\r\n'
+    #                b'Content-Type: image/jpeg\r\n\r\n' + buf.read() + b'\r\n')
+    #         time.sleep(1.0 / 30.0)
+    def generate_mjpeg_stream(self, robot_id):
+        """Generate MJPEG stream for a specific robot by robot_id."""
         while True:
             if self.system_stop:
                 break
-            frame = self.llm_controller.get_latest_frame(True)
-            if frame is None:
+                
+            # Find the robot with matching robot_id
+            robot_info = None
+            for robot in self.robot_info_list:
+                if robot.robot_id == robot_id:
+                    robot_info = robot
+                    break
+                    
+            if robot_info is None:
+                time.sleep(1.0 / 30.0)
                 continue
+                
+            frame = self.llm_controller.get_latest_frame(robot_info, True)
+            if frame is None:
+                time.sleep(1.0 / 30.0)
+                continue
+                
             buf = io.BytesIO()
             frame.save(buf, format='JPEG')
             buf.seek(0)
@@ -95,14 +126,19 @@ class TypeFly:
             time.sleep(1.0 / 30.0)
 
     def run(self):
-        self.llm_controller.start_robot()
-        llmc_thread = Thread(target=self.llm_controller.capture_loop, args=(self.asyncio_loop,), daemon=True)
-        llmc_thread.start()
+        self.llm_controller.start_controller()
 
         app = Flask(__name__)
-        @app.route('/drone-pov/')
-        def video_feed():
-            return Response(self.generate_mjpeg_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
+        # @app.route('/robot-pov/')
+        # def video_feed():
+        #     return Response(self.generate_mjpeg_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
+        @app.route('/robot-pov/<robot_id>/')
+        def video_feed(robot_id):
+            """Route to get video feed for a specific robot."""
+            return Response(
+                self.generate_mjpeg_stream(robot_id), 
+                mimetype='multipart/x-mixed-replace; boundary=frame'
+            )
         flask_thread = Thread(target=app.run, kwargs={'host': 'localhost', 'port': 50000, 'debug': True, 'use_reloader': False})
         flask_thread.start()
 
@@ -112,29 +148,18 @@ class TypeFly:
         while not self.system_stop:
             time.sleep(1)
 
-        llmc_thread.join()
-        
-        self.shutdown(llmc_thread)
+        self.llm_controller.stop_controller()
 
-    def shutdown(self, llmc_thread):
-        """Shuts down the system gracefully."""
-        self.llm_controller.stop_robot()
-        llmc_thread.join()
 
-        # Stop asyncio loop
-        self.asyncio_loop.call_soon_threadsafe(self.asyncio_loop.stop)
-        self.asyncio_thread.join()
-
+"""
+Available robot types: ['tello', 'virtual', 'go2']
+"""
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--virtual', action='store_true')
-    parser.add_argument('--go2', action='store_true')
+    robot_info_list = []
+    with open(os.path.join(CURRENT_DIR, 'robot_list.json'), 'r') as f:
+        robot_list = json.load(f)
+        for robot in robot_list:
+            robot_info_list.append(RobotInfo.from_dict(robot))
 
-    args = parser.parse_args()
-    robot_type = RobotType.TELLO
-    if args.virtual:
-        robot_type = RobotType.VIRTUAL
-    elif args.go2:
-        robot_type = RobotType.GO2
-    typefly = TypeFly(robot_type)
+    typefly = TypeFly(robot_info_list)
     typefly.run()

@@ -8,9 +8,9 @@ class SkillSetLevel(Enum):
     HIGH = "high"
 
 class SkillSet():
-    def __init__(self, level = "low", lower_level_skillset: 'SkillSet' = None):
+    def __init__(self, level: SkillSetLevel = SkillSetLevel.LOW, lower_level_skillset: 'SkillSet' = None):
         self.skills = {}
-        self.level = SkillSetLevel(level)
+        self.level = level
         self.lower_level_skillset = lower_level_skillset
     
     def get_skill(self, skill_name: str) -> Optional[SkillItem]:

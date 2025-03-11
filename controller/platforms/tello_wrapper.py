@@ -4,6 +4,9 @@ from typing import Optional, Tuple
 from djitellopy import Tello
 
 from ..abs.robot_wrapper import RobotWrapper, RobotObservation
+from ..skillset import SkillSet, LowLevelSkillItem, SkillArg, SkillSetLevel, HighLevelSkillItem
+from ..vision_skill_wrapper import VisionSkillWrapper
+from ..yolo_client import YoloClient
 
 import logging
 Tello.LOGGER.setLevel(logging.WARNING)
@@ -44,15 +47,22 @@ def sharpen_image(img):
     return sharpened
 
 class TelloObservation(RobotObservation):
-    def __init__(self, frame_reader):
+    def __init__(self, frame_reader, asyncio_loop, rate: int = 10):
+        self.interval: float = 1.0 / rate
+        self.asyncio_loop = asyncio_loop
+        self.yolo_client = YoloClient()
         self.frame_reader = frame_reader
-
-    @property
-    def image(self):
-        # Read a frame from the video capture
-        frame = self.frame_reader.frame
-        frame = adjust_exposure(frame, alpha=1.3, beta=-30)
-        return sharpen_image(frame)
+    
+    def update_observation(self):
+        # Read frame from drone
+        while self.running:
+            start_time = time.time()
+            frame = self.frame_reader.frame
+            frame = adjust_exposure(frame, alpha=1.3, beta=-30)
+            self._image = sharpen_image(frame)
+            self.asyncio_loop.call_soon_threadsafe(self.yolo_client.detect, self._image)
+            elapsed_time = time.time() - start_time
+            time.sleep(max(0, self.interval - elapsed_time))
         
 def cap_distance(distance):
     if distance < MOVEMENT_MIN:
@@ -64,8 +74,42 @@ def cap_distance(distance):
 class TelloWrapper(RobotWrapper):
     def __init__(self):
         self.drone = Tello()
+        self.observation: RobotObservation = None
+        self.vision: VisionSkillWrapper = None
         self.alive_count = 0
         self.stream_on = False
+
+        self.low_level_skillset = SkillSet()
+        # movement skills
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_forward", self.move_forward, "Move forward by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_backward", self.move_backward, "Move backward by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_left", self.move_left, "Move left by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_right", self.move_right, "Move right by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_up", self.move_up, "Move up by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("move_down", self.move_down, "Move down by a distance", args=[SkillArg("distance", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("turn_cw", self.turn_cw, "Rotate clockwise/right by certain degrees", args=[SkillArg("degrees", int)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("turn_ccw", self.turn_ccw, "Rotate counterclockwise/left by certain degrees", args=[SkillArg("degrees", int)]))
+        # vision skills
+        self.low_level_skillset.add_skill(LowLevelSkillItem("is_visible", self.vision.is_visible, "Check the visibility of target object", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("object_x", self.vision.object_x, "Get object's X-coordinate in (0,1)", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("object_y", self.vision.object_y, "Get object's Y-coordinate in (0,1)", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("object_width", self.vision.object_width, "Get object's width in (0,1)", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("object_height", self.vision.object_height, "Get object's height in (0,1)", args=[SkillArg("object_name", str)]))
+        self.low_level_skillset.add_skill(LowLevelSkillItem("object_dis", self.vision.object_distance, "Get object's distance in cm", args=[SkillArg("object_name", str)]))
+
+        high_level_skills = [
+            {
+                "name": "scan",
+                "definition": """
+                8{?}
+""",
+                "description": "Rotate to find object $1 when it's *not* in current scene",
+            }
+        ]
+
+
+        self.high_level_skillset = SkillSet(SkillSetLevel.HIGH, self.low_level_skillset)
+        self.high_level_skillset.add_skill(HighLevelSkillItem("scan", "", "Rotate to find object $1 when it's *not* in current scene"))
 
     def start(self) -> bool:
         self.drone.connect()

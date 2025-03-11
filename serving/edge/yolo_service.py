@@ -47,11 +47,11 @@ class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
         self.model = load_model()
 
     @staticmethod
-    def bytes_to_image(image_bytes):
+    def bytes_to_image(image_bytes) -> Image.Image:
         return Image.open(BytesIO(image_bytes))
     
     @staticmethod
-    def format_result(yolo_result):
+    def format_result(yolo_result) -> list:
         if yolo_result.probs is not None:
             print('Warning: Classify task do not support `tojson` yet.')
             return
@@ -78,7 +78,7 @@ class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
             formatted_result.append(result)
         return formatted_result
 
-    def parse_request(self, request):
+    def parse_request(self, request) -> tuple[Image.Image, dict]:
         info = json.loads(request.json_data)
         image = YoloService.bytes_to_image(request.image_data)
 
@@ -94,7 +94,7 @@ class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
 
         return image, info
     
-    def Detect(self, request, context):
+    def Detect(self, request, context) -> hyrch_serving_pb2.DetectResponse:
         # print(f"Received Detect request from {context.peer()} on port {self.port}")
         
         # start_time = time.time()

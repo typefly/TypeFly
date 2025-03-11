@@ -3,7 +3,8 @@ import numpy as np
 import time, math
 import cv2
 from filterpy.kalman import KalmanFilter
-from .shared_frame import SharedFrame
+from .abs.robot_wrapper import RobotObservation
+from .yolo_client import ObjectInfo
 
 def iou(boxA, boxB):
     # Calculate the intersection over union (IoU) of two bounding boxes
@@ -28,18 +29,6 @@ def euclidean_distance(boxA, boxB):
     centerA = ((boxA['x1'] + boxA['x2']) / 2, (boxA['y1'] + boxA['y2']) / 2)
     centerB = ((boxB['x1'] + boxB['x2']) / 2, (boxB['y1'] + boxB['y2']) / 2)
     return math.sqrt((centerA[0] - centerB[0])**2 + (centerA[1] - centerB[1])**2)
-
-
-class ObjectInfo:
-    def __init__(self, name, x, y, w, h) -> None:
-        self.name = name
-        self.x = float(x)
-        self.y = float(y)
-        self.w = float(w)
-        self.h = float(h)
-
-    def __str__(self) -> str:
-        return f"{self.name} x:{self.x:.2f} y:{self.y:.2f} width:{self.w:.2f} height:{self.h:.2f}"
 
 class ObjectTracker:
     def __init__(self, name, x, y, w, h) -> None:
@@ -77,29 +66,34 @@ class ObjectTracker:
         return kf
 
 class VisionSkillWrapper():
-    def __init__(self, shared_frame: SharedFrame):
-        self.shared_frame = shared_frame
+    def __init__(self, observation: RobotObservation = None):
+        self.observation = observation
         self.last_update = 0
         self.object_trackers: dict[str, ObjectTracker] = {}
         self.object_list = []
         self.aruco_detector = cv2.aruco.ArucoDetector(
             cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250),
-            cv2.aruco.DetectorParameters())
+            cv2.aruco.DetectorParameters()
+        )
         
     def update(self):
-        if self.shared_frame.timestamp == self.last_update:
+        """Updates object list if the shared frame has changed."""
+        (timestamp, frame) = self.observation._image
+        if timestamp == self.last_update:
             return
-        self.last_update = self.shared_frame.timestamp
-        self.object_list = []
-        objs = self.shared_frame.get_yolo_result()['result']
-        for obj in objs:
-            name = obj['name']
-            box = obj['box']
-            x = (box['x1'] + box['x2']) / 2
-            y = (box['y1'] + box['y2']) / 2
-            w = box['x2'] - box['x1']
-            h = box['y2'] - box['y1']
-            self.object_list.append(ObjectInfo(name, x, y, w, h))
+        
+        self.last_update = timestamp
+        self.object_list = [
+            ObjectInfo(
+                obj['name'],
+                (obj['box']['x1'] + obj['box']['x2']) / 2,
+                (obj['box']['y1'] + obj['box']['y2']) / 2,
+                obj['box']['x2'] - obj['box']['x1'],
+                obj['box']['y2'] - obj['box']['y1']
+            )
+            for obj in frame.get_yolo_result().get('result', [])
+        ]
+
     def _update(self):
         if self.shared_frame.timestamp == self.last_update:
             return
@@ -187,13 +181,12 @@ class VisionSkillWrapper():
     #         del self.object_trackers[name]
 
     def get_obj_list(self) -> str:
+        """Returns a formatted string of detected objects."""
         self.update()
-        str_list = []
-        for obj in self.object_list:
-            str_list.append(str(obj))
-        return str(str_list).replace("'", '')
+        return str([str(obj) for obj in self.object_list]).replace("'", "")
 
     def get_obj_info(self, object_name: str) -> ObjectInfo:
+        # try to get the object info for 10 times
         for _ in range(10):
             self.update()
             for obj in self.object_list:
@@ -205,31 +198,26 @@ class VisionSkillWrapper():
     def is_visible(self, object_name: str) -> Tuple[bool, bool]:
         return self.get_obj_info(object_name) is not None, False
 
-    def object_x(self, object_name: str) -> Tuple[Union[float, str], bool]:
+    def _get_object_attribute(self, object_name: str, attr: str) -> Tuple[Union[float, str], bool]:
+        """Helper function to retrieve an object's attribute."""
         info = self.get_obj_info(object_name)
         if info is None:
-            return f'object_x: {object_name} is not in sight', True
-        return info.x, False
+            return f'{attr}: {object_name} is not in sight', True
+        return getattr(info, attr), False
+    
+    def object_x(self, object_name: str) -> Tuple[Union[float, str], bool]:
+        return self._get_object_attribute(object_name, 'x')
     
     def object_y(self, object_name: str) -> Tuple[Union[float, str], bool]:
-        info = self.get_obj_info(object_name)
-        if info is None:
-            return f'object_y: {object_name} is not in sight', True
-        return info.y, False
+        return self._get_object_attribute(object_name, 'y')
     
     def object_width(self, object_name: str) -> Tuple[Union[float, str], bool]:
-        info = self.get_obj_info(object_name)
-        if info is None:
-            return f'object_width: {object_name} not in sight', True
-        return info.w, False
+        return self._get_object_attribute(object_name, 'w')
     
     def object_height(self, object_name: str) -> Tuple[Union[float, str], bool]:
-        info = self.get_obj_info(object_name)
-        if info is None:
-            return f'object_height: {object_name} not in sight', True
-        return info.h, False
+        return self._get_object_attribute(object_name, 'h')
     
-    def object_distance(self, object_name: str) -> Tuple[Union[int, str], bool]:
+    def _object_distance(self, object_name: str) -> Tuple[Union[int, str], bool]:
         info = self.get_obj_info(object_name)
         if info is None:
             return f'object_distance: {object_name} not in sight', True

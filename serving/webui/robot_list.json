@@ -1,0 +1,16 @@
+[
+    {
+        "robot_id": "robot1",
+        "robot_type": "virtual",
+        "extra": {
+            "capture": 0
+        }
+    },
+    {
+        "robot_id": "robot2",
+        "robot_type": "virtual",
+        "extra": {
+            "capture": 1
+        }
+    }
+]

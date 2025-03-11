@@ -1,42 +1,70 @@
 import cv2, time
+import asyncio
+from PIL import Image
 from typing import Optional, Tuple
 from ..abs.robot_wrapper import RobotWrapper, RobotObservation
+from ..yolo_client import YoloClient
+from ..robot_info import RobotInfo
 
 class VirtualObservation(RobotObservation):
-    def __init__(self, cap):
-        self.cap = cap
+    def __init__(self, robot_info: RobotInfo, rate: int = 10):
+        super().__init__(robot_info)
+        self.interval: float = 1.0 / rate
+        self.yolo_client = YoloClient(robot_info)
+        
+    def _start(self):
+        self.cap = cv2.VideoCapture(self.robot_info.extra["capture"])
         if not self.cap.isOpened():
             raise ValueError("Could not open video device")
+        
+    def _stop(self):
+        self.cap.release()
 
-    @property
-    def image(self):
-        # Read a frame from the video capture
-        ret, frame = self.cap.read()
-        if not ret:
-            raise ValueError("Could not read frame")
-        return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    def update_observation(self):
+        # Create a new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        async def schedule_tasks():
+            tasks = set()
+            
+            while self.running:
+                start_time = time.time()
+                ret, frame = self.cap.read()
+                if not ret:
+                    raise ValueError("Could not read frame")
+                self._image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                # Add a new task to the set
+                task = asyncio.create_task(self.yolo_client.detect(self._image))
+                tasks.add(task)
+                
+                # Clean up completed tasks
+                tasks = {t for t in tasks if not t.done()}
+                
+                self._image_process_result = self.yolo_client.latest_result
+                # Sleep for the interval
+                elapsed_time = time.time() - start_time
+                await asyncio.sleep(max(0, self.interval - elapsed_time))
+        # Run the async function in the event loop
+        loop.run_until_complete(schedule_tasks())
 
 class VirtualRobotWrapper(RobotWrapper):
-    def __init__(self):
-        self.stream_on = False
-        pass
+    def __init__(self, info):
+        self.robot_info = info
+        self.observation = VirtualObservation(info)
 
     def keep_alive(self):
         return
 
     def start(self) -> bool:
-        self.stream_on = True
-        self.cap = cv2.VideoCapture(0)
+        self.observation.start()
         return True
 
     def stop(self):
-        self.stream_on = False
-        self.cap.release()
+        self.observation.stop()
 
     def get_observation(self) -> Optional[RobotObservation]:
-        if not self.stream_on:
-            return None
-        return VirtualObservation(self.cap)
+        return self.observation
 
     def move_forward(self, distance: int) -> Tuple[bool, bool]:
         print(f"-> Moving forward {distance} cm")
