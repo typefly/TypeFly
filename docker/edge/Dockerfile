@@ -1,7 +1,7 @@
 FROM ultralytics/ultralytics:latest
 RUN apt update
 RUN apt install -y nano wget
-RUN pip install grpcio-tools lapx
+RUN pip install grpcio-tools lapx quart
 
 # copy the contents of the current project to /workspace
 COPY ../.. /workspace
@@ -12,4 +12,4 @@ WORKDIR /workspace
 # generate the python files from the proto files
 RUN cd /workspace/proto && bash ./generate.sh
 
-CMD ["python", "./serving/yolo/yolo_service.py"]
+CMD ["python", "./serving/edge/edge_service.py"]

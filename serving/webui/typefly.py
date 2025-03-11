@@ -95,9 +95,6 @@ class TypeFly:
             time.sleep(1.0 / 30.0)
 
     def run(self):
-        # asyncio_thread = Thread(target=self.asyncio_loop.run_forever)
-        # asyncio_thread.start()
-
         self.llm_controller.start_robot()
         llmc_thread = Thread(target=self.llm_controller.capture_loop, args=(self.asyncio_loop,), daemon=True)
         llmc_thread.start()
