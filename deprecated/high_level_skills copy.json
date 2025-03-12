@@ -1,0 +1,27 @@
+[
+    {
+        "skill_name": "scan",
+        "skill_description": "Rotate to find object $1 when it's *not* in current scene",
+        "definition": "8{?iv($1)==True{->True}tc(45)}->False;"
+    },
+    {
+        "skill_name": "scan_abstract",
+        "skill_description": "Rotate to find an abstract object by a description $1 when it's *not* in current scene",
+        "definition": "8{_1=p($1);?_1!=False{->_1}tc(45)}->False;"
+    },
+    {
+        "skill_name": "orienting",
+        "skill_description": "Rotate to align with object $1",
+        "definition": "4{_1=ox($1);?_1>0.6{tc(15)};?_1<0.4{tu(15)};_2=ox($1);?_2<0.6&_2>0.4{->True}}->False;"
+    },
+    {
+        "skill_name": "approach",
+        "skill_description": "Approach forward",
+        "definition": "mf(100);"
+    },
+    {
+        "skill_name": "goto",
+        "skill_description": "Go to object $1",
+        "definition": "orienting($1);approach();"
+    }
+]
