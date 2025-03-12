@@ -27,7 +27,7 @@ class ObjectInfo:
         return ObjectInfo(json_data['name'], json_data['x'], json_data['y'], json_data['w'], json_data['h'])
 
     def __str__(self) -> str:
-        return f"{self.name} x:{self.x:.2f} y:{self.y:.2f} width:{self.w:.2f} height:{self.h:.2f}"
+        return f"- {self.name}: (x:{self.x:.2f}, y:{self.y:.2f}), size: ({self.w:.2f}x{self.h:.2f})"
 
 """
 Access the YOLO service through http.
@@ -38,14 +38,14 @@ class YoloClient():
         self.service_url = 'http://{}:{}/process'.format(EDGE_SERVICE_IP, EDGE_SERVICE_PORT)
         self.image_size = (640, 352)
         self._latest_result_lock = threading.Lock()
-        self._latest_result = None
+        self._latest_result = (None, [])
         self.frame_id = 0
         self.frame_queue = asyncio.Queue() # queue element: (frame_id, frame)
         self.frame_queue_lock = asyncio.Lock()
         print_t(f"[Y] YoloClient initialized with service url: {self.service_url}")
 
     @property
-    def latest_result(self) -> Optional[tuple[Image.Image, list]]:
+    def latest_result(self) -> tuple[Image.Image, list]:
         with self._latest_result_lock:
             return self._latest_result
 
@@ -55,25 +55,10 @@ class YoloClient():
         imgByteArr = BytesIO()
         image.save(imgByteArr, format='WEBP')
         return imgByteArr.getvalue()
-    
-    @staticmethod
-    def plot_results(image: Image.Image, object_list: list):
-        if object_list is None:
-            return
-        def str_float_to_int(value, multiplier):
-            return int(float(value) * multiplier)
-        draw = ImageDraw.Draw(image)
-        font = ImageFont.truetype(os.path.join(DIR, "assets/Roboto-Medium.ttf"), size=50)
-        w, h = image.size
-        for obj in object_list:
-            box = obj["box"]
-            draw.rectangle((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h), str_float_to_int(box["x2"], w), str_float_to_int(box["y2"], h)),
-                        fill=None, outline='blue', width=4)
-            draw.text((str_float_to_int(box["x1"], w), str_float_to_int(box["y1"], h) - 50), obj["name"], fill='red', font=font)
 
     @staticmethod
-    def plot_results_oi(image: Image.Image, object_list: list[ObjectInfo]):
-        if object_list is None or len(object_list) == 0:
+    def plot_results_ps(image: Image.Image, object_list: list[ObjectInfo]):
+        if not image or len(object_list) == 0:
             return
         def str_float_to_int(value, multiplier):
             return int(float(value) * multiplier)

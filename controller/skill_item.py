@@ -1,5 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import Union
+from overrides import overrides
+import re
+
+from typing import TYPE_CHECKING, Optional
+if TYPE_CHECKING:
+    from skillset import SkillSet  # Import only for type checking
+
+SKILL_ARG_TYPE = int | float | str
+SKILL_RET_TYPE = Optional[int | float | bool | str]
 
 class SkillArg:
     def __init__(self, arg_name: str, arg_type: type):
@@ -10,10 +18,11 @@ class SkillArg:
         return f"{self.arg_name}:{self.arg_type.__name__}"
 
 class SkillItem(ABC):
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str, abbr: str, description: str):
         self._name = name
         self._description = description
         self._args = []
+        self._abbr = abbr
 
     @property
     def name(self) -> str:
@@ -24,7 +33,7 @@ class SkillItem(ABC):
         return self._description
     
     @property
-    def args(self) -> list["SkillArg"]:
+    def args(self) -> list[SkillArg]:
         return self._args
     
     @abstractmethod
@@ -32,29 +41,10 @@ class SkillItem(ABC):
         pass
     
     @abstractmethod
-    def execute(self, arg_list: list[Union[int, float, str]]) -> tuple[Union[int, float, bool, str], bool]:
+    def execute(self, arg_list: list[SKILL_ARG_TYPE]) -> tuple[SKILL_RET_TYPE, bool]:
         pass
 
-    abbr_dict = {}
-    def generate_abbreviation(self, word):
-        split = word.split('_')
-        abbr = ''.join([part[0] for part in split])[0:2]
-
-        if abbr not in self.abbr_dict:
-            self.abbr_dict[abbr] = word
-            return abbr
-        
-        split = ''.join([part for part in split])[1:]
-
-        count = 0
-        while abbr in self.abbr_dict:
-            abbr = abbr[0] + split[count]
-            count += 1
-
-        self.abbr_dict[abbr] = word
-        return abbr
-
-    def parse_args(self, args_str_list: list[Union[int, float, str]], allow_positional_args: bool = False):
+    def parse_args(self, args_str_list: list[SKILL_ARG_TYPE], allow_positional_args: bool = False):
         """Parses the string of arguments and converts them to the expected types."""
         # Check the number of arguments
         if len(args_str_list) != len(self.args):
@@ -78,3 +68,94 @@ class SkillItem(ABC):
             except ValueError as e:
                 raise ValueError(f"Error parsing argument {i + 1}. Expected type {self.args[i].arg_type.__name__}, but got value '{arg.strip()}'. Original error: {e}")
         return parsed_args
+    
+class LowLevelSkillItem(SkillItem):
+    def __init__(self, name: str, abbr: str, func: callable, description: str, args: list[SkillArg] = None):
+        super().__init__(name, abbr, description)
+        self._callable = func
+        self._args = args or []
+    
+    @overrides
+    def execute(self, arg_list: list[SKILL_ARG_TYPE]) -> tuple[SKILL_RET_TYPE, bool]:
+        """Executes the skill with the provided arguments."""
+        if callable(self._callable):
+            parsed_args = self.parse_args(arg_list)
+            return self._callable(*parsed_args)
+        else:
+            raise ValueError(f"'{self._callable}' is not a callable function.")
+
+    @overrides
+    def __repr__(self) -> str:
+        return (f"abbr: {self._abbr}, "
+                f"name: {self._name}, "
+                f"args: {[arg for arg in self._args]}, "
+                f"description: {self._description}")
+
+class HighLevelSkillItem(SkillItem):
+    def __init__(self, name: str, abbr: str, definition: str, description: str, skill_set_list: list['SkillSet'] = None):
+        super().__init__(name, abbr, description)
+        self.definition = definition
+        self.skill_set_list = skill_set_list or []
+        self._args = self.generate_argument_list()
+
+    @staticmethod
+    def load_from_dict(skill_dict: dict) -> 'HighLevelSkillItem':
+        return HighLevelSkillItem(skill_dict["name"], skill_dict["definition"], skill_dict["description"])
+
+    def generate_argument_list(self) -> list[SkillArg]:
+        # Extract all skill calls with their arguments from the code
+        skill_calls = re.findall(r'(\w+)\(([^)]*)\)', self.definition)
+
+        arg_types = {}
+
+        for name, args in skill_calls:
+            function_args = []
+            args = [a.strip() for a in args.split(',')]
+            if name == "int":
+                function_args = [SkillArg("value", int)]
+            elif name == "float":
+                function_args = [SkillArg("value", float)]
+            elif name == "str":
+                function_args = [SkillArg("value", str)]
+            else:
+                skill = None
+                for skill_set in self.skill_set_list:
+                    skill = skill_set.get_skill(name)
+                    if skill:
+                        break
+
+                if skill is None:
+                    raise ValueError(f"Skill '{name}' not found in any skillset.")
+                function_args = skill._args
+
+            for i, arg in enumerate(args):
+                if arg.startswith('$') and arg not in arg_types:
+                    # Match the positional argument with its type from the function definition
+                    arg_types[arg] = function_args[i]
+
+        # Convert the mapped arguments to a user-friendly list in order of $position
+        arg_types = dict(sorted(arg_types.items()))
+        arg_list = [arg for arg in arg_types.values()]
+
+        return arg_list
+
+    @overrides
+    def execute(self, arg_list: list[SKILL_ARG_TYPE]) -> tuple[SKILL_RET_TYPE, bool]:
+        """Executes the skill with the provided arguments."""
+        if self.low_level_skillset is None:
+            raise ValueError("Low-level skillset is not set.")
+        if len(arg_list) != len(self._args):
+            raise ValueError(f"Expected {len(self._args)} arguments, but got {len(arg_list)}.")
+        # replace all $1, $2, ... with segments
+        definition = self.definition
+        for i in range(0, len(arg_list)):
+            definition = definition.replace(f"${i + 1}", arg_list[i])
+        return (definition, False)
+
+    @overrides
+    def __repr__(self) -> str:
+        return (f"abbr: {self._abbr}, "
+                f"name: {self._name}, "
+                f"definition: {self.definition}, "
+                f"args: {[arg for arg in self._args]}, "
+                f"description: {self._description}")

@@ -1,4 +1,3 @@
-from typing import Union
 import grpc
 import asyncio
 import time, json
@@ -81,7 +80,7 @@ class ServiceManager:
             for robot_info in users_to_remove:
                 del self.assigned_channels[robot_info]
 
-    async def get_service_channel(self, service_type: str, robot_info: RobotInfo) -> Union[str, grpc.Channel]:
+    async def get_service_channel(self, service_type: str, robot_info: RobotInfo) -> str | grpc.Channel:
         async with self.lock:
             await self._initialize_channels()  # Ensure channels are initialized
             await self.clean_dedicated_channels()

@@ -1,21 +1,19 @@
-from typing import Union, Optional
+from typing import Optional
 import re, queue
 from enum import Enum
 import time
 from threading import Thread
 from queue import Queue
 from openai import ChatCompletion, Stream
+from .skill_item import SKILL_RET_TYPE
 from .skillset import SkillSet
 from .utils import split_args, print_t
-
 
 def print_debug(*args):
     print(*args)
     # pass
 
-MiniSpecValueType = Union[int, float, bool, str, None]
-
-def evaluate_value(value: str) -> MiniSpecValueType:
+def evaluate_value(value: str) -> SKILL_RET_TYPE:
     if value.isdigit():
         return int(value)
     elif value.replace('.', '', 1).isdigit():
@@ -30,11 +28,11 @@ def evaluate_value(value: str) -> MiniSpecValueType:
         return value.strip('\'"')
 
 class MiniSpecReturnValue:
-    def __init__(self, value: MiniSpecValueType, replan: bool):
+    def __init__(self, value: SKILL_RET_TYPE, replan: bool):
         self.value = value
         self.replan = replan
 
-    def from_tuple(t: tuple[MiniSpecValueType, bool]):
+    def from_tuple(t: tuple[SKILL_RET_TYPE, bool]):
         return MiniSpecReturnValue(t[0], t[1])
     
     def default():
@@ -134,7 +132,7 @@ class Statement:
         self.env = env
         self.read_argument: bool = False
 
-    def get_env_value(self, var) -> MiniSpecValueType:
+    def get_env_value(self, var) -> SKILL_RET_TYPE:
         if var not in self.env:
             raise Exception(f'Variable {var} is not defined')
         return self.env[var]

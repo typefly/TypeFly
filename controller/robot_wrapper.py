@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union
+from typing import Optional
 from numpy import ndarray
 import time, threading
 from PIL import Image
 
+from .skillset import SkillSet
 from .robot_info import RobotInfo
 from .yolo_client import ObjectInfo
 
@@ -17,7 +18,7 @@ class RobotObservation(ABC):
         self._position: Optional[ndarray] = None
 
         self._image_process_lock = threading.Lock()
-        self._image_process_result: Optional[tuple[Image.Image, list]] = None
+        self._image_process_result: tuple[Image.Image, list[ObjectInfo]] = (None, [])
 
         self.running: bool = False
         self.thread = threading.Thread(target=self.update_observation, daemon=True)
@@ -57,7 +58,7 @@ class RobotObservation(ABC):
         return self._position
     
     @property
-    def image_process_result(self) -> Optional[tuple[Image.Image, list]]:
+    def image_process_result(self) -> tuple[Image.Image, list[ObjectInfo]]:
         with self._image_process_lock:
             return self._image_process_result
     
@@ -66,10 +67,10 @@ class RobotObservation(ABC):
         pass
 
 class RobotWrapper(ABC):
-    def __init__(self, robot_info: RobotInfo, observation: RobotObservation):
+    def __init__(self, robot_info: RobotInfo, observation: RobotObservation, system_skill_func: list[callable]):
         self.robot_info = robot_info
         self._observation = observation
-        self.common_movement_skill_funcs = [
+        common_movement_skill_func = [
             self.move_forward,
             self.move_backward,
             self.move_left,
@@ -78,7 +79,7 @@ class RobotWrapper(ABC):
             self.turn_ccw
         ]
 
-        self.common_vision_skill_funcs = [
+        common_vision_skill_func = [
             self.is_visible,
             self.object_x,
             self.object_y,
@@ -86,9 +87,8 @@ class RobotWrapper(ABC):
             self.object_height
         ]
 
-        self.common_skillset = None
-        self.low_level_skillset = None
-        self.high_level_skillset = None
+        self.ll_skillset: SkillSet = SkillSet.get_common_skillset(common_movement_skill_func, common_vision_skill_func, system_skill_func)
+        self.hl_skillset: Optional[SkillSet] = None
 
     @abstractmethod
     def start(self) -> bool:
@@ -139,7 +139,7 @@ class RobotWrapper(ABC):
     def get_obj_list_str(self) -> str:
         """Returns a formatted string of detected objects."""
         object_list = self.get_obj_list()
-        return str([str(obj) for obj in object_list]).replace("'", "")
+        return "\n".join([str(obj) for obj in object_list]).replace("'", "")
 
     def get_obj_info(self, object_name: str) -> ObjectInfo:
         # try to get the object info for 10 times
@@ -154,21 +154,21 @@ class RobotWrapper(ABC):
     def is_visible(self, object_name: str) -> tuple[bool, bool]:
         return self.get_obj_info(object_name) is not None, False
 
-    def _get_object_attribute(self, object_name: str, attr: str) -> tuple[Union[float, str], bool]:
+    def _get_object_attribute(self, object_name: str, attr: str) -> tuple[float | str, bool]:
         """Helper function to retrieve an object's attribute."""
         info = self.get_obj_info(object_name)
         if info is None:
             return f'{attr}: {object_name} is not in sight', True
         return getattr(info, attr), False
     
-    def object_x(self, object_name: str) -> tuple[Union[float, str], bool]:
+    def object_x(self, object_name: str) -> tuple[float | str, bool]:
         return self._get_object_attribute(object_name, 'x')
     
-    def object_y(self, object_name: str) -> tuple[Union[float, str], bool]:
+    def object_y(self, object_name: str) -> tuple[float | str, bool]:
         return self._get_object_attribute(object_name, 'y')
     
-    def object_width(self, object_name: str) -> tuple[Union[float, str], bool]:
+    def object_width(self, object_name: str) -> tuple[float | str, bool]:
         return self._get_object_attribute(object_name, 'w')
     
-    def object_height(self, object_name: str) -> tuple[Union[float, str], bool]:
+    def object_height(self, object_name: str) -> tuple[float | str, bool]:
         return self._get_object_attribute(object_name, 'h')

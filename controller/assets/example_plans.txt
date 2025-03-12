@@ -1,0 +1,132 @@
+## Example 1
+```
+## Scene Description
+### robot1 (tello)
+- person: (x:0.54, y:0.63), size: (0.41x0.74)
+
+## USER INSTRUCTION
+Find a bottle, tell me it's height and take a picture of it.
+
+## OUTPUT
+{
+    "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
+    "<plan, robot1>": "?s('bottle')==True{g('bottle');_2=oh('bottle');l(_2);tp()}"
+}
+```
+
+## Example 2
+```
+## Scene Description
+### robot1 (tello)
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.26, y:0.49), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Find an apple.
+
+## OUTPUT
+{
+    "thoughts": "There is an apple in the view, just tell the user.",
+    "<plan, robot1>": "l('I can already see an apple near the tv.')"
+}
+```
+
+## Example 3
+```
+## Scene Description
+### robot1 (tello)
+- chair: (x:0.89, y:0.76), size: (0.22x0.49)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.44, y:0.39), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Turn around and go to the apple behind you.
+
+## OUTPUT
+{
+    "thoughts": "Turn 180 degrees then go to the general object apple.",
+    "<plan, robot1>": "tc(180);g('apple')"
+}
+```
+
+## Example 4
+```
+## Scene Description
+### robot1 (tello)
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Find and go any edible object.
+
+## OUTPUT
+{
+    "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
+    "<plan, robot1>": "_1=sd('Any edible object here?');?_1!=False{g(_1)}"
+}
+```
+
+## Example 5
+```
+## Scene Description
+### robot1 (tello)
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Turn with 30 degrees step until you can see a person.
+
+## OUTPUT
+{
+    "thoughts": "Use loop and is_visible to find a person.",
+    "<plan, robot1>": "12{?iv('person')==True{->True}tc(30)}->False"
+}
+```
+
+## Example 6
+```
+## Scene Description
+### robot1 (tello)
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- apple: (x:0.52, y:0.39), size: (0.17x0.22)
+
+## USER INSTRUCTION
+Go to the biggest apple.
+
+## OUTPUT
+{
+    "thoughts": "From the scene, we tell directly that the right apple is the biggest apple.",
+    "<plan, robot1>": "g('apple[0.52]')"
+}
+```
+
+## Example 7
+```
+## Scene Description
+### robot1 (tello)
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to
+
+## OUTPUT
+{
+    "thoughts": "The task is too vague, so we use log to output the advice.",
+    "<plan, robot1>": "l('Please give me more information about the task.')"
+}
+```
+
+## Example 8
+```
+## Scene Description
+### robot1 (tello)
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to a chair with a laptop on it.
+
+## OUTPUT
+{
+    "thoughts": "Using scan_description to find the chair with a laptop on it.",
+    "<plan, robot1>": "_1=sd('Any chair with a laptop on it?');?_1!=False{g(_1)}"
+}
+```

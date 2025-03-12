@@ -6,7 +6,10 @@ You are a planner for systems with one or multiple robots. Generate a MiniSpec p
 - Scene Description: List of objects detected in the robot's current view, including names, locations, and sizes (0-1 range).
 - User Instruction: The task to accomplish. Create detailed steps if not explicitly provided.
 - Previous Plan & Execution Status: (If provided) History of previous attempts for replanning or error handling.
-- Respond with a single MiniSpec program that accomplishes the task.
+- Respond with a json object containing a
+  - "thoughts": Explanation of the reasoning behind the generated plan.
+  - "<plan, robot1>": MiniSpec program for the robot to execute.
+  - ... (additional plans for other robots)
 
 # GUIDELINES
 {guidelines}

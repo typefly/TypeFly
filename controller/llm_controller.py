@@ -1,17 +1,17 @@
 from threading import Thread
 from PIL import Image
 import queue, time, os, json, shutil
-from typing import Optional
 import asyncio
 import uuid
 import appdirs
+from openai import Stream
+from typing import Optional
 
 from .shared_frame import SharedFrame, Frame
 from .yolo_client import YoloClient
 from .platforms.tello_wrapper import TelloWrapper
 from .platforms.virtual_robot_wrapper import VirtualRobotWrapper
 from .robot_wrapper import RobotWrapper
-from .vision_skill_wrapper import VisionSkillWrapper
 from .llm_planner import LLMPlanner
 from .skillset import SkillSet, LowLevelSkillItem, HighLevelSkillItem, SkillArg
 from .utils import print_t, input_t
@@ -25,13 +25,13 @@ class LLMController():
     def __init__(self, robot_info_list: list[RobotInfo], message_queue: Optional[queue.Queue]=None):
         self.message_queue = message_queue
 
-        # self.planner = LLMPlanner(robot_info_list)
+        self.planner = LLMPlanner()
 
         # cache folder
         self.cache_folder = CACHE_DIR
         os.makedirs(self.cache_folder, exist_ok=True)
 
-        system_skill_funcs = [
+        system_skill_func = [
             self.system_skill_log,
             self.system_skill_delay,
             self.system_skill_take_picture,
@@ -42,13 +42,13 @@ class LLMController():
         self.robots: dict[RobotInfo, RobotWrapper] = {}
         for info in robot_info_list:
             if info.robot_type == "virtual":
-                self.robots[info] = VirtualRobotWrapper(info, system_skill_funcs)
+                self.robots[info] = VirtualRobotWrapper(info, system_skill_func)
             elif info.robot_type == "tello":
-                self.robots[info] = TelloWrapper(info, system_skill_funcs)
+                self.robots[info] = TelloWrapper(info, system_skill_func)
             # elif info.robot_type == "go2":
             #     pass
         
-        # self.planner.init(high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset, vision_skill=self.vision)
+        self.planner.set_robot_list(self.robots.values())
 
         self.current_plan = None
         self.execution_history = None
@@ -99,23 +99,23 @@ class LLMController():
 
         image, yolo_results = obs.image_process_result
         if overlay:
-            YoloClient.plot_results_oi(image, yolo_results)
+            YoloClient.plot_results_ps(image, yolo_results)
 
         return image
     
-    def execute_minispec(self, minispec: str):
+    def execute_minispec(self, json_output: Stream | str):
         interpreter = MiniSpecInterpreter(self.message_queue)
-        interpreter.execute(minispec)
+        interpreter.execute(json_output)
         self.execution_history = interpreter.execution_history
         ret_val = interpreter.ret_queue.get()
         return ret_val
 
-    def handle_task(self, task_description: str):
-        self._send_message('[TASK]: ' + task_description)
+    def handle_task(self, user_instruction: str):
+        self._send_message('[TASK]: ' + user_instruction)
         ret_val = None
         while True:
-            self.current_plan = self.planner.plan(task_description, execution_history=self.execution_history)
-            self._send_message(f'[Plan]: \\\\')
+            self.current_plan = self.planner.plan(user_instruction)
+            self._send_message(f'[Plan]: {self.current_plan}')
             try:
                 ret_val = self.execute_minispec(self.current_plan)
             except Exception as e:
@@ -128,6 +128,7 @@ class LLMController():
                 continue
             else:
                 break
+        
         self._send_message(f'\n[Task ended]')
         self._send_message('end')
         self.current_plan = None

@@ -5,7 +5,6 @@ from typing import Optional
 from overrides import overrides
 
 from controller.skillset import LowLevelSkillItem, SkillSet, SkillArg, SkillSetLevel, HighLevelSkillItem
-from controller.vision_skill_wrapper import VisionSkillWrapper
 from ..robot_wrapper import RobotWrapper, RobotObservation
 from ..yolo_client import YoloClient
 from ..robot_info import RobotInfo
@@ -56,35 +55,42 @@ class VirtualObservation(RobotObservation):
         loop.run_until_complete(schedule_tasks())
 
 class VirtualRobotWrapper(RobotWrapper):
-    def __init__(self, robot_info: RobotInfo, system_skill_funcs: list[callable]):
-        super().__init__(robot_info, VirtualObservation(robot_info))
+    def __init__(self, robot_info: RobotInfo, system_skill_func: list[callable]):
+        super().__init__(robot_info, VirtualObservation(robot_info), system_skill_func)
 
-        self.common_skillset = SkillSet.get_common_skillset(self.common_movement_skill_funcs, self.common_vision_skill_funcs, system_skill_funcs)
         # extra movement skills
-        self.low_level_skillset = SkillSet()
-        self.low_level_skillset.add_skill(LowLevelSkillItem("move_up", self.move_up, "Move up by a distance", args=[SkillArg("distance", int)]))
-        self.low_level_skillset.add_skill(LowLevelSkillItem("move_down", self.move_down, "Move down by a distance", args=[SkillArg("distance", int)]))
+        self.ll_skillset.add_low_level_skill("move_up", self.move_up, "Move up by a distance", args=[SkillArg("dist", int)])
+        self.ll_skillset.add_low_level_skill("move_down", self.move_down, "Move down by a distance", args=[SkillArg("dist", int)])
+        # print(f"{self.ll_skillset}")
         
         ### TODO: simplify the logic "?is_visible($1){->True}turn_cw(45)}->False"
         high_level_skills = [
             {
                 "name": "scan",
                 "definition": "8{?is_visible($1)==True{->True}turn_cw(45)}->False",
-                "description": "Rotate to find object $1 when it's *not* in current scene",
+                "description": "Rotate to find object $1 when it's *not* in current view"
             },
             {
                 "name": "scan_description",
                 "definition": "8{_1=probe($1);?_1!=False{->_1}turn_cw(45)}->False",
-                "description": "Rotate to find object $1 when it's *not* in current scene",
+                "description": "Rotate to find object $1 when it's *not* in current view"
+            },
+            {
+                "name": "orienting",
+                "definition": "4{_1=ox($1);?_1>0.6{tc(15)};?_1<0.4{tu(15)};_2=ox($1);?_2<0.6&_2>0.4{->True}}->False",
+                "description": "Rotate to align with object $1",
+            },
+            {
+                "name": "goto",
+                "definition": "?orienting($1)==True{move_forward(80)}",
+                "description": "Move to object $1 in the view"
             }
         ]
 
-        # self.high_level_skillset = SkillSet(SkillSetLevel.HIGH, self.low_level_skillset)
-        # for skill in high_level_skills:
-        #     self.high_level_skillset.add_skill(HighLevelSkillItem.load_from_dict(skill))
-
-        # for skill in self.low_level_skillset.skills.values():
-        #     print(f"Added skill: {skill}")
+        self.hl_skillset = SkillSet(SkillSetLevel.HIGH, self.ll_skillset)
+        for skill in high_level_skills:
+            self.hl_skillset.add_high_level_skill(skill['name'], skill['definition'], skill['description'])
+        # print(f"{self.hl_skillset}")
 
     @overrides
     def start(self) -> bool:
