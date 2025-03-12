@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Union, Tuple
+from typing import Union
 
 class SkillArg:
     def __init__(self, arg_name: str, arg_type: type):
@@ -10,24 +10,29 @@ class SkillArg:
         return f"{self.arg_name}:{self.arg_type.__name__}"
 
 class SkillItem(ABC):
-    @abstractmethod
-    def get_name(self) -> str:
-        pass
+    def __init__(self, name: str, description: str):
+        self._name = name
+        self._description = description
+        self._args = []
 
-    @abstractmethod
-    def get_skill_description(self) -> str:
-        pass
-
-    @abstractmethod
-    def get_argument(self) -> List[SkillArg]:
-        pass
-
+    @property
+    def name(self) -> str:
+        return self._name
+    
+    @property
+    def description(self) -> str:
+        return self._description
+    
+    @property
+    def args(self) -> list["SkillArg"]:
+        return self._args
+    
     @abstractmethod
     def __repr__(self) -> str:
         pass
-
+    
     @abstractmethod
-    def execute(self, arg_list: List[Union[int, float, str]]) -> Tuple[Union[int, float, bool, str], bool]:
+    def execute(self, arg_list: list[Union[int, float, str]]) -> tuple[Union[int, float, bool, str], bool]:
         pass
 
     abbr_dict = {}
@@ -49,7 +54,7 @@ class SkillItem(ABC):
         self.abbr_dict[abbr] = word
         return abbr
 
-    def parse_args(self, args_str_list: List[Union[int, float, str]], allow_positional_args: bool = False):
+    def parse_args(self, args_str_list: list[Union[int, float, str]], allow_positional_args: bool = False):
         """Parses the string of arguments and converts them to the expected types."""
         # Check the number of arguments
         if len(args_str_list) != len(self.args):

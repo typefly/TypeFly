@@ -6,17 +6,14 @@ from .llm_wrapper import LLMWrapper, ModelType
 from .vision_skill_wrapper import VisionSkillWrapper
 from .utils import print_t
 from .minispec_interpreter import MiniSpecValueType, evaluate_value
+from .robot_info import RobotInfo
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class LLMPlanner():
-    def __init__(self, robot_type: RobotType):
+    def __init__(self, robot_info_list: list[RobotInfo], model_type: ModelType = ModelType.GPT4O):
         self.llm = LLMWrapper()
-        self.model_type = ModelType.GPT4
-
-        type_folder_name = 'tello'
-        if robot_type == RobotType.GO2:
-            type_folder_name = 'gear'
+        self.model_type = model_type
 
         # read prompt from txt
         with open(os.path.join(CURRENT_DIR, f"./assets/{type_folder_name}/prompt_plan.txt"), "r") as f:

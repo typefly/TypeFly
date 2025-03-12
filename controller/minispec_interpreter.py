@@ -1,8 +1,7 @@
-from typing import List, Tuple, Union
+from typing import Union, Optional
 import re, queue
 from enum import Enum
 import time
-from typing import Optional
 from threading import Thread
 from queue import Queue
 from openai import ChatCompletion, Stream
@@ -35,7 +34,7 @@ class MiniSpecReturnValue:
         self.value = value
         self.replan = replan
 
-    def from_tuple(t: Tuple[MiniSpecValueType, bool]):
+    def from_tuple(t: tuple[MiniSpecValueType, bool]):
         return MiniSpecReturnValue(t[0], t[1])
     
     def default():
@@ -53,7 +52,7 @@ class ParsingState(Enum):
 
 class MiniSpecProgram:
     def __init__(self, env: Optional[dict] = None, mq: queue.Queue = None) -> None:
-        self.statements: List[Statement] = []
+        self.statements: list[Statement] = []
         self.depth = 0
         self.finished = False
         self.ret = False
@@ -64,7 +63,7 @@ class MiniSpecProgram:
         self.current_statement = Statement(self.env)
         self.mq = mq
 
-    def parse(self, code_instance: Stream[ChatCompletion.ChatCompletionChunk] | List[str], exec: bool = False) -> bool:
+    def parse(self, code_instance: Stream[ChatCompletion.ChatCompletionChunk] | list[str], exec: bool = False) -> bool:
         for chunk in code_instance:
             if isinstance(chunk, str):
                 code = chunk
@@ -421,7 +420,7 @@ class MiniSpecInterpreter:
         self.ret_queue = Queue()
         self.message_queue = message_queue
 
-    def execute(self, code: Stream[ChatCompletion.ChatCompletionChunk] | List[str]) -> MiniSpecReturnValue:
+    def execute(self, code: Stream[ChatCompletion.ChatCompletionChunk] | list[str]) -> MiniSpecReturnValue:
         print_t(f'>>> Get a stream')
         self.execution_history = []
         self.timestamp_get_plan = time.time()

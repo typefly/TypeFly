@@ -1,8 +1,6 @@
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
-from typing import Optional, Tuple
-from numpy.typing import NDArray
-import numpy as np
+from typing import Optional
 from contextlib import asynccontextmanager
 
 import json, os
@@ -14,15 +12,16 @@ from .robot_info import RobotInfo
 DIR = os.path.dirname(os.path.abspath(__file__))
 
 EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
+# EDGE_SERVICE_IP = "localhost"
 EDGE_SERVICE_PORT = os.environ.get("EDGE_SERVICE_PORT", "50049")
 
 class ObjectInfo:
-    def __init__(self, name, x, y, w, h) -> None:
-        self.name = name
-        self.x = float(x)
-        self.y = float(y)
-        self.w = float(w)
-        self.h = float(h)
+    def __init__(self, name: str, x, y, w, h) -> None:
+        self.name: str = name
+        self.x: float = float(x)
+        self.y: float = float(y)
+        self.w: float = float(w)
+        self.h: float = float(h)
 
     def from_json(json_data: dict):
         return ObjectInfo(json_data['name'], json_data['x'], json_data['y'], json_data['w'], json_data['h'])
@@ -30,9 +29,9 @@ class ObjectInfo:
     def __str__(self) -> str:
         return f"{self.name} x:{self.x:.2f} y:{self.y:.2f} width:{self.w:.2f} height:{self.h:.2f}"
 
-'''
+"""
 Access the YOLO service through http.
-'''
+"""
 class YoloClient():
     def __init__(self, robot_info: RobotInfo):
         self.robot_info = robot_info

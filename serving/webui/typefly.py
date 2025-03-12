@@ -2,7 +2,6 @@ import queue
 import sys, os
 import asyncio
 import io, time, json
-from typing import List
 import gradio as gr
 from flask import Flask, Response
 from threading import Thread
@@ -15,7 +14,7 @@ from controller.robot_info import RobotInfo
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def generate_drone_povs(robot_info_list: List[RobotInfo]):
+def generate_drone_povs(robot_info_list: list[RobotInfo]):
     """Generate HTML string for multiple drone POVs."""
     num = len(robot_info_list)
     html_content = "<h2>Robot POVs</h2><div style='display: flex; gap: 10px;'>"
@@ -31,7 +30,7 @@ def generate_drone_povs(robot_info_list: List[RobotInfo]):
     return html_content
 
 class TypeFly:
-    def __init__(self, robot_info_list: List[RobotInfo]):
+    def __init__(self, robot_info_list: list[RobotInfo]):
         self.robot_info_list = robot_info_list
         self.message_queue = queue.Queue()
         self.llm_controller = LLMController(robot_info_list, self.message_queue)
@@ -40,7 +39,7 @@ class TypeFly:
         self.ui = gr.Blocks(title="TypeFly")
         self.setup_ui(robot_info_list)
 
-    def setup_ui(self, robot_info_list: List[RobotInfo]):
+    def setup_ui(self, robot_info_list: list[RobotInfo]):
         """Sets up the Gradio UI components."""
         default_sentences = [
             "Find something I can eat.",
@@ -83,19 +82,6 @@ class TypeFly:
                         complete_response += msg + '\n'
                 yield complete_response
 
-    # def generate_mjpeg_stream(self):
-    #     while True:
-    #         if self.system_stop:
-    #             break
-    #         frame = self.llm_controller.get_latest_frame(self.robot_info_list[0], True)
-    #         if frame is None:
-    #             continue
-    #         buf = io.BytesIO()
-    #         frame.save(buf, format='JPEG')
-    #         buf.seek(0)
-    #         yield (b'--frame\r\n'
-    #                b'Content-Type: image/jpeg\r\n\r\n' + buf.read() + b'\r\n')
-    #         time.sleep(1.0 / 30.0)
     def generate_mjpeg_stream(self, robot_id):
         """Generate MJPEG stream for a specific robot by robot_id."""
         while True:
@@ -113,7 +99,7 @@ class TypeFly:
                 time.sleep(1.0 / 30.0)
                 continue
                 
-            frame = self.llm_controller.get_latest_frame(robot_info, True)
+            frame = self.llm_controller.fetch_robot_observation(robot_info, True)
             if frame is None:
                 time.sleep(1.0 / 30.0)
                 continue
@@ -126,12 +112,11 @@ class TypeFly:
             time.sleep(1.0 / 30.0)
 
     def run(self):
+        # Start the LLM controller
         self.llm_controller.start_controller()
 
+        # Start the Flask server for video feed
         app = Flask(__name__)
-        # @app.route('/robot-pov/')
-        # def video_feed():
-        #     return Response(self.generate_mjpeg_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
         @app.route('/robot-pov/<robot_id>/')
         def video_feed(robot_id):
             """Route to get video feed for a specific robot."""
@@ -145,9 +130,11 @@ class TypeFly:
         # Start the Gradio UI
         self.ui.launch(show_api=False, server_port=50001, prevent_thread_lock=True)
 
+        # Wait for the system to stop
         while not self.system_stop:
             time.sleep(1)
 
+        # Stop the LLM controller
         self.llm_controller.stop_controller()
 
 

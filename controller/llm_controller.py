@@ -1,7 +1,7 @@
 from threading import Thread
 from PIL import Image
 import queue, time, os, json, shutil
-from typing import List, Optional, Tuple
+from typing import Optional
 import asyncio
 import uuid
 import appdirs
@@ -10,9 +10,9 @@ from .shared_frame import SharedFrame, Frame
 from .yolo_client import YoloClient
 from .platforms.tello_wrapper import TelloWrapper
 from .platforms.virtual_robot_wrapper import VirtualRobotWrapper
-from .abs.robot_wrapper import RobotWrapper
+from .robot_wrapper import RobotWrapper
 from .vision_skill_wrapper import VisionSkillWrapper
-# from .llm_planner import LLMPlanner
+from .llm_planner import LLMPlanner
 from .skillset import SkillSet, LowLevelSkillItem, HighLevelSkillItem, SkillArg
 from .utils import print_t, input_t
 from .minispec_interpreter import MiniSpecInterpreter, Statement
@@ -22,118 +22,61 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = cache_dir = appdirs.user_cache_dir("typefly")
 
 class LLMController():
-    def __init__(self, robot_info_list: List[RobotInfo], message_queue: Optional[queue.Queue]=None):
-        # self.vision = VisionSkillWrapper(self.shared_frame)
-        # self.latest_frame = None
+    def __init__(self, robot_info_list: list[RobotInfo], message_queue: Optional[queue.Queue]=None):
         self.message_queue = message_queue
+
+        # self.planner = LLMPlanner(robot_info_list)
 
         # cache folder
         self.cache_folder = CACHE_DIR
         os.makedirs(self.cache_folder, exist_ok=True)
 
-        # start asyncio loop
-        # self.asyncio_loop = asyncio.new_event_loop()
-        # self.asyncio_thread = Thread(target=self.run_async_loop, daemon=True)
-        # self.asyncio_thread.start()
+        system_skill_funcs = [
+            self.system_skill_log,
+            self.system_skill_delay,
+            self.system_skill_take_picture,
+            self.system_skill_re_plan,
+            self.system_skill_probe
+        ]
 
         self.robots: dict[RobotInfo, RobotWrapper] = {}
         for info in robot_info_list:
             if info.robot_type == "virtual":
-                self.robots[info] = VirtualRobotWrapper(info)
-            # elif info.robot_type == "tello":
-            #     self.robots.append(TelloWrapper())
+                self.robots[info] = VirtualRobotWrapper(info, system_skill_funcs)
+            elif info.robot_type == "tello":
+                self.robots[info] = TelloWrapper(info, system_skill_funcs)
             # elif info.robot_type == "go2":
             #     pass
         
-        # self.planner = LLMPlanner(robot_type)
-        # # load low-level skills
-        # self.low_level_skillset = SkillSet(level="low")
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("move_forward", self.robot.move_forward, "Move forward by a distance", args=[SkillArg("distance", int)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("move_backward", self.robot.move_backward, "Move backward by a distance", args=[SkillArg("distance", int)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("move_left", self.robot.move_left, "Move left by a distance", args=[SkillArg("distance", int)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("move_right", self.robot.move_right, "Move right by a distance", args=[SkillArg("distance", int)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("move_up", self.robot.move_up, "Move up by a distance", args=[SkillArg("distance", int)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("move_down", self.robot.move_down, "Move down by a distance", args=[SkillArg("distance", int)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("turn_cw", self.robot.turn_cw, "Rotate clockwise/right by certain degrees", args=[SkillArg("degrees", int)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("turn_ccw", self.robot.turn_ccw, "Rotate counterclockwise/left by certain degrees", args=[SkillArg("degrees", int)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("delay", self.skill_delay, "Wait for specified seconds", args=[SkillArg("seconds", float)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("is_visible", self.vision.is_visible, "Check the visibility of target object", args=[SkillArg("object_name", str)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("object_x", self.vision.object_x, "Get object's X-coordinate in (0,1)", args=[SkillArg("object_name", str)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("object_y", self.vision.object_y, "Get object's Y-coordinate in (0,1)", args=[SkillArg("object_name", str)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("object_width", self.vision.object_width, "Get object's width in (0,1)", args=[SkillArg("object_name", str)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("object_height", self.vision.object_height, "Get object's height in (0,1)", args=[SkillArg("object_name", str)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("object_dis", self.vision.object_distance, "Get object's distance in cm", args=[SkillArg("object_name", str)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("probe", self.planner.probe, "Probe the LLM for reasoning", args=[SkillArg("question", str)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("log", self.skill_log, "Output text to console", args=[SkillArg("text", str)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("take_picture", self.skill_take_picture, "Take a picture"))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("re_plan", self.skill_re_plan, "Replanning"))
-
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("goto", self.skill_goto, "goto the object", args=[SkillArg("object_name[*x-value]", str)]))
-        # self.low_level_skillset.add_skill(LowLevelSkillItem("time", self.skill_time, "Get current execution time", args=[]))
-        # # load high-level skills
-        # self.high_level_skillset = SkillSet(level="high", lower_level_skillset=self.low_level_skillset)
-
-        # type_folder_name = 'tello'
-        # if robot_type == RobotType.GO2:
-        #     type_folder_name = 'go2'
-        # with open(os.path.join(CURRENT_DIR, f"assets/{type_folder_name}/high_level_skills.json"), "r") as f:
-        #     json_data = json.load(f)
-        #     for skill in json_data:
-        #         self.high_level_skillset.add_skill(HighLevelSkillItem.load_from_dict(skill))
-
-        # Statement.low_level_skillset = self.low_level_skillset
-        # Statement.high_level_skillset = self.high_level_skillset
         # self.planner.init(high_level_skillset=self.high_level_skillset, low_level_skillset=self.low_level_skillset, vision_skill=self.vision)
 
         self.current_plan = None
         self.execution_history = None
-        self.execution_time = time.time()
 
-    # def run_async_loop(self):
-    #     """Runs an asyncio event loop in a separate thread."""
-    #     asyncio.set_event_loop(self.asyncio_loop)
-    #     self.asyncio_loop.run_forever()
-
-    def skill_time(self) -> Tuple[float, bool]:
-        return time.time() - self.execution_time, False
-
-    # def skill_goto(self, object_name: str) -> Tuple[None, bool]:
-    #     print(f'Goto {object_name}')
-    #     if '[' in object_name:
-    #         x = float(object_name.split('[')[1].split(']')[0])
-    #     else:
-    #         x = self.vision.object_x(object_name)[0]
-
-    #     print(f'>> GOTO x {x} {type(x)}')
-
-    #     if x > 0.55:
-    #         self.robot.turn_cw(int((x - 0.5) * 70))
-    #     elif x < 0.45:
-    #         self.robot.turn_ccw(int((0.5 - x) * 70))
-
-    #     self.robot.move_forward(110)
-    #     return None, False
-
-    # def skill_take_picture(self) -> Tuple[None, bool]:
-    #     img_path = os.path.join(self.cache_folder, f"{uuid.uuid4()}.jpg")
-    #     Image.fromarray(self.latest_frame).save(img_path)
-    #     print_t(f"[C] Picture saved to {img_path}")
-    #     self.append_message((img_path,))
-    #     return None, False
-
-    # def skill_log(self, text: str) -> Tuple[None, bool]:
-    #     self.append_message(f"[LOG] {text}")
-    #     print_t(f"[LOG] {text}")
-    #     return None, False
+    ### system skills
+    def system_skill_log(self, text: str) -> tuple[None, bool]:
+        self._send_message(f"[LOG] {text}")
+        print_t(f"[LOG] {text}")
+        return None, False
     
-    # def skill_re_plan(self) -> Tuple[None, bool]:
-    #     return None, True
+    def system_skill_delay(self, sec: float) -> tuple[None, bool]:
+        time.sleep(sec)
+        return None, False
+    
+    def system_skill_take_picture(self) -> tuple[None, bool]:
+        img_path = os.path.join(self.cache_folder, f"{uuid.uuid4()}.jpg")
+        Image.fromarray(self.latest_frame).save(img_path)
+        print_t(f"[C] Picture saved to {img_path}")
+        self._send_message((img_path,))
+        return None, False
+    
+    def system_skill_re_plan(self) -> tuple[None, bool]:
+        return None, True
 
-    # def skill_delay(self, s: float) -> Tuple[None, bool]:
-    #     time.sleep(s)
-    #     return None, False
+    def system_skill_probe(self, query: str) -> tuple[Optional[str], bool]:
+        pass
 
-    def append_message(self, message: str):
+    def _send_message(self, message: str):
         if self.message_queue is not None:
             self.message_queue.put(message)
 
@@ -149,14 +92,16 @@ class LLMController():
             shutil.rmtree(self.cache_folder)
             print_t("[C] Cache folder cleared")
 
-    def get_latest_frame(self, robot_info: RobotInfo, plot: bool=False):
-        observation = self.robots[robot_info].get_observation()
-        if observation is None:
+    def fetch_robot_observation(self, robot_info: RobotInfo, overlay: bool=False) -> Optional[Image.Image]:
+        obs = self.robots[robot_info].observation
+        if not obs or not obs.image_process_result:
             return None
-        data = observation.image_process_result
-        if plot and data:
-            YoloClient.plot_results_oi(data[0], data[1])
-        return data[0]
+
+        image, yolo_results = obs.image_process_result
+        if overlay:
+            YoloClient.plot_results_oi(image, yolo_results)
+
+        return image
     
     def execute_minispec(self, minispec: str):
         interpreter = MiniSpecInterpreter(self.message_queue)
@@ -166,13 +111,12 @@ class LLMController():
         return ret_val
 
     def handle_task(self, task_description: str):
-        self.append_message('[TASK]: ' + task_description)
+        self._send_message('[TASK]: ' + task_description)
         ret_val = None
         while True:
             self.current_plan = self.planner.plan(task_description, execution_history=self.execution_history)
-            self.append_message(f'[Plan]: \\\\')
+            self._send_message(f'[Plan]: \\\\')
             try:
-                self.execution_time = time.time()
                 ret_val = self.execute_minispec(self.current_plan)
             except Exception as e:
                 print_t(f"[C] Error: {e}")
@@ -184,31 +128,7 @@ class LLMController():
                 continue
             else:
                 break
-        self.append_message(f'\n[Task ended]')
-        self.append_message('end')
+        self._send_message(f'\n[Task ended]')
+        self._send_message('end')
         self.current_plan = None
         self.execution_history = None
-
-    # def start_capture_loop(self, asyncio_loop) -> List[Thread]:
-
-
-    #     print_t("[C] Start capture loop...")
-    #     observation = self.robot.get_observation()
-    #     while self.controller_active:
-    #         start_time = time.time()
-    #         self.robot.keep_alive()
-    #         self.latest_frame = observation.image
-    #         frame = Frame(self.latest_frame, observation.depth)
-
-    #         asyncio_loop.call_soon_threadsafe(
-    #             asyncio.create_task,
-    #             self.yolo_client.detect(frame)
-    #         )
-    #         frame_read_time = time.time() - start_time
-    #         time.sleep(max(0, 0.1 - frame_read_time))
-    #     # Cancel all running tasks (if any)
-    #     for task in asyncio.all_tasks(asyncio_loop):
-    #         task.cancel()
-
-    #     asyncio_loop.stop()
-    #     print_t("[C] Capture loop stopped")

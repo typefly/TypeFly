@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Union
 import grpc
 import asyncio
 import time, json
@@ -38,7 +38,7 @@ class RobotInfo:
 
 class ServiceManager:
     def __init__(self):
-        self.service_info: dict[str, tuple[str, List[int]]] = {}
+        self.service_info: dict[str, tuple[str, list[int]]] = {}
         self.service_channels: dict[str, asyncio.Queue] = {}
         self.channels_initialized: bool = False
         self.assigned_channels: dict[RobotInfo, dict[str, grpc.Channel]] = {}
@@ -46,7 +46,7 @@ class ServiceManager:
         self.last_cleanup: float = time.time()
         self.lock = asyncio.Lock()
 
-    def add_service(self, service_type: str, host: str, ports: List[int]):
+    def add_service(self, service_type: str, host: str, ports: list[int]):
         self.service_info[service_type] = (host, ports)
         self.service_channels[service_type] = asyncio.Queue()
 

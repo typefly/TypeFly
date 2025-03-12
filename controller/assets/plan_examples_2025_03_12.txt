@@ -1,0 +1,83 @@
+Example 1:
+Scene: []
+Task: [A] Find a bottle, tell me it's height and take a picture of it.
+Reason: no bottle instance in the scene, so we use scan to find bottle, then go and use object_height to get the height and log to output the height, finally use picture to take a picture of the bottle
+Response: ?s('bottle')==True{g('bottle');_2=oh('bottle');l(_2);tp};
+
+Example 2:
+Scene: [apple x:0.28 y:0.52 width:0.13 height:0.2]
+Task: [A] Find an apple.
+Reason: there is an apple instance in the scene, we just go to it
+Response: g('apple');
+
+Example 3:
+Scene: [apple x:0.28 y:0.15 width:0.2 height:0.19]
+Task: [Q] Is there an apple and an orange on your left?
+Reason: turn left 90 degrees, then use is_visible to check whether there is an apple on your left
+Response: tu(90);?iv('apple')==True&iv('orange'){l('Yes');->True}l('No');->False;
+
+Example 4:
+Scene: [chair x:0.58 y:0.5 width:0.43 height:0.7,laptop x:0.58 y:0.5 width:0.43 height:0.7]
+Task: [A] Turn around and go to the chair behind you.
+Reason: the chair is not the target because we want the one behind you. So we turn 180 degrees then go to the general object chair, since chair is a large object, we use 80cm as the distance.
+Response: tc(180);g('chair');
+
+Example 5:
+Scene: [chair x:0.32 y:0.35 width:0.56 height:0.4]
+Task: [A] Find and go any edible object.
+Reason: edible object is abstract and there is no edible object in the scene, so we use scan_abstract to find the edible object
+Response: _1=sa('Any edible target here?');?_1!=False{g(_1)};
+
+Example 6:
+Scene: [chair x:0.28 y:0.12 width:0.43 height:0.67,laptop x:0.78 y:0.45 width:0.23 height:0.25]
+Task: [A] Turn with 30 degrees step until you can see some animal.
+Reason: we use loop and probe to find animal
+Response: 12{_1=p('Any animal target here?');?_1!=False{l(_1);->True}tc(30)}->False;
+
+Example 7:
+Scene: [chair x:0.28 y:0.12 width:0.43 height:0.67,laptop x:0.28 y:0.12 width:0.43 height:0.67]
+Task: [A] If you can see a chair, go find a person, else go find an orange.
+Reason: From the scene, we can see a chair, so we use scan to find a person. Since person is a large object, we use 60cm as the distance
+Response: ?s('person')==True{g('person');->True}->False;
+
+Example 8:
+Scene: [chair x:0.48 y:0.22 width:0.23 height:0.17,chair x:0.18 y:0.12 width:0.33 height:0.27]
+Task: [A] Go to 
+Reason: The task is too vague, so we use log to output the advice
+Response: l('Please give me more information.');
+
+Example 9:
+Scene: [chair x:0.18 y:0.5 width:0.43 height:0.7, chair x:0.6 y:0.3 width:0.08 height:0.09, book x:0.62 y:0.26 width:0.23 height:0.17]
+Task: [A] Go to the chair with book on it.
+Reason: There are two chairs, the second one is closer to the book, so we go to the second chair
+Response: g('chair[0.6]');
+
+Example 10:
+Scene: [apple x:0.74 y:0.3 width:0.09 height:0.1, apple x:0.3 y:0.5 width:0.15 height:0.12]
+Task: [A] Go to biggest apple
+Reason: from the scene, we tell directly that the right apple is the biggest apple
+Response: g('apple[0.3]');
+
+Example 11:
+Scene: [apple x:0.74 y:0.3 width:0.09 height:0.1]
+Task: [A] Find a chair with a laptop on it.
+Reason: Using scan abstract to find the chair with a laptop on it
+Response: _1=sa('Any chair with a laptop on it?');?_1!=False{g(_1)};
+
+Example 12:
+Scene: [sports ball x:0.74 y:0.3 width:0.09 height:0.1]
+Task: [A] Follow the ball for 17s.
+Reason: There is a ball in the scene, so we try to align with it and follow it for 17s
+Response: _1=ow('sports ball');500{?time()>17{->True}_2=ox('sports ball');?_2>0.55{tc(15)}?_2<0.45{tu(15)}_3=ow('sports ball');?_3>_1*1.2{mb(40)}?_3<_1*0.8{mf(40)}d(0.25)}
+
+Example 13:
+Scene: [chair x:0.18 y:0.5 width:0.43 height:0.7, chair x:0.6 y:0.3 width:0.08 height:0.09, book x:0.62 y:0.26 width:0.23 height:0.17]
+Task: [Q] Which chair is closer to the book?
+Reason: The second chair (on the right) is closer to the book
+Response: l('the right chair');
+
+Example 14:
+Scene: []
+Task: [A] Move in a 'V' shape.
+Reason: Go forward, then turn 135 degrees to the left, finally go forward again.
+Response: mf(100);tu(135);mf(100);

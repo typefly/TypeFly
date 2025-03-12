@@ -1,6 +1,5 @@
 import time, os
-from typing import Tuple
-from .abs.robot_wrapper import RobotWrapper
+from ..robot_wrapper import RobotWrapper
 import torch
 import torch.nn as nn
 import numpy as np
@@ -55,7 +54,7 @@ class GearWrapper(RobotWrapper):
             return None
         return self.robot.sensor_data
     
-    def move_forward(self, distance: int) -> Tuple[bool, bool]:
+    def move_forward(self, distance: int) -> tuple[bool, bool]:
         print(f"-> Moving forward {distance} cm")
         self.robot.send_command_hover(0, 0, 0, 0)
         small_move = distance <= 15
@@ -102,7 +101,7 @@ class GearWrapper(RobotWrapper):
         self.robot.send_command_hover(0, 0, 0, 0)
         return True, False
 
-    def move_backward(self, distance: int) -> Tuple[bool, bool]:
+    def move_backward(self, distance: int) -> tuple[bool, bool]:
         print(f"-> Moving backward {distance} cm")
         self.robot.send_command_hover(0, 0, 0, 0)
         while distance > 0:
@@ -112,7 +111,7 @@ class GearWrapper(RobotWrapper):
         self.robot.send_command_hover(0, 0, 0, 0)
         return True, False
 
-    def move_left(self, distance: int) -> Tuple[bool, bool]:
+    def move_left(self, distance: int) -> tuple[bool, bool]:
         print(f"-> Moving left {distance} cm")
         self.robot.send_command_hover(0, 0, 0, 0)
         while distance > 0:
@@ -122,7 +121,7 @@ class GearWrapper(RobotWrapper):
         self.robot.send_command_hover(0, 0, 0, 0)
         return True, False
 
-    def move_right(self, distance: int) -> Tuple[bool, bool]:
+    def move_right(self, distance: int) -> tuple[bool, bool]:
         print(f"-> Moving right {distance} cm")
         self.robot.send_command_hover(0, 0, 0, 0)
         while distance > 0:
@@ -132,15 +131,15 @@ class GearWrapper(RobotWrapper):
         self.robot.send_command_hover(0, 0, 0, 0)
         return True, False
 
-    def move_up(self, distance: int) -> Tuple[bool, bool]:
+    def move_up(self, distance: int) -> tuple[bool, bool]:
         print(f"-> Moving up {distance} cm")
         return True, False
 
-    def move_down(self, distance: int) -> Tuple[bool, bool]:
+    def move_down(self, distance: int) -> tuple[bool, bool]:
         print(f"-> Moving down {distance} cm")
         return True, False
 
-    def turn_ccw(self, degree: int) -> Tuple[bool, bool]:
+    def turn_ccw(self, degree: int) -> tuple[bool, bool]:
         print(f"-> Turning CCW {degree} degrees")
         self.robot.send_command_hover(0, 0, 0, 0)
         self.robot.send_command_position(0, 0, 0, degree)
@@ -151,7 +150,7 @@ class GearWrapper(RobotWrapper):
         #     return True, True
         return True, False
 
-    def turn_cw(self, degree: int) -> Tuple[bool, bool]:
+    def turn_cw(self, degree: int) -> tuple[bool, bool]:
         print(f"-> Turning CW {degree} degrees")
         self.robot.send_command_hover(0, 0, 0, 0)
         self.robot.send_command_position(0, 0, 0, -degree)
@@ -162,7 +161,7 @@ class GearWrapper(RobotWrapper):
         #     return True, True
         return True, False
     
-    def move_in_circle(self, cw) -> Tuple[bool, bool]:
+    def move_in_circle(self, cw) -> tuple[bool, bool]:
         if cw:
             vy = -8
             vr = -12
