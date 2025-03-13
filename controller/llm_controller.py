@@ -104,6 +104,7 @@ class LLMController():
         return image
     
     def execute_minispec(self, json_output: Stream | str):
+        return
         interpreter = MiniSpecInterpreter(self.message_queue)
         interpreter.execute(json_output)
         self.execution_history = interpreter.execution_history

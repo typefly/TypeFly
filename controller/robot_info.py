@@ -1,18 +1,19 @@
 import json
+from typing import Optional
 
 class RobotInfo:
-    def __init__(self, robot_id: str, robot_type: str, extra: dict = None):
+    def __init__(self, robot_id: str, robot_type: str, extra: Optional[dict] = None):
         self.robot_id = robot_id
         self.robot_type = robot_type
         self.extra = extra
     
     def __hash__(self) -> int:
-        return hash((self.robot_id, self.robot_type))
+        return hash(self.robot_id)
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, RobotInfo):
             return False
-        return self.robot_id == other.robot_id and self.robot_type == other.robot_type
+        return self.robot_id == other.robot_id
     
     def to_dict(self) -> dict:
         info = {
@@ -25,6 +26,11 @@ class RobotInfo:
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict())
+    
+    def get_robot_type(self, true_type: bool=True) -> str:
+        if not true_type and self.robot_type == "virtual":
+            return "tello"
+        return self.robot_type
     
     @classmethod
     def from_dict(cls, data: dict) -> 'RobotInfo':

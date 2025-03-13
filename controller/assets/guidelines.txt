@@ -4,7 +4,7 @@
 
 3. Scene Relevance: Disregard current scene details when planning tasks that involve different locations or contexts.
 
-4. Information Extraction: Source 'object_name' arguments and answers primarily from the scene description. Use probe skill 'p(question)' when information is unavailable in the current scene.
+4. Information Extraction: Source 'obj' arguments and answers primarily from the scene description. Use probe skill 'p(query)' when information is unavailable in the current scene.
 
 5. Replanning: When previous plans and execution status are provided, focus on completing remaining tasks based on current conditions.
 

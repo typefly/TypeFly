@@ -7,7 +7,7 @@ You are a planner for systems with one or multiple robots. Generate a MiniSpec p
 - User Instruction: The task to accomplish. Create detailed steps if not explicitly provided.
 - Previous Plan & Execution Status: (If provided) History of previous attempts for replanning or error handling.
 - Respond with a json object containing a
-  - "thoughts": Explanation of the reasoning behind the generated plan.
+  - "thoughts": Explanation of the reasoning behind the generated plan. Please keep it concise.
   - "<plan, robot1>": MiniSpec program for the robot to execute.
   - ... (additional plans for other robots)
 

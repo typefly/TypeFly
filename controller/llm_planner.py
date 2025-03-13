@@ -38,14 +38,14 @@ class LLMPlanner():
         for robot in self.robot_list:
             info = robot.robot_info
 
-            robot_skills += f"### {info.robot_id} ({info.robot_type if info.robot_type != 'virtual' else 'tello'})\n"
+            robot_skills += f"### {info.robot_id} ({info.get_robot_type(False)})\n"
             robot_skills += f"#### Low-level skills\n"
             robot_skills += str(robot.ll_skillset)
             if robot.hl_skillset is not None:
                 robot_skills += f"\n#### High-level skills\n"
                 robot_skills += str(robot.hl_skillset)
 
-            scene_description += f"### {info.robot_id} ({info.robot_type if info.robot_type != 'virtual' else 'tello'})\n"
+            scene_description += f"### {info.robot_id} ({info.get_robot_type(False)})\n"
             scene_description += robot.get_obj_list_str() + "\n"
 
         print(f"{robot_skills}")
