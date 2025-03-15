@@ -77,7 +77,7 @@ class SkillSet():
         return string
     
     @staticmethod
-    def get_common_skillset(movement_skills: list[callable], vision_skills: list[callable], system_skills: list[callable]) -> 'SkillSet':
+    def get_common_skillset(movement_skills: list[callable], vision_skills: list[callable], other_skills: list[callable]) -> 'SkillSet':
         skillset = SkillSet(level=SkillSetLevel.LOW)
         skillset.add_low_level_skill("move_forward", movement_skills[0], "Move forward by distance", args=[SkillArg("dist", int)])
         skillset.add_low_level_skill("move_backward", movement_skills[1], "Move backward by distance", args=[SkillArg("dist", int)])
@@ -91,12 +91,12 @@ class SkillSet():
         skillset.add_low_level_skill("object_y", vision_skills[2], "Get object's y position (0-1)", args=[SkillArg("obj", str)])
         skillset.add_low_level_skill("object_width", vision_skills[3], "Get object's width (0-1)", args=[SkillArg("obj", str)])
         skillset.add_low_level_skill("object_height", vision_skills[4], "Get object's height (0-1)", args=[SkillArg("obj", str)])
+        skillset.add_low_level_skill("take_picture", vision_skills[5], "Take a picture")
 
-        skillset.add_low_level_skill("log", system_skills[0], "Print text to user", args=[SkillArg("text", str)])
-        skillset.add_low_level_skill("delay", system_skills[1], "Wait for seconds", args=[SkillArg("sec", float)])
-        skillset.add_low_level_skill("take_picture", system_skills[2], "Take a picture")
-        skillset.add_low_level_skill("re_plan", system_skills[3], "Trigger replanning")
-        skillset.add_low_level_skill("probe", system_skills[4], "Query LLM for reasoning", args=[SkillArg("query", str)])
+        skillset.add_low_level_skill("log", other_skills[0], "Print text to user", args=[SkillArg("text", str)])
+        skillset.add_low_level_skill("delay", other_skills[1], "Wait for seconds", args=[SkillArg("sec", float)])
+        skillset.add_low_level_skill("re_plan", other_skills[2], "Trigger replanning")
+        skillset.add_low_level_skill("probe", other_skills[3], "Query LLM for reasoning", args=[SkillArg("query", str)])
 
         return skillset
     

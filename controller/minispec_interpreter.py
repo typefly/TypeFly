@@ -8,6 +8,7 @@ from queue import Queue
 from openai import Stream
 
 from .robot_wrapper import RobotWrapper
+from .robot_info import RobotInfo
 from .skill_item import SKILL_RET_TYPE
 from .skillset import SkillSet
 from .utils import split_args, print_t
@@ -51,18 +52,21 @@ class ProgramParsingState(Enum):
     NONE = auto()
     JSON_BEGIN = auto()
     PREFIX = auto()
+    ROBOT_ID = auto()
     QUOTATION_START = auto()
     PLAN = auto()
     QUOTATION_END = auto()
     JSON_END = auto()
 
 class MiniSpecProgram:
-    def __init__(self, robot: RobotWrapper, message_queue: queue.Queue=None) -> None:
+    def __init__(self, robot_dict: dict[RobotInfo, RobotWrapper], message_queue: queue.Queue=None) -> None:
         self.parse_state: ProgramParsingState = ProgramParsingState.NONE
         self.parse_buffer: str = ''
         self.skip: int = 0
 
-        self.statement = Statement({}, robot)
+        self.statement = None
+        self.robot_dict = robot_dict
+        self.selected_robot = None
         self.message_queue = message_queue
 
     def parse(self, json_output: Stream | str, stream_interpreting: bool=False) -> bool:
@@ -94,36 +98,51 @@ class MiniSpecProgram:
                         self.parse_buffer += c
                         if self.parse_buffer == LLM_PLAN_START_PREFIX:
                             self.parse_buffer = ''
-                            self.parse_state = ProgramParsingState.QUOTATION_START
+                            self.parse_state = ProgramParsingState.ROBOT_ID
+                            self.skip = 1
                         elif not LLM_PLAN_START_PREFIX.startswith(self.parse_buffer):
                             self.parse_state = ProgramParsingState.JSON_BEGIN
+
+                    case ProgramParsingState.ROBOT_ID:
+                        if c == '>':
+                            self.parse_state = ProgramParsingState.QUOTATION_START
+                            # match the id with the robot list
+                            for robot_info, robot in self.robot_dict.items():
+                                if robot_info.robot_id == self.parse_buffer:
+                                    self.selected_robot = robot
+                                    break
+                            if not self.selected_robot:
+                                raise Exception(f'Invalid robot id: {self.parse_buffer}')
+                        else:
+                            self.parse_buffer += c
                     case ProgramParsingState.QUOTATION_START:
                         if c == ':':
                             self.parse_buffer = c
                         elif self.parse_buffer == ':' and c == '"':
                             self.parse_buffer = ''
                             self.parse_state = ProgramParsingState.PLAN
+                            self.statement = Statement({}, self.selected_robot)
                             self.statement.parse('{')
                         else:
                             continue
                     case ProgramParsingState.PLAN:
                         if c == '"':
                             self.parse_state = ProgramParsingState.QUOTATION_END
-                            self.statement.parse('}')
-                            # print(self.statement.to_string())
-                            if self.statement.finished:
+                            if self.statement.parse('}'):
+                                # print(self.statement.to_string())
                                 return True
                         else:
                             # Send the code piece to the message queue
                             if self.message_queue:
                                 self.message_queue.put(c + '\\\\')
 
-                            # TODO: test executable
-                            if stream_interpreting and self.statement.executable:
-                                # Send the statement to the execution queue
-                                print(f'Adding statement: {self.statement}')
-
                             self.statement.parse(c, stream_interpreting)
+                            # # TODO: test executable
+                            # if stream_interpreting and self.statement.executable and not self.statement.running:
+                            #     # Send the statement to the execution queue
+                            #     print(f'##### Statement executable: {self.statement.action}')
+                            #     self.statement.running = True
+                            #     Statement.execution_queue.put(self.statement)
 
                     case ProgramParsingState.QUOTATION_END:
                         if c == '}':
@@ -173,7 +192,6 @@ class Statement:
         self.quotation: bool = False
 
         self.executable: bool = False
-        self.finished: bool = False
 
         self.ret: bool = False
         self.env = env
@@ -257,19 +275,20 @@ class Statement:
                     if not self.quotation and (c == ';' or c == '}'):
                         self.sub_statements.append(self.parse_buffer)
                         self.executable = True
-                        self.finished = True
                         return True
                     else:
                         self.parse_buffer += c
 
                 case CodeAction.SEQ:
-                    if self.current_statement.parse(c):
-                        self.sub_statements.append(self.current_statement)
-                        self.current_statement = Statement(self.env, self.robot)
-                        self.current_statement.parse(c)
+                    done = self.current_statement.parse(c)
 
                     if self.current_statement.executable:
                         self.executable = True
+
+                    if done:
+                        self.sub_statements.append(self.current_statement)
+                        self.current_statement = Statement(self.env, self.robot)
+                        self.current_statement.parse(c)
 
                     if self.quotation:
                         continue
@@ -279,14 +298,12 @@ class Statement:
                     elif c == '}':
                         self.parse_depth -= 1
                         if self.parse_depth == 0:
-                            self.finished = True
                             return True
 
                 case CodeAction.IF:
                     match self.parse_state:
                         case StatementParsingState.DEFAULT:
                             if c != ':':
-                                self.finished = True
                                 return True
                             else:
                                 self.parse_state = StatementParsingState.ELSE_SUB_STATEMENT
@@ -338,20 +355,20 @@ class Statement:
                             else:
                                 raise Exception(f'Invalid loop count: {self.parse_buffer}')
                         case StatementParsingState.DEFAULT:
-                            if self.current_statement.parse(c):
-                                self.sub_statements.append(self.current_statement)
-                                self.finished = True
-                                return True
-                            
+                            done = self.current_statement.parse(c)
                             if self.current_statement.executable:
                                 self.executable = True
+
+                            if done:
+                                self.sub_statements.append(self.current_statement)
+                                return True
+                            
         return False
     
     def eval(self) -> MiniSpecReturnValue:
         _print_debug(f'Eval statement: {self.action} {self.condition} {self.loop_count}')
-        # TODO: check this
-        # while not self.executable:
-        #     time.sleep(0.1)
+        while not self.executable:
+            time.sleep(0.1)
         default_ret_val = MiniSpecReturnValue.default()
 
         match self.action:
@@ -393,52 +410,7 @@ class Statement:
 
             case CodeAction.NONE:
                 raise Exception('Invalid action')
-            
         return default_ret_val
-
-        if self.action == 'if':
-            ret_val = self.eval_condition(self.condition)
-            if ret_val.replan:
-                return ret_val
-            if ret_val.value:
-                _print_debug(f'-> eval condition statement: {self.sub_statements}')
-                ret_val = self.sub_statements.eval()
-                if ret_val.replan or self.sub_statements.ret:
-                    self.ret = True
-                return ret_val
-            else:
-                return MiniSpecReturnValue.default()
-        elif self.action == 'loop':
-            _print_debug(f'-> eval loop statement: {self.loop_count} {self.sub_statements}')
-            ret_val = MiniSpecReturnValue.default()
-            for _ in range(self.loop_count):
-                _print_debug(f'-> loop iteration: {ret_val}')
-                ret_val = self.sub_statements.eval()
-                if ret_val.replan or self.sub_statements.ret:
-                    self.ret = True
-                    return ret_val
-            return ret_val
-        else:
-            self.ret = False
-            return self.eval_expr(self.action)
-    
-    # def eval_action(self, action: str) -> MiniSpecReturnValue:
-    #     action = action.strip()
-    #     _print_debug(f'Eval action: {action}')
-        
-    #     if '=' in action:
-    #         var, expr = action.split('=')
-    #         _print_debug(f'Assignment: Var: {var.strip()}, Val: {expr.strip()}')
-    #         expr = expr.strip()
-    #         ret_val = self.eval_function(expr.strip())
-    #         if not ret_val.replan:
-    #             self.env[var.strip()] = ret_val.value
-    #         return ret_val
-    #     elif action.startswith('->'):
-    #         self.ret = True
-    #         return self.eval_expr(action.lstrip("->"))
-    #     else:
-    #         return self.eval_function(action)
 
     def eval_function(self, func: str) -> MiniSpecReturnValue:
         _print_debug(f'Eval function: {func}')
@@ -592,18 +564,14 @@ class Statement:
         return MiniSpecReturnValue(cmp, False)
 
 class MiniSpecInterpreter:
-    def __init__(self, message_queue: queue.Queue, robot: RobotWrapper):
-        self.execution_history = []
-        self.execution_thread = Thread(target=self.executor)
-        self.execution_thread.start()
-
-        self.timestamp_get_plan = None
-        self.timestamp_start_execution = None
-        self.timestamp_end_execution = None
-
-        self.program_count = 0
+    def __init__(self, message_queue: queue.Queue, robot_dict: dict[RobotInfo, RobotWrapper]):
+        self.robot_dict = robot_dict
         self.message_queue = message_queue
-        self.robot = robot
+
+        self.execution_history = []
+
+        self.program = None
+        self.execution_thread = Thread(target=self.executor)
 
     def execute(self, json_output: Stream | str) -> MiniSpecReturnValue:
         self.execution_history = []
@@ -611,41 +579,23 @@ class MiniSpecInterpreter:
 
         stream_interpreting = False if isinstance(json_output, str) else True
 
-        program = MiniSpecProgram(self.robot, self.message_queue)
-        program.parse(json_output, stream_interpreting)
-        self.program_count = len(program.statements)
+        if stream_interpreting:
+            self.execution_thread.start()
+
+        self.program = MiniSpecProgram(self.robot_dict, self.message_queue)
+        self.program.parse(json_output, stream_interpreting)
 
         if stream_interpreting:
             print_t(f"[M] Program received in {time.time() - self.timestamp_get_plan}s")
         else:
             print_t("[M] Start normal execution")
-            program.eval()
+            self.program.eval()
 
     def executor(self):
         while True:
-            if not Statement.execution_queue.empty():
-                if self.timestamp_start_execution is None:
-                    self.timestamp_start_execution = time.time()
-                    print_t(">>> Start execution")
-                statement = Statement.execution_queue.get()
-                _print_debug(f'Queue get statement: {statement}')
-                ret_val = statement.eval()
-                print_t(f'Queue statement done: {statement}')
-                if statement.ret:
-                    while not Statement.execution_queue.empty():
-                        Statement.execution_queue.get()
-                    self.ret_queue.put(ret_val)
-                    return
-                self.execution_history.append(statement)
-                # if ret_val.replan:
-                #     print_t(f'Queue statement replan: {statement}')
-                #     self.ret_queue.put(ret_val)
-                #     return
-                self.program_count -= 1
-                if self.program_count == 0:
-                    self.timestamp_end_execution = time.time()
-                    print_t(f'>>> Execution time: {self.timestamp_end_execution - self.timestamp_start_execution}')
-                    self.timestamp_start_execution = None
-                    return
+            if self.program and self.program.statement and self.program.statement.executable:
+                print_t("[M] Start execution")
+                self.program.statement.eval()
+                return
             else:
                 time.sleep(0.005)

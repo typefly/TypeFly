@@ -31,20 +31,17 @@ class LLMController():
         self.cache_folder = CACHE_DIR
         os.makedirs(self.cache_folder, exist_ok=True)
 
-        self.system_skill_func = [
-            self.system_skill_log,
-            self.system_skill_delay,
-            self.system_skill_take_picture,
-            self.system_skill_re_plan,
-            self.system_skill_probe
+        self.controller_func = [
+            self.user_log,
+            self.probe
         ]
 
         self.robots: dict[RobotInfo, RobotWrapper] = {}
         for info in robot_info_list:
             if info.robot_type == "virtual":
-                self.robots[info] = VirtualRobotWrapper(info, self.system_skill_func)
+                self.robots[info] = VirtualRobotWrapper(info, self.controller_func)
             elif info.robot_type == "tello":
-                self.robots[info] = TelloWrapper(info, self.system_skill_func)
+                self.robots[info] = TelloWrapper(info, self.controller_func)
             # elif info.robot_type == "go2":
             #     pass
         
@@ -53,28 +50,19 @@ class LLMController():
         self.current_plan = None
         self.execution_history = None
 
-    ### system skills
-    def system_skill_log(self, text: str) -> tuple[None, bool]:
-        self._send_message(f"[LOG] {text}")
-        print_t(f"[LOG] {text}")
-        return None, False
-    
-    def system_skill_delay(self, sec: float) -> tuple[None, bool]:
-        time.sleep(sec)
-        return None, False
-    
-    def system_skill_take_picture(self) -> tuple[None, bool]:
-        img_path = os.path.join(self.cache_folder, f"{uuid.uuid4()}.jpg")
-        Image.fromarray(self.latest_frame).save(img_path)
-        print_t(f"[C] Picture saved to {img_path}")
-        self._send_message((img_path,))
-        return None, False
-    
-    def system_skill_re_plan(self) -> tuple[None, bool]:
-        return None, True
+    def user_log(self, text: str | Image.Image) -> tuple[None, bool]:
+        if isinstance(text, Image.Image):
+            img_path = os.path.join(self.cache_folder, f"{uuid.uuid4()}.jpg")
+            text.save(img_path)
+            self._send_message((img_path,))
+            print_t(f"[C] Picture saved to {img_path}")
+        else:
+            self._send_message(f"[LOG] {text}")
+            print_t(f"[LOG] {text}")
+        return True, False
 
-    def system_skill_probe(self, query: str) -> tuple[Optional[str], bool]:
-        pass
+    def probe(self, query: str) -> tuple[Optional[str], bool]:
+        self.planner.probe(query), False
 
     def _send_message(self, message: str):
         if self.message_queue is not None:
@@ -104,12 +92,8 @@ class LLMController():
         return image
     
     def execute_minispec(self, json_output: Stream | str):
-        return
-        interpreter = MiniSpecInterpreter(self.message_queue)
+        interpreter = MiniSpecInterpreter(self.message_queue, self.robots)
         interpreter.execute(json_output)
-        self.execution_history = interpreter.execution_history
-        ret_val = interpreter.ret_queue.get()
-        return ret_val
 
     def handle_task(self, user_instruction: str):
         self._send_message('[TASK]: ' + user_instruction)

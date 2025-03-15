@@ -48,17 +48,15 @@ class LLMPlanner():
             scene_description += f"### {info.robot_id} ({info.get_robot_type(False)})\n"
             scene_description += robot.get_obj_list_str() + "\n"
 
-        print(f"{robot_skills}")
-        print(f"{scene_description}")
         prompt = self.prompt_plan.format(guidelines=self.guidelines,
                                          robot_skills=robot_skills,
                                          example_plans=self.example_plans,
                                          scene_description=scene_description,
                                          user_instruction=user_instruction)
-        print_t(f"[P] Prompt: {prompt}")
+
         return self.llm.request(prompt, self.model_type, stream=False)
     
     def probe(self, query: str) -> SKILL_RET_TYPE:
         prompt = self.prompt_probe.format(scene_description=self.vision_skill.get_obj_list(), query=query)
         print_t(f"[P] Execution request: {query}")
-        return evaluate_value(self.llm.request(prompt, self.model_type)), False
+        return evaluate_value(self.llm.request(prompt, self.model_type))

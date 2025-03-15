@@ -67,9 +67,10 @@ class RobotObservation(ABC):
         pass
 
 class RobotWrapper(ABC):
-    def __init__(self, robot_info: RobotInfo, observation: RobotObservation, system_skill_func: list[callable]):
+    def __init__(self, robot_info: RobotInfo, observation: RobotObservation, controller_func: list[callable]):
         self.robot_info = robot_info
         self._observation = observation
+        self._user_log = controller_func[0]
         common_movement_skill_func = [
             self.move_forward,
             self.move_backward,
@@ -84,10 +85,18 @@ class RobotWrapper(ABC):
             self.object_x,
             self.object_y,
             self.object_width,
-            self.object_height
+            self.object_height,
+            self.take_picture
         ]
 
-        self.ll_skillset: SkillSet = SkillSet.get_common_skillset(common_movement_skill_func, common_vision_skill_func, system_skill_func)
+        other_skills = [
+            self.log,
+            self.delay,
+            self.re_plan,
+            controller_func[1]
+        ]
+
+        self.ll_skillset: SkillSet = SkillSet.get_common_skillset(common_movement_skill_func, common_vision_skill_func, other_skills)
         self.hl_skillset: Optional[SkillSet] = None
 
     @abstractmethod
@@ -172,3 +181,16 @@ class RobotWrapper(ABC):
     
     def object_height(self, object_name: str) -> tuple[float | str, bool]:
         return self._get_object_attribute(object_name, 'h')
+    
+    def take_picture(self) -> tuple[bool, bool]:
+        return self._user_log(self.observation.image)
+    
+    def log(self, message: str) -> tuple[None, bool]:
+        return self._user_log(message)
+
+    def delay(self, sec: float) -> tuple[None, bool]:
+        time.sleep(sec)
+        return None, False
+    
+    def re_plan(self) -> tuple[None, bool]:
+        return None, True
