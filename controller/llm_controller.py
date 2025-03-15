@@ -31,7 +31,7 @@ class LLMController():
         self.cache_folder = CACHE_DIR
         os.makedirs(self.cache_folder, exist_ok=True)
 
-        system_skill_func = [
+        self.system_skill_func = [
             self.system_skill_log,
             self.system_skill_delay,
             self.system_skill_take_picture,
@@ -42,9 +42,9 @@ class LLMController():
         self.robots: dict[RobotInfo, RobotWrapper] = {}
         for info in robot_info_list:
             if info.robot_type == "virtual":
-                self.robots[info] = VirtualRobotWrapper(info, system_skill_func)
+                self.robots[info] = VirtualRobotWrapper(info, self.system_skill_func)
             elif info.robot_type == "tello":
-                self.robots[info] = TelloWrapper(info, system_skill_func)
+                self.robots[info] = TelloWrapper(info, self.system_skill_func)
             # elif info.robot_type == "go2":
             #     pass
         

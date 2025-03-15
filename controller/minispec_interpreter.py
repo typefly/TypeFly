@@ -6,6 +6,8 @@ import time
 from threading import Thread
 from queue import Queue
 from openai import Stream
+
+from .robot_wrapper import RobotWrapper
 from .skill_item import SKILL_RET_TYPE
 from .skillset import SkillSet
 from .utils import split_args, print_t
@@ -26,7 +28,7 @@ def evaluate_value(value: str) -> SKILL_RET_TYPE:
     elif value == 'None' or len(value) == 0:
         return None
     else:
-        return value.strip('\'"')
+        return value
 
 @dataclass
 class MiniSpecReturnValue:
@@ -55,18 +57,12 @@ class ProgramParsingState(Enum):
     JSON_END = auto()
 
 class MiniSpecProgram:
-    def __init__(self, env: Optional[dict]=None, message_queue: queue.Queue=None) -> None:
+    def __init__(self, robot: RobotWrapper, message_queue: queue.Queue=None) -> None:
         self.parse_state: ProgramParsingState = ProgramParsingState.NONE
         self.parse_buffer: str = ''
         self.skip: int = 0
-  
-        self.finished = False
-        self.ret = False
-        self.env = env or {}
 
-        self.statements: list[Statement] = []
-        self.current_statement = None
-
+        self.statement = Statement({}, robot)
         self.message_queue = message_queue
 
     def parse(self, json_output: Stream | str, stream_interpreting: bool=False) -> bool:
@@ -107,70 +103,45 @@ class MiniSpecProgram:
                         elif self.parse_buffer == ':' and c == '"':
                             self.parse_buffer = ''
                             self.parse_state = ProgramParsingState.PLAN
-                            self.current_statement = Statement(self.env)
+                            self.statement.parse('{')
                         else:
                             continue
                     case ProgramParsingState.PLAN:
                         if c == '"':
                             self.parse_state = ProgramParsingState.QUOTATION_END
+                            self.statement.parse('}')
+                            # print(self.statement.to_string())
+                            if self.statement.finished:
+                                return True
                         else:
                             # Send the code piece to the message queue
                             if self.message_queue:
                                 self.message_queue.put(c + '\\\\')
 
-                            if stream_interpreting and self.current_statement.executable:
+                            # TODO: test executable
+                            if stream_interpreting and self.statement.executable:
                                 # Send the statement to the execution queue
-                                print(f'Adding statement: {self.current_statement}')
+                                print(f'Adding statement: {self.statement}')
 
-                            if self.current_statement.finished:
-                                self.statements.append(self.current_statement)
-                                self.current_statement = Statement(self.env)
-
-                            self.current_statement.parse(c, stream_interpreting)
+                            self.statement.parse(c, stream_interpreting)
 
                     case ProgramParsingState.QUOTATION_END:
                         if c == '}':
                             self.parse_state = ProgramParsingState.JSON_END
                     
                     case ProgramParsingState.JSON_END:
-                        return True
+                        return False
         return False
     
     def eval(self) -> MiniSpecReturnValue:
-        _print_debug(f'Eval program: {self}, finished: {self.finished}')
-        ret_val = MiniSpecReturnValue.default()
-        count = 0
-        while not self.finished:
-            if len(self.statements) <= count:
-                time.sleep(0.1)
-                continue
-            ret_val = self.statements[count].eval()
-            if ret_val.replan or self.statements[count].ret:
-                _print_debug(f'RET from {self.statements[count]} with {ret_val} {self.statements[count].ret}')
-                self.ret = True
-                return ret_val
-            count += 1
-        if count < len(self.statements):
-            for i in range(count, len(self.statements)):
-                ret_val = self.statements[i].eval()
-                if ret_val.replan or self.statements[i].ret:
-                    _print_debug(f'RET from {self.statements[i]} with {ret_val} {self.statements[i].ret}')
-                    self.ret = True
-                    return ret_val
-        return ret_val
-    
-    def __repr__(self) -> str:
-        s = ''
-        for statement in self.statements:
-            s += f'{statement}; '
-        return s
+        return self.statement.eval()
     
 class CodeAction(Enum):
     NONE = auto()
-    ATOMIC = auto()
-    SEQ = auto()
-    IF = auto()
-    LOOP = auto()
+    ATOMIC = auto() # single statement
+    SEQ = auto()    # sequence of statements
+    IF = auto()     # if statement
+    LOOP = auto()   # loop statement
 
 class StatementParsingState(Enum):
     DEFAULT = auto()
@@ -181,15 +152,21 @@ class StatementParsingState(Enum):
     ELSE_SUB_STATEMENT = auto()
 
 class Statement:
-    def __init__(self, env: dict):
+    def __init__(self, env: dict, robot: RobotWrapper):
         self.parse_state = StatementParsingState.DEFAULT
         self.parse_buffer: str = ''
         self.parse_depth: int = 0
 
         self.action = CodeAction.NONE
-        self.condition: list[str] = []
+        self.condition: list[str] = [] # for `if`, `elif`, ...
         self.loop_count: int = 0
         self.current_statement = None
+
+        # ATOMIC: single statement
+        # SEQ: list of statements
+        # IF: list of statements corresponding to conditions.
+        #     The last statement is the `else` statement if len(sub_statements) > len(condition).
+        # LOOP: single statement
         self.sub_statements: list[str | 'Statement'] = []
         
         self.allow_digit: bool = False
@@ -200,6 +177,7 @@ class Statement:
 
         self.ret: bool = False
         self.env = env
+        self.robot = robot
 
     def to_string(self, depth: int=0) -> str:
         indent = '_-_-'
@@ -247,7 +225,6 @@ class Statement:
         for c in code:
             if c == ' ' and not self.quotation:
                 continue
-
             # print('--' * self.depth + f'-> {c}, action: {self.action}, state: {self.parse_state}')
 
             if c == '\'':
@@ -257,7 +234,7 @@ class Statement:
                 case CodeAction.NONE:
                     if c == '{':
                         self.action = CodeAction.SEQ
-                        self.current_statement = Statement(self.env)
+                        self.current_statement = Statement(self.env, self.robot)
                         self.parse_depth += 1
                     elif c == '?':
                         self.action = CodeAction.IF
@@ -265,7 +242,7 @@ class Statement:
                         self.parse_state = StatementParsingState.CONDITION
                     elif c == ';' or c == '}':
                         return False
-                    elif c.isalpha() or c == '_':
+                    elif c.isalpha() or c == '_' or c == '-':
                         self.parse_buffer = c
                         self.action = CodeAction.ATOMIC
                         self.allow_digit = True
@@ -288,7 +265,8 @@ class Statement:
                 case CodeAction.SEQ:
                     if self.current_statement.parse(c):
                         self.sub_statements.append(self.current_statement)
-                        self.current_statement = Statement(self.env)
+                        self.current_statement = Statement(self.env, self.robot)
+                        self.current_statement.parse(c)
 
                     if self.current_statement.executable:
                         self.executable = True
@@ -317,7 +295,7 @@ class Statement:
                                 self.condition.append(self.parse_buffer)
                                 self.executable = True
                                 self.parse_state = StatementParsingState.IF_SUB_STATEMENT
-                                self.current_statement = Statement(self.env)
+                                self.current_statement = Statement(self.env, self.robot)
                                 self.current_statement.parse(c)
                                 self.parse_depth += 1
                             else:
@@ -326,7 +304,7 @@ class Statement:
                         case StatementParsingState.IF_SUB_STATEMENT:
                             if self.current_statement.parse(c):
                                 self.sub_statements.append(self.current_statement)
-                                self.current_statement = Statement(self.env)
+                                self.current_statement = Statement(self.env, self.robot)
 
                             if c == '{':
                                 self.parse_depth += 1
@@ -339,7 +317,7 @@ class Statement:
                                 self.parse_buffer = ''
                                 self.parse_state = StatementParsingState.CONDITION
                             elif c == '{':
-                                self.current_statement = Statement(self.env)
+                                self.current_statement = Statement(self.env, self.robot)
                                 self.current_statement.parse(c)
                                 self.parse_state = StatementParsingState.IF_SUB_STATEMENT
                                 self.parse_depth += 1
@@ -353,7 +331,7 @@ class Statement:
                                 self.loop_count = int(self.parse_buffer)
                                 self.parse_buffer = ''
                                 self.parse_state = StatementParsingState.DEFAULT
-                                self.current_statement = Statement(self.env)
+                                self.current_statement = Statement(self.env, self.robot)
                                 self.current_statement.parse(c)
                             elif c.isdigit():
                                 self.parse_buffer += c
@@ -370,9 +348,54 @@ class Statement:
         return False
     
     def eval(self) -> MiniSpecReturnValue:
-        _print_debug(f'Statement eval: {self} {self.action} {self.condition} {self.loop_count}')
-        while not self.executable:
-            time.sleep(0.1)
+        _print_debug(f'Eval statement: {self.action} {self.condition} {self.loop_count}')
+        # TODO: check this
+        # while not self.executable:
+        #     time.sleep(0.1)
+        default_ret_val = MiniSpecReturnValue.default()
+
+        match self.action:
+            case CodeAction.ATOMIC:
+                assert len(self.sub_statements) == 1 and isinstance(self.sub_statements[0], str)
+                print(f'-> eval atomic statement: {self.sub_statements[0]}')
+                self.eval_expr(self.sub_statements[0])
+            case CodeAction.SEQ:
+                for statement in self.sub_statements:
+                    ret_val = statement.eval()
+                    if ret_val.replan or statement.ret:
+                        self.ret = True
+                        return ret_val
+
+            case CodeAction.IF:
+                for i in range(len(self.condition)):
+                    condition_val = self.eval_condition(self.condition[i])
+                    if condition_val.replan:
+                        return condition_val
+                    if condition_val.value != False:
+                        ret_val = self.sub_statements[i].eval()
+                        if self.sub_statements[i].ret:
+                            self.ret = True
+                        return ret_val
+                
+                if len(self.sub_statements) > len(self.condition):
+                    ret_val = self.sub_statements[-1].eval()
+                    if self.sub_statements[-1].ret:
+                        self.ret = True
+                    return ret_val
+
+            case CodeAction.LOOP:
+                assert len(self.sub_statements) == 1
+                for i in range(self.loop_count):
+                    ret_val = self.sub_statements[0].eval()
+                    if ret_val.replan or self.sub_statements[0].ret:
+                        self.ret = True
+                        return ret_val
+
+            case CodeAction.NONE:
+                raise Exception('Invalid action')
+            
+        return default_ret_val
+
         if self.action == 'if':
             ret_val = self.eval_condition(self.condition)
             if ret_val.replan:
@@ -419,41 +442,48 @@ class Statement:
 
     def eval_function(self, func: str) -> MiniSpecReturnValue:
         _print_debug(f'Eval function: {func}')
-        # append to execution state queue
-        func = func.split('(', 1)
-        name = func[0].strip()
-        if len(func) == 2:
-            args = func[1].strip()[:-1]
-            args = split_args(args)
-            for i in range(0, len(args)):
-                args[i] = args[i].strip().strip('\'"')
-                if args[i].startswith('_'):
-                    args[i] = self._get_env(args[i])
-        else:
+
+        lp = func.find('(')
+        rp = func.rfind(')')
+        if lp == -1 or rp == -1 or lp > rp:
+            raise Exception(f'Invalid function call: {func}')
+
+        func_name = func[:lp].strip()
+        args = func[lp + 1:rp].strip()
+
+        if len(args) == 0:
             args = []
+        else:
+            args = re.split(r",\s*(?![^()]*\))", args)
 
-        skill_instance = Statement.low_level_skillset.get_skill(name)
-        if skill_instance is not None:
-            _print_debug(f'Executing low-level skill: {skill_instance.get_name()} {args}')
-            return MiniSpecReturnValue.from_tuple(skill_instance.execute(args))
+        for i in range(len(args)):
+            val = self.eval_expr(args[i])
+            if val.replan:
+                return val
+            args[i] = val.value
+            
+        print(func_name, args)
 
-        skill_instance = Statement.high_level_skillset.get_skill(name)
-        if skill_instance is not None:
-            _print_debug(f'Executing high-level skill: {skill_instance.get_name()}', args, skill_instance.execute(args))
-            interpreter = MiniSpecProgram()
-            interpreter.parse([skill_instance.execute(args)])
-            interpreter.finished = True
-            val = interpreter.eval()
-            if val.value == 'rp':
-                return MiniSpecReturnValue(f'High-level skill {skill_instance.get_name()} failed', True)
+        ll_skill = self.robot.ll_skillset.get_skill(func_name)
+        if ll_skill:
+            _print_debug(f'Executing low-level skill: {ll_skill.name} {args}')
+            return MiniSpecReturnValue.from_tuple(ll_skill.execute(args))
+
+        hl_skill = self.robot.hl_skillset.get_skill(func_name)
+        if hl_skill:
+            _print_debug(f'Executing high-level skill: {hl_skill.name}', args, hl_skill.execute(args)[0])
+            s = Statement(self.env, self.robot)
+            s.parse(hl_skill.execute(args)[0])
+            val = s.eval()
             return val
-        raise Exception(f'Skill {name} is not defined')
+        
+        raise Exception(f'Skill {func_name} is not defined')
 
     def eval_expr(self, expr: str) -> MiniSpecReturnValue:
-        print_t(f'Eval expr: {expr}')
+        _print_debug(f'Eval expr: {expr}')
         expr = expr.strip()
         if len(expr) == 0:
-            raise Exception('Empty operand')
+            raise Exception('Empty expression')
         
         # Handle return value (->)
         if expr.startswith('->'):
@@ -464,7 +494,7 @@ class Statement:
         if expr.startswith('_') and '=' in expr:
             var, expr = expr.split('=', 1)
             var = var.strip()
-            print_t(f'Eval expr var assign: {var} {expr}')
+            _print_debug(f'Eval expr var assign: {var}={expr}')
             ret_val = self.eval_expr(expr)
             self.env[var] = ret_val.value
             return ret_val
@@ -561,42 +591,19 @@ class Statement:
         
         return MiniSpecReturnValue(cmp, False)
 
-    def __repr__(self) -> str:
-        s = ''
-        if self.action == 'if':
-            s += f'if {self.condition}'
-        elif self.action == 'loop':
-            s += f'[{self.loop_count}]'
-        else:
-            s += f'{self.action}'
-        if self.sub_statements is not None:
-            s += ' {'
-            for statement in self.sub_statements.statements:
-                s += f'{statement}; '
-            s += '}'
-        return s
-
 class MiniSpecInterpreter:
-    def __init__(self, message_queue: queue.Queue):
-        self.env = {}
-        self.ret = False
-        self.code_buffer: str = ''
-
+    def __init__(self, message_queue: queue.Queue, robot: RobotWrapper):
         self.execution_history = []
-        # if Statement.low_level_skillset is None or \
-        #     Statement.high_level_skillset is None:
-        #     raise Exception('Statement: Skillset is not initialized')
-        
-        Statement.execution_queue = Queue()
         self.execution_thread = Thread(target=self.executor)
         self.execution_thread.start()
 
         self.timestamp_get_plan = None
         self.timestamp_start_execution = None
         self.timestamp_end_execution = None
+
         self.program_count = 0
-        self.ret_queue = Queue()
         self.message_queue = message_queue
+        self.robot = robot
 
     def execute(self, json_output: Stream | str) -> MiniSpecReturnValue:
         self.execution_history = []
@@ -604,7 +611,7 @@ class MiniSpecInterpreter:
 
         stream_interpreting = False if isinstance(json_output, str) else True
 
-        program = MiniSpecProgram(message_queue=self.message_queue)
+        program = MiniSpecProgram(self.robot, self.message_queue)
         program.parse(json_output, stream_interpreting)
         self.program_count = len(program.statements)
 
@@ -614,7 +621,6 @@ class MiniSpecInterpreter:
             print_t("[M] Start normal execution")
             program.eval()
 
-    ### TODO: fix this
     def executor(self):
         while True:
             if not Statement.execution_queue.empty():
@@ -640,7 +646,6 @@ class MiniSpecInterpreter:
                     self.timestamp_end_execution = time.time()
                     print_t(f'>>> Execution time: {self.timestamp_end_execution - self.timestamp_start_execution}')
                     self.timestamp_start_execution = None
-                    self.ret_queue.put(ret_val)
                     return
             else:
                 time.sleep(0.005)

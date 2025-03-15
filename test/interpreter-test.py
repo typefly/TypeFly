@@ -1,16 +1,14 @@
 import sys
 sys.path.append("..")
+from controller.platforms.virtual_robot_wrapper import VirtualRobotWrapper
 from controller.llm_controller import LLMController
 from controller.minispec_interpreter import MiniSpecInterpreter, MiniSpecProgram
 
-controller = LLMController()
+llm_output = '```json\n{\n    \"thoughts\": \"The user instruction is to turn around, which typically means a 180-degree rotation. This can be achieved by using the turn_cw skill with 180 degrees.\",\n    \"<plan, robot1>\": \"s(\'bottle\')\"\n}\n```'
 
-MiniSpecInterpreter.low_level_skillset = controller.low_level_skillset
-MiniSpecInterpreter.high_level_skillset = controller.high_level_skillset
-interpreter = MiniSpecInterpreter()
+controller = LLMController([], None)
+robot = VirtualRobotWrapper(None, controller.system_skill_func)
 
-# print(interpreter.execute("8{_1=mr(50);?_1!=False{g('tiger');->True}tc(45)}"))
-# print(interpreter.execute("g('person')"))
-
-# interpreter.execute("8{_1=mr(50);?_1!=False{g('tiger');->True;}tc(45)};")
-interpreter.execute('?sa("edible object")!=False{tc(45)}tc(180);')
+program = MiniSpecProgram(robot)
+print(program.parse(llm_output))
+print(program.eval())

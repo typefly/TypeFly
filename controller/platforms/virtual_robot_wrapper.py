@@ -9,6 +9,8 @@ from ..robot_wrapper import RobotWrapper, RobotObservation
 from ..yolo_client import YoloClient
 from ..robot_info import RobotInfo
 
+SKILL_EXECUTION_TIME = 0.2
+
 class VirtualObservation(RobotObservation):
     def __init__(self, robot_info: RobotInfo, rate: int = 10):
         super().__init__(robot_info)
@@ -67,7 +69,7 @@ class VirtualRobotWrapper(RobotWrapper):
         high_level_skills = [
             {
                 "name": "scan",
-                "definition": "8{?is_visible($1)==True{->True}turn_cw(45)}->False",
+                "definition": "8{?is_visible($1){->True}turn_cw(45)}->False",
                 "description": "Rotate to find object $1 when it's *not* in current view"
             },
             {
@@ -82,7 +84,7 @@ class VirtualRobotWrapper(RobotWrapper):
             },
             {
                 "name": "goto",
-                "definition": "?orienting($1)==True{move_forward(80)}",
+                "definition": "?orienting($1){move_forward(80)}",
                 "description": "Move to object $1 in the view"
             }
         ]
@@ -104,25 +106,25 @@ class VirtualRobotWrapper(RobotWrapper):
     @overrides
     def move_forward(self, dist: int) -> tuple[bool, bool]:
         print(f"-> Moving forward {dist} cm")
-        time.sleep(1)
+        time.sleep(SKILL_EXECUTION_TIME)
         return True, False
 
     @overrides
     def move_backward(self, dist: int) -> tuple[bool, bool]:
         print(f"-> Moving backward {dist} cm")
-        time.sleep(1)
+        time.sleep(SKILL_EXECUTION_TIME)
         return True, False
 
     @overrides
     def move_left(self, dist: int) -> tuple[bool, bool]:
         print(f"-> Moving left {dist} cm")
-        time.sleep(1)
+        time.sleep(SKILL_EXECUTION_TIME)
         return True, False
 
     @overrides
     def move_right(self, dist: int) -> tuple[bool, bool]:
         print(f"-> Moving right {dist} cm")
-        time.sleep(1)
+        time.sleep(SKILL_EXECUTION_TIME)
         return True, False
 
     @overrides
@@ -131,7 +133,7 @@ class VirtualRobotWrapper(RobotWrapper):
         if deg >= 90:
             print("-> Turning CCW over 90 degrees")
             return True, False
-        time.sleep(1)
+        time.sleep(SKILL_EXECUTION_TIME)
         return True, False
 
     @overrides
@@ -140,15 +142,15 @@ class VirtualRobotWrapper(RobotWrapper):
         if deg >= 90:
             print("-> Turning CW over 90 degrees")
             return True, False
-        time.sleep(1)
+        time.sleep(SKILL_EXECUTION_TIME)
         return True, False
     
     def move_up(self, dist: int) -> tuple[bool, bool]:
         print(f"-> Moving up {dist} cm")
-        time.sleep(1)
+        time.sleep(SKILL_EXECUTION_TIME)
         return True, False
 
     def move_down(self, dist: int) -> tuple[bool, bool]:
         print(f"-> Moving down {dist} cm")
-        time.sleep(1)
+        time.sleep(SKILL_EXECUTION_TIME)
         return True, False

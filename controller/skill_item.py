@@ -142,7 +142,7 @@ class HighLevelSkillItem(SkillItem):
     @overrides
     def execute(self, arg_list: list[SKILL_ARG_TYPE]) -> tuple[SKILL_RET_TYPE, bool]:
         """Executes the skill with the provided arguments."""
-        if self.low_level_skillset is None:
+        if len(self.skill_set_list) < 2:
             raise ValueError("Low-level skillset is not set.")
         if len(arg_list) != len(self._args):
             raise ValueError(f"Expected {len(self._args)} arguments, but got {len(arg_list)}.")

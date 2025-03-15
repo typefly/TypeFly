@@ -22,7 +22,6 @@ class LLMWrapper:
             stream=stream,
         )
 
-        # save the message in a txt
         with open(CHAT_LOG_FILE, "a") as f:
             f.write(prompt + "\n---\n")
             if not stream:
