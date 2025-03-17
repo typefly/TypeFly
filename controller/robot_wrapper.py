@@ -7,6 +7,8 @@ from PIL import Image
 from .skillset import SkillSet
 from .robot_info import RobotInfo
 from .yolo_client import ObjectInfo
+from .skill_item import SKILL_RET_TYPE
+from .utils import evaluate_value
 
 class RobotObservation(ABC):
     def __init__(self, robot_info: RobotInfo):
@@ -71,6 +73,7 @@ class RobotWrapper(ABC):
         self.robot_info = robot_info
         self._observation = observation
         self._user_log = controller_func[0]
+        self._probe = controller_func[1]
         common_movement_skill_func = [
             self.move_forward,
             self.move_backward,
@@ -93,7 +96,7 @@ class RobotWrapper(ABC):
             self.log,
             self.delay,
             self.re_plan,
-            controller_func[1]
+            self.probe
         ]
 
         self.ll_skillset: SkillSet = SkillSet.get_common_skillset(common_movement_skill_func, common_vision_skill_func, other_skills)
@@ -106,10 +109,6 @@ class RobotWrapper(ABC):
     @abstractmethod
     def stop(self):
         pass
-
-    # some robots need to be kept active
-    def keep_alive(self):
-        return
 
     @property
     def observation(self) -> RobotObservation:
@@ -151,6 +150,8 @@ class RobotWrapper(ABC):
         return "\n".join([str(obj) for obj in object_list]).replace("'", "")
 
     def get_obj_info(self, object_name: str) -> ObjectInfo:
+        object_name = object_name.strip('\'').lower()
+
         # try to get the object info for 10 times
         for _ in range(10):
             object_list = self.get_obj_list()
@@ -194,3 +195,6 @@ class RobotWrapper(ABC):
     
     def re_plan(self) -> tuple[None, bool]:
         return None, True
+    
+    def probe(self, query: str) -> tuple[SKILL_RET_TYPE, bool]:
+        return evaluate_value(self._probe(query, self.robot_info)), False

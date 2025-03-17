@@ -10,7 +10,7 @@ Find a bottle, tell me it's height and take a picture of it.
 ## OUTPUT
 {
     "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
-    "<plan, robot1>": "?s('bottle')==True{g('bottle');_2=oh('bottle');l(_2);tp()}"
+    "<plan, robot1>": "?s('bottle'){g('bottle');_2=oh('bottle');l(_2);tp()}"
 }
 ```
 
@@ -62,7 +62,7 @@ Find and go any edible object.
 ## OUTPUT
 {
     "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
-    "<plan, robot1>": "_1=sd('Any edible object here?');?_1!=False{g(_1)}"
+    "<plan, robot1>": "?_1=sd('Any edible object here?'){g(_1)}"
 }
 ```
 
@@ -78,7 +78,7 @@ Turn with 30 degrees step until you can see a person.
 ## OUTPUT
 {
     "thoughts": "Use loop and is_visible to find a person.",
-    "<plan, robot1>": "12{?iv('person')==True{->True}tc(30)}->False"
+    "<plan, robot1>": "12{?iv('person'){->True}tc(30)}->False"
 }
 ```
 
@@ -127,6 +127,6 @@ Go to a chair with a laptop on it.
 ## OUTPUT
 {
     "thoughts": "Using scan_description to find the chair with a laptop on it.",
-    "<plan, robot1>": "_1=sd('Any chair with a laptop on it?');?_1!=False{g(_1)}"
+    "<plan, robot1>": "?_1=sd('Any chair with a laptop on it?'){g(_1)}"
 }
 ```

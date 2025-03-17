@@ -1,35 +1,18 @@
 from dataclasses import dataclass
-from typing import Optional
 import re, queue
 from enum import Enum, auto
 import time
 from threading import Thread
-from queue import Queue
 from openai import Stream
 
 from .robot_wrapper import RobotWrapper
 from .robot_info import RobotInfo
 from .skill_item import SKILL_RET_TYPE
-from .skillset import SkillSet
-from .utils import split_args, print_t
+from .utils import print_t, evaluate_value
 
 def _print_debug(*args):
     print(*args)
     # pass
-
-def evaluate_value(value: str) -> SKILL_RET_TYPE:
-    if value.isdigit():
-        return int(value)
-    elif value.replace('.', '', 1).isdigit():
-        return float(value)
-    elif value == 'True':
-        return True
-    elif value == 'False':
-        return False
-    elif value == 'None' or len(value) == 0:
-        return None
-    else:
-        return value
 
 @dataclass
 class MiniSpecReturnValue:
@@ -196,6 +179,21 @@ class Statement:
         self.ret: bool = False
         self.env = env
         self.robot = robot
+
+    def to_string_simple(self) -> str:
+        s = ''
+        if self.action == CodeAction.IF:
+            s += f'IF {self.condition[0]} {{...}}'
+        elif self.action == CodeAction.LOOP:
+            s += f'[{self.loop_count}] {{...}}'
+        elif self.action == CodeAction.SEQ:
+            s += '{...}'
+        elif self.action == CodeAction.ATOMIC:
+            s += f'{self.sub_statements[0]}'
+        else:
+            raise Exception('Invalid action')
+        
+        return s
 
     def to_string(self, depth: int=0) -> str:
         indent = '_-_-'
@@ -366,7 +364,7 @@ class Statement:
         return False
     
     def eval(self) -> MiniSpecReturnValue:
-        _print_debug(f'Eval statement: {self.action} {self.condition} {self.loop_count}')
+        _print_debug(f'Eval statement: {self.to_string_simple()}')
         while not self.executable:
             time.sleep(0.1)
         default_ret_val = MiniSpecReturnValue.default()
@@ -374,8 +372,7 @@ class Statement:
         match self.action:
             case CodeAction.ATOMIC:
                 assert len(self.sub_statements) == 1 and isinstance(self.sub_statements[0], str)
-                print(f'-> eval atomic statement: {self.sub_statements[0]}')
-                self.eval_expr(self.sub_statements[0])
+                return self.eval_expr(self.sub_statements[0])
             case CodeAction.SEQ:
                 for statement in self.sub_statements:
                     ret_val = statement.eval()
@@ -388,7 +385,8 @@ class Statement:
                     condition_val = self.eval_condition(self.condition[i])
                     if condition_val.replan:
                         return condition_val
-                    if condition_val.value != False:
+                    
+                    if condition_val.value == True:
                         ret_val = self.sub_statements[i].eval()
                         if self.sub_statements[i].ret:
                             self.ret = True
@@ -438,8 +436,9 @@ class Statement:
 
         ll_skill = self.robot.ll_skillset.get_skill(func_name)
         if ll_skill:
-            _print_debug(f'Executing low-level skill: {ll_skill.name} {args}')
-            return MiniSpecReturnValue.from_tuple(ll_skill.execute(args))
+            rslt = ll_skill.execute(args)
+            _print_debug(f'Executing low-level skill: {ll_skill.name} {args} {rslt}')
+            return MiniSpecReturnValue.from_tuple(rslt)
 
         hl_skill = self.robot.hl_skillset.get_skill(func_name)
         if hl_skill:
@@ -460,7 +459,7 @@ class Statement:
         # Handle return value (->)
         if expr.startswith('->'):
             self.ret = True
-            return MiniSpecReturnValue(self.eval_expr(expr.lstrip('->')).value, True)
+            return MiniSpecReturnValue(self.eval_expr(expr.lstrip('->')).value, False)
         
         # Handle variable assignment (_var = ...)
         if expr.startswith('_') and '=' in expr:
@@ -468,6 +467,7 @@ class Statement:
             var = var.strip()
             _print_debug(f'Eval expr var assign: {var}={expr}')
             ret_val = self.eval_expr(expr)
+            _print_debug(f'==> var assign: {var}={ret_val.value}')
             self.env[var] = ret_val.value
             return ret_val
         
@@ -538,7 +538,7 @@ class Statement:
             _print_debug(f'Condition ops: {operand_1.value} {comparator} {operand_2.value}')
         else:
             _print_debug(f'Condition ops: {operand_1.value}')
-            return MiniSpecReturnValue(operand_1.value, False)
+            return MiniSpecReturnValue(operand_1.value != False, False)
 
         if isinstance(operand_1.value, (int, float)) and isinstance(operand_2.value, (int, float)):
             operand_1.value = float(operand_1.value)

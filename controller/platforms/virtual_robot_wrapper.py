@@ -1,10 +1,9 @@
 import cv2, time
 import asyncio
 from PIL import Image
-from typing import Optional
 from overrides import overrides
 
-from controller.skillset import LowLevelSkillItem, SkillSet, SkillArg, SkillSetLevel, HighLevelSkillItem
+from ..skillset import SkillSet, SkillArg, SkillSetLevel
 from ..robot_wrapper import RobotWrapper, RobotObservation
 from ..yolo_client import YoloClient
 from ..robot_info import RobotInfo
@@ -79,7 +78,7 @@ class VirtualRobotWrapper(RobotWrapper):
             },
             {
                 "name": "orienting",
-                "definition": "4{_1=ox($1);?_1>0.6{tc(15)};?_1<0.4{tu(15)};_2=ox($1);?_2<0.6&_2>0.4{->True}}->False",
+                "definition": "4{_1=ox($1);?_1>0.6{tc(15)};?_1<0.4{tu(15)};_2=ox($1);?_2<0.6&&_2>0.4{->True}}->False",
                 "description": "Rotate to align with object $1",
             },
             {

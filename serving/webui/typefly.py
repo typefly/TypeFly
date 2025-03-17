@@ -53,14 +53,14 @@ class TypeFly:
             gr.HTML(generate_drone_povs(robot_info_list))
             gr.ChatInterface(self.ui_process_message, retry_btn=None, fill_height=False, examples=default_sentences).queue()
 
-    def ui_process_message(self, message, history):
+    def ui_process_message(self, message: str, history: list):
         print_t(f"[S] Receiving task description: {message}")
         if message == "exit":
             self.llm_controller.stop_controller()
             self.system_stop = True
             yield "Shutting down..."
         elif len(message) == 0:
-            return "[WARNING] Empty command!]"
+            yield "[WARNING] Empty command!]"
         else:
             task_thread = Thread(target=self.llm_controller.handle_task, args=(message,))
             task_thread.start()
@@ -68,10 +68,11 @@ class TypeFly:
             while True:
                 msg = self.message_queue.get()
                 if isinstance(msg, tuple): # (image,)
-                    history.append((None, msg))
+                    yield msg
                 elif isinstance(msg, str): # "text"
                     if msg == 'end':
                         # Indicate end of the task to Gradio chat
+                        print_t(f"[C] Task completed!")
                         return "Command Complete!"
                     
                     if msg.startswith('[LOG]'):

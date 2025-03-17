@@ -1,4 +1,5 @@
 import datetime
+from .skill_item import SKILL_RET_TYPE
 
 def print_t(*args, **kwargs):
     # Get the current timestamp
@@ -14,30 +15,18 @@ def input_t(literal):
     # Use built-in print to display the timestamp followed by the message
     return input(f"[{current_time}] {literal}")
 
-def split_args(arg_str: str) -> list[str]:
-        args = []
-        current_arg = ''
-        parentheses_count = 0  # Keep track of open parentheses
-
-        if arg_str.startswith('\'') and arg_str.endswith('\''):
-            args.append(arg_str)
-            return args
-
-        for char in arg_str:
-            if char == ',' and parentheses_count == 0:
-                # If we encounter a comma and we're not inside parentheses, split here
-                args.append(current_arg.strip())
-                current_arg = ''
-            else:
-                # Otherwise, keep adding characters to the current argument
-                if char == '(':
-                    parentheses_count += 1
-                elif char == ')':
-                    parentheses_count -= 1
-                current_arg += char
-
-        # Don't forget to add the last argument after the loop finishes
-        if current_arg:
-            args.append(current_arg.strip())
-
-        return args
+def evaluate_value(s: str) -> SKILL_RET_TYPE:
+    if s.isdigit():
+        return int(s)
+    elif s.replace('.', '', 1).isdigit():
+        return float(s)
+    elif s == 'True':
+        return True
+    elif s == 'False':
+        return False
+    elif s == 'None' or len(s) == 0:
+        return None
+    else:
+        if not (s.startswith("'") and s.endswith("'")):
+            return f"'{s}'"
+        return s

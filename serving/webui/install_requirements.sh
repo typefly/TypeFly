@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define a list of required packages
-REQUIRED_PKG=("flask" "gradio" "grpcio-tools" "aiohttp" "djitellopy" "openai" "opencv-python" "numpy" "pillow" "filterpy" "matplotlib" "torch" "appdirs")
+REQUIRED_PKG=("flask" "gradio" "grpcio-tools" "aiohttp" "djitellopy" "openai" "opencv-python" "numpy" "pillow" "filterpy" "matplotlib" "torch")
 
 # Function to check and install package
 check_and_install() {

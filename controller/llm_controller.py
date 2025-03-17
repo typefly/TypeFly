@@ -1,35 +1,22 @@
-from threading import Thread
 from PIL import Image
-import queue, time, os, json, shutil
-import asyncio
-import uuid
-import appdirs
+import queue, io, base64
 from openai import Stream
 from typing import Optional
 
-from .shared_frame import SharedFrame, Frame
 from .yolo_client import YoloClient
 from .platforms.tello_wrapper import TelloWrapper
 from .platforms.virtual_robot_wrapper import VirtualRobotWrapper
 from .robot_wrapper import RobotWrapper
 from .llm_planner import LLMPlanner
-from .skillset import SkillSet, LowLevelSkillItem, HighLevelSkillItem, SkillArg
 from .utils import print_t, input_t
-from .minispec_interpreter import MiniSpecInterpreter, Statement
+from .minispec_interpreter import MiniSpecInterpreter
 from .robot_info import RobotInfo
-
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-CACHE_DIR = cache_dir = appdirs.user_cache_dir("typefly")
 
 class LLMController():
     def __init__(self, robot_info_list: list[RobotInfo], message_queue: Optional[queue.Queue]=None):
         self.message_queue = message_queue
 
         self.planner = LLMPlanner()
-
-        # cache folder
-        self.cache_folder = CACHE_DIR
-        os.makedirs(self.cache_folder, exist_ok=True)
 
         self.controller_func = [
             self.user_log,
@@ -45,24 +32,24 @@ class LLMController():
             # elif info.robot_type == "go2":
             #     pass
         
-        self.planner.set_robot_list(self.robots.values())
+        self.planner.set_robot_dict(self.robots)
 
         self.current_plan = None
         self.execution_history = None
 
-    def user_log(self, text: str | Image.Image) -> tuple[None, bool]:
-        if isinstance(text, Image.Image):
-            img_path = os.path.join(self.cache_folder, f"{uuid.uuid4()}.jpg")
-            text.save(img_path)
-            self._send_message((img_path,))
-            print_t(f"[C] Picture saved to {img_path}")
+    def user_log(self, content: str | Image.Image) -> tuple[None, bool]:
+        if isinstance(content, Image.Image):
+            buffer = io.BytesIO()
+            content.save(buffer, format="JPEG")
+            self._send_message(f'<img src="data:image/jpeg;base64,{base64.b64encode(buffer.getvalue()).decode('utf-8')}" />')
         else:
-            self._send_message(f"[LOG] {text}")
-            print_t(f"[LOG] {text}")
+            text = content.strip('\'')
+            self._send_message(f'[LOG] {text}')
+            print_t(f'[LOG] {text}')
         return True, False
 
-    def probe(self, query: str) -> tuple[Optional[str], bool]:
-        self.planner.probe(query), False
+    def probe(self, query: str, robot_info: RobotInfo) -> str:
+        return self.planner.probe(query, robot_info)
 
     def _send_message(self, message: str):
         if self.message_queue is not None:
@@ -75,10 +62,6 @@ class LLMController():
     def stop_controller(self):
         for (_, wrapper) in self.robots.items():
             wrapper.stop()
-
-        if os.path.exists(self.cache_folder):
-            shutil.rmtree(self.cache_folder)
-            print_t("[C] Cache folder cleared")
 
     def fetch_robot_observation(self, robot_info: RobotInfo, overlay: bool=False) -> Optional[Image.Image]:
         obs = self.robots[robot_info].observation
@@ -96,11 +79,12 @@ class LLMController():
         interpreter.execute(json_output)
 
     def handle_task(self, user_instruction: str):
-        self._send_message('[TASK]: ' + user_instruction)
+        # self._send_message('[TASK]: ' + user_instruction)
+        self._send_message('Planning...')
         ret_val = None
         while True:
             self.current_plan = self.planner.plan(user_instruction)
-            self._send_message(f'[Plan]: {self.current_plan}')
+            # self._send_message(f'[Plan]: {self.current_plan}')
             try:
                 ret_val = self.execute_minispec(self.current_plan)
             except Exception as e:

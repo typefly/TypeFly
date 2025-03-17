@@ -1,11 +1,10 @@
 import os
 from typing import Optional
 
-from .skillset import SkillSet
 from .llm_wrapper import LLMWrapper, ModelType
 from .utils import print_t
-from .minispec_interpreter import SKILL_RET_TYPE, evaluate_value
 from .robot_wrapper import RobotWrapper
+from .robot_info import RobotInfo
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -28,16 +27,14 @@ class LLMPlanner():
         with open(os.path.join(CURRENT_DIR, f"./assets/example_plans.txt"), "r") as f:
             self.example_plans = f.read()
 
-    def set_robot_list(self, robot_list: list[RobotWrapper]):
-        self.robot_list = robot_list
+    def set_robot_dict(self, robot_dict: dict[RobotInfo, RobotWrapper]):
+        self.robot_dict = robot_dict
 
     def plan(self, user_instruction: str, error_message: Optional[list[str]]=None, execution_history: Optional[list[str]]=None):
         robot_skills = ""
         scene_description = ""
 
-        for robot in self.robot_list:
-            info = robot.robot_info
-
+        for info, robot in self.robot_dict.items():
             robot_skills += f"### {info.robot_id} ({info.get_robot_type(False)})\n"
             robot_skills += f"#### Low-level skills\n"
             robot_skills += str(robot.ll_skillset)
@@ -56,7 +53,7 @@ class LLMPlanner():
 
         return self.llm.request(prompt, self.model_type, stream=False)
     
-    def probe(self, query: str) -> SKILL_RET_TYPE:
-        prompt = self.prompt_probe.format(scene_description=self.vision_skill.get_obj_list(), query=query)
+    def probe(self, query: str, robot_info: RobotInfo) -> str:
+        prompt = self.prompt_probe.format(scene_description=self.robot_dict[robot_info].get_obj_list_str(), query=query)
         print_t(f"[P] Execution request: {query}")
-        return evaluate_value(self.llm.request(prompt, self.model_type))
+        return self.llm.request(prompt, self.model_type)

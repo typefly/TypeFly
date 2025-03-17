@@ -1,13 +1,12 @@
 import time, cv2
 import numpy as np
-from typing import Optional
 from djitellopy import Tello
 from PIL import Image
 import asyncio
 from overrides import overrides
 
 from ..robot_wrapper import RobotWrapper, RobotObservation
-from ..skillset import SkillSet, LowLevelSkillItem, SkillArg, SkillSetLevel, HighLevelSkillItem
+from ..skillset import SkillSet, SkillArg, SkillSetLevel
 from ..yolo_client import YoloClient
 from ..robot_info import RobotInfo
 
@@ -17,8 +16,8 @@ Tello.LOGGER.setLevel(logging.WARNING)
 MOVEMENT_MIN = 20
 MOVEMENT_MAX = 300
 
-SCENE_CHANGE_DIST = 120
-SCENE_CHANGE_ANGLE = 90
+SCENE_CHANGE_DIST = 300
+SCENE_CHANGE_ANGLE = 360
 
 def adjust_exposure(img, alpha=1.0, beta=0):
     """
@@ -55,6 +54,13 @@ class TelloObservation(RobotObservation):
         self.drone = drone
         self.interval: float = 1.0 / rate
         self.yolo_client = YoloClient(robot_info)
+        self.alive_count = 0
+
+    def keep_alive(self):
+        self.alive_count += 1
+        if self.alive_count > 15:
+            self.drone.send_control_command("command")
+            self.alive_count = 0
     
     @overrides
     def _start(self):
@@ -74,6 +80,8 @@ class TelloObservation(RobotObservation):
             tasks = set()
             
             while self.running:
+                self.keep_alive()
+
                 start_time = time.time()
                 frame = self.drone.get_frame_read().frame
                 self._image = Image.fromarray(frame)
@@ -95,23 +103,31 @@ class TelloWrapper(RobotWrapper):
     def __init__(self, robot_info: RobotInfo, system_skill_func: list[callable]):
         self.drone = Tello()
         super().__init__(robot_info, TelloObservation(self.drone, robot_info), system_skill_func)
-        self.alive_count = 0
 
         # extra movement skills
         self.ll_skillset.add_low_level_skill("move_up", self.move_up, "Move up by a distance", args=[SkillArg("dist", int)])
         self.ll_skillset.add_low_level_skill("move_down", self.move_down, "Move down by a distance", args=[SkillArg("dist", int)])
         
-        ### TODO: simplify the logic "?is_visible($1){->True}turn_cw(45)}->False"
         high_level_skills = [
             {
                 "name": "scan",
-                "definition": "8{?is_visible($1)==True{->True}turn_cw(45)}->False",
+                "definition": "{8{?is_visible($1){->True}turn_cw(45)}->False}",
                 "description": "Rotate to find object $1 when it's *not* in current view",
             },
             {
                 "name": "scan_description",
-                "definition": "8{_1=probe($1);?_1!=False{->_1}turn_cw(45)}->False",
+                "definition": "{8{_1=probe($1);?_1!=False{->_1}turn_cw(45)}->False}",
                 "description": "Rotate to find object $1 when it's *not* in current view",
+            },
+            {
+                "name": "orienting",
+                "definition": "4{_1=ox($1);?_1>0.6{tc(15)}:?_1<0.4{tu(15)}:{->True}}->False",
+                "description": "Rotate to align with object $1",
+            },
+            {
+                "name": "goto",
+                "definition": "?orienting($1){move_forward(80)}",
+                "description": "Move to object $1 in the view"
             }
         ]
 
@@ -119,7 +135,7 @@ class TelloWrapper(RobotWrapper):
         for skill in high_level_skills:
             self.hl_skillset.add_high_level_skill(skill['name'], skill['definition'], skill['description'])
 
-    def _cap_dist(dist):
+    def _cap_dist(self, dist):
         if dist < MOVEMENT_MIN:
             return MOVEMENT_MIN
         elif dist > MOVEMENT_MAX:
@@ -141,12 +157,6 @@ class TelloWrapper(RobotWrapper):
     def stop(self):
         self.drone.land()
         self.observation.stop()
-
-    @overrides
-    def keep_alive(self):
-        if self.alive_count % 20 == 0:
-            self.drone.send_control_command("command")
-        self.alive_count += 1
 
     @overrides
     def move_forward(self, dist: int) -> tuple[bool, bool]:

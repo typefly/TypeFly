@@ -1,6 +1,5 @@
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
-from typing import Optional
 from contextlib import asynccontextmanager
 
 import json, os
@@ -16,7 +15,7 @@ EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
 EDGE_SERVICE_PORT = os.environ.get("EDGE_SERVICE_PORT", "50049")
 
 class ObjectInfo:
-    def __init__(self, name: str, x, y, w, h) -> None:
+    def __init__(self, name: str, x, y, w, h):
         self.name: str = name
         self.x: float = float(x)
         self.y: float = float(y)
