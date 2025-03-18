@@ -8,7 +8,7 @@ from .platforms.tello_wrapper import TelloWrapper
 from .platforms.virtual_robot_wrapper import VirtualRobotWrapper
 from .robot_wrapper import RobotWrapper
 from .llm_planner import LLMPlanner
-from .utils import print_t, input_t
+from .utils import print_t
 from .minispec_interpreter import MiniSpecInterpreter
 from .robot_info import RobotInfo
 
@@ -41,7 +41,7 @@ class LLMController():
         if isinstance(content, Image.Image):
             buffer = io.BytesIO()
             content.save(buffer, format="JPEG")
-            self._send_message(f'<img src="data:image/jpeg;base64,{base64.b64encode(buffer.getvalue()).decode('utf-8')}" />')
+            self._send_message(f'<img src="data:image/jpeg;base64,{base64.b64encode(buffer.getvalue()).decode("utf-8")}" />')
         else:
             text = content.strip('\'')
             self._send_message(f'[LOG] {text}')

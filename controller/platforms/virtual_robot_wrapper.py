@@ -18,7 +18,7 @@ class VirtualObservation(RobotObservation):
     
     @overrides
     def _start(self):
-        self.cap = cv2.VideoCapture(self.robot_info.extra["capture"])
+        self.cap = cv2.VideoCapture(int(self.robot_info.extra["capture"]))
         if not self.cap.isOpened():
             raise ValueError("Could not open video device")
 

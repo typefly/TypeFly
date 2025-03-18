@@ -1,10 +1,62 @@
 import time, os
-from ..robot_wrapper import RobotWrapper
+from ..robot_wrapper import RobotWrapper, RobotObservation
+from ..robot_info import RobotInfo
+from ..yolo_client import YoloClient
 import torch
-import torch.nn as nn
 import numpy as np
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+class TelloObservation(RobotObservation):
+    def __init__(self, drone, robot_info: RobotInfo, rate: int = 10):
+        super().__init__(robot_info)
+        self.drone = drone
+        self.interval: float = 1.0 / rate
+        self.yolo_client = YoloClient(robot_info)
+        self.alive_count = 0
+
+    def keep_alive(self):
+        self.alive_count += 1
+        if self.alive_count > 15:
+            self.drone.send_control_command("command")
+            self.alive_count = 0
+    
+    @overrides
+    def _start(self):
+        self.drone.streamon()
+    
+    @overrides
+    def _stop(self):
+        self.drone.streamoff()
+
+    @overrides
+    def update_observation(self):
+        # Create a new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        async def schedule_tasks():
+            tasks = set()
+            
+            while self.running:
+                self.keep_alive()
+
+                start_time = time.time()
+                frame = self.drone.get_frame_read().frame
+                self._image = Image.fromarray(frame)
+                # Add a new task to the set
+                task = asyncio.create_task(self.yolo_client.detect(self._image))
+                tasks.add(task)
+                
+                # Clean up completed tasks
+                tasks = {t for t in tasks if not t.done()}
+                with self._image_process_lock:
+                    self._image_process_result = self.yolo_client.latest_result
+                # Sleep for the interval
+                elapsed_time = time.time() - start_time
+                await asyncio.sleep(max(0, self.interval - elapsed_time))
+        # Run the async function in the event loop
+        loop.run_until_complete(schedule_tasks())
 
 class GearWrapper(RobotWrapper):
     def __init__(self):
