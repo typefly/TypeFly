@@ -72,10 +72,12 @@ class MiniSpecProgram:
                     case ProgramParsingState.NONE:
                         if c == '{':
                             self.parse_state = ProgramParsingState.JSON_BEGIN
+
                     case ProgramParsingState.JSON_BEGIN:
                         if c == '<':
                             self.parse_buffer = c
                             self.parse_state = ProgramParsingState.PREFIX
+
                     # match for LLM_PLAN_START_PREFIX
                     case ProgramParsingState.PREFIX:
                         self.parse_buffer += c
@@ -98,6 +100,7 @@ class MiniSpecProgram:
                                 raise Exception(f'Invalid robot id: {self.parse_buffer}')
                         else:
                             self.parse_buffer += c
+
                     case ProgramParsingState.QUOTATION_START:
                         if c == ':':
                             self.parse_buffer = c
@@ -108,6 +111,7 @@ class MiniSpecProgram:
                             self.statement.parse('{')
                         else:
                             continue
+
                     case ProgramParsingState.PLAN:
                         if c == '"':
                             self.parse_state = ProgramParsingState.QUOTATION_END
@@ -115,7 +119,6 @@ class MiniSpecProgram:
                                 # print(self.statement.to_string())
                                 return True
                         else:
-                            # Send the code piece to the message queue
                             if self.message_queue:
                                 self.message_queue.put(c + '\\\\')
 
@@ -160,7 +163,7 @@ class Statement:
         self.parse_depth: int = 0
 
         self.action = CodeAction.NONE
-        self.condition: list[str] = [] # for `if`, `elif`, ...
+        self.condition: list[str] = [] # `if`, `elif`, ...
         self.loop_count: int = 0
         self.current_statement = None
 
@@ -180,6 +183,9 @@ class Statement:
         self.env = env
         self.robot = robot
 
+    """
+    Print the statement in a simple format for debugging.
+    """
     def to_string_simple(self) -> str:
         s = ''
         if self.action == CodeAction.IF:
@@ -195,8 +201,11 @@ class Statement:
         
         return s
 
+    """
+    Print the full statement in a human-readable format for debugging.
+    """
     def to_string(self, depth: int=0) -> str:
-        indent = '_-_-'
+        indent = '****'
         prefix = indent * depth
         s = ''
         if self.action == CodeAction.IF:
@@ -373,6 +382,7 @@ class Statement:
             case CodeAction.ATOMIC:
                 assert len(self.sub_statements) == 1 and isinstance(self.sub_statements[0], str)
                 return self.eval_expr(self.sub_statements[0])
+
             case CodeAction.SEQ:
                 for statement in self.sub_statements:
                     ret_val = statement.eval()
