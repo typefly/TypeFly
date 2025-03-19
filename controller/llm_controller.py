@@ -6,6 +6,7 @@ from typing import Optional
 from .yolo_client import YoloClient
 from .platforms.tello_wrapper import TelloWrapper
 from .platforms.virtual_robot_wrapper import VirtualRobotWrapper
+from .platforms.go2_wrapper import Go2Wrapper
 from .robot_wrapper import RobotWrapper
 from .llm_planner import LLMPlanner
 from .utils import print_t
@@ -29,8 +30,8 @@ class LLMController():
                 self.robots[info] = VirtualRobotWrapper(info, self.controller_func)
             elif info.robot_type == "tello":
                 self.robots[info] = TelloWrapper(info, self.controller_func)
-            # elif info.robot_type == "go2":
-            #     pass
+            elif info.robot_type == "go2":
+                self.robots[info] = Go2Wrapper(info, self.controller_func)
         
         self.planner.set_robot_dict(self.robots)
 

@@ -1,33 +1,75 @@
 import time, os
+import numpy as np
+import asyncio, threading
+from overrides import overrides
+from PIL import Image
+from sensor_msgs import msg
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Twist
+
+import rclpy
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
+
 from ..robot_wrapper import RobotWrapper, RobotObservation
 from ..robot_info import RobotInfo
 from ..yolo_client import YoloClient
-import torch
-import numpy as np
+from ..skillset import SkillSet, SkillArg, SkillSetLevel
+from ..utils import quaternion_to_rpy
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-class TelloObservation(RobotObservation):
-    def __init__(self, drone, robot_info: RobotInfo, rate: int = 10):
+class Go2Observation(RobotObservation):
+    def __init__(self, robot_info: RobotInfo, rate: int = 10):
         super().__init__(robot_info)
-        self.drone = drone
         self.interval: float = 1.0 / rate
         self.yolo_client = YoloClient(robot_info)
-        self.alive_count = 0
 
-    def keep_alive(self):
-        self.alive_count += 1
-        if self.alive_count > 15:
-            self.drone.send_control_command("command")
-            self.alive_count = 0
+        rclpy.init()
+        self.node = rclpy.create_node('typefly_go2_observation')
+        qos_profile = QoSProfile(
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,  # Match camera publisher
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=10,
+            durability=QoSDurabilityPolicy.VOLATILE
+        )
+        self.node.create_subscription(
+            msg.Image, 
+            '/camera/image_raw',  # Change this to your actual topic
+            self.image_callback, 
+            qos_profile
+        )
+
+        self.node.create_subscription(
+            Odometry, 
+            '/odom',  # Change this to your actual topic
+            self.odom_callback, 
+            qos_profile
+        )
+
+        self.ros_thread = threading.Thread(target=self.ros_spin)
+
+    def image_callback(self, image: msg.Image):
+        # Convert RGB to BGR
+        buffer = np.frombuffer(image.data, dtype=np.uint8).reshape((image.height, image.width, 3))[:, :, ::-1]
+        self._image = Image.fromarray(buffer)
+
+    def odom_callback(self, odom: Odometry):
+        self._position = np.array([odom.pose.pose.position.x, odom.pose.pose.position.y, odom.pose.pose.position.z])
+        ori = odom.pose.pose.orientation
+        self._orientation = quaternion_to_rpy(ori.x, ori.y, ori.z, ori.w)
+
+    def ros_spin(self):
+        rclpy.spin(self.node)
     
     @overrides
     def _start(self):
-        self.drone.streamon()
+        if not self.ros_thread.is_alive():
+            self.ros_thread.start()
     
     @overrides
     def _stop(self):
-        self.drone.streamoff()
+        self.node.destroy_node()
+        rclpy.shutdown()
 
     @overrides
     def update_observation(self):
@@ -39,11 +81,8 @@ class TelloObservation(RobotObservation):
             tasks = set()
             
             while self.running:
-                self.keep_alive()
-
                 start_time = time.time()
-                frame = self.drone.get_frame_read().frame
-                self._image = Image.fromarray(frame)
+
                 # Add a new task to the set
                 task = asyncio.create_task(self.yolo_client.detect(self._image))
                 tasks.add(task)
@@ -58,170 +97,152 @@ class TelloObservation(RobotObservation):
         # Run the async function in the event loop
         loop.run_until_complete(schedule_tasks())
 
-class GearWrapper(RobotWrapper):
-    def __init__(self):
-        self.stream_on = False
-        config = {
-            'ip': '192.168.8.169',
-            'ip1': '192.168.8.195',
-            'port': 80,
-            'stream_port': 81
-        }
-        self.robot = Podtp(config)
-        self.move_speed_x = 2.5
-        self.move_speed_y = 2.8
-        self.unlock_count = 0
-        self.model = DirectionPredictor()
-        self.model.load_state_dict(torch.load(os.path.join(CURRENT_DIR, 'assets/gear/model.pth')))
-        self.model.eval()
+class Go2Wrapper(RobotWrapper):
+    def __init__(self, robot_info: RobotInfo, system_skill_func: list[callable]):
+        super().__init__(robot_info, Go2Observation(robot_info), system_skill_func)
 
-    def keep_active(self):
-        self.unlock_count += 1
-        if self.unlock_count > 100:
-            self.robot.send_ctrl_lock(False)
-            self.unlock_count = 0
+        self.node = rclpy.create_node('typefly_go2_control')
+        self.control_publisher = self.node.create_publisher(Twist, '/cmd_vel', 10)
 
-    def connect(self):
-        if not self.robot.connect():
-            raise ValueError("Could not connect to the robot")
-        if not self.robot.send_ctrl_lock(False):
-            raise ValueError("Could not unlock the robot control")
+        self.dog_move_speed = 0.8
+        self.dog_control_dt = 0.1
+        self.dog_wait_time = 1.0
 
-    def takeoff(self) -> bool:
+        high_level_skills = [
+            {
+                "name": "scan",
+                "definition": "{8{?is_visible($1){->True}turn_cw(45)}->False}",
+                "description": "Rotate to find object $1 when it's *not* in current view",
+            },
+            {
+                "name": "scan_description",
+                "definition": "{8{_1=probe($1);?_1!=False{->_1}turn_cw(45)}->False}",
+                "description": "Rotate to find object $1 when it's *not* in current view",
+            },
+            {
+                "name": "orienting",
+                "definition": "4{_1=ox($1);?_1>0.6{tc(15)}:?_1<0.4{tu(15)}:{->True}}->False",
+                "description": "Rotate to align with object $1",
+            },
+            {
+                "name": "goto",
+                "definition": "?orienting($1){move_forward(80)}",
+                "description": "Move to object $1 in the view"
+            }
+        ]
+
+        self.hl_skillset = SkillSet(SkillSetLevel.HIGH, self.ll_skillset)
+        for skill in high_level_skills:
+            self.hl_skillset.add_high_level_skill(skill['name'], skill['definition'], skill['description'])
+
+    @overrides
+    def start(self) -> bool:
+        self.observation.start()
         return True
 
-    def land(self):
-        pass
+    @overrides
+    def stop(self):
+        self.observation.stop()
 
-    def start_stream(self):
-        self.robot.start_stream()
-        self.stream_on = True
+    def _stop_moving(self, wait_time: float = 0.0):
+        twist = Twist()
+        self.control_publisher.publish(twist)
+        time.sleep(wait_time)
 
-    def stop_stream(self):
-        self.robot.stop_stream()
-        self.stream_on = False
+    @overrides
+    def move_forward(self, dist: int) -> tuple[bool, bool]:
+        print(f"-> Moving forward {dist} cm")
+        twist = Twist()
+        twist.linear.x = self.dog_move_speed
 
-    def get_frame_reader(self):
-        if not self.stream_on:
-            return None
-        return self.robot.sensor_data
-    
-    def move_forward(self, distance: int) -> tuple[bool, bool]:
-        print(f"-> Moving forward {distance} cm")
-        self.robot.send_command_hover(0, 0, 0, 0)
-        small_move = distance <= 15
-        while distance > 0:
-            if small_move:
-                self.robot.send_command_hover(0, self.move_speed_x, 0, 0)
-            else:
-                array = self.robot.sensor_data.depth.data
-                left_distance = clean_sensor_data(array[0, :])
-                front_distance = clean_sensor_data(array[2, :])
-                right_distance = clean_sensor_data(array[7, :])
-                if max(front_distance) < 50:
-                    self.move_backward(10)
+        t = dist / self.dog_move_speed / 100.0
+        start_time = time.time()
+        while time.time() - start_time < t:
+            self.control_publisher.publish(twist)
+            time.sleep(self.dog_control_dt)
 
-                x = np.concatenate((left_distance, front_distance, right_distance))
-                x = torch.tensor(x, dtype=torch.float32)
-                x = (x - self.model.mean) / self.model.std
-                y = self.model(x.unsqueeze(0)).squeeze(0)
-                command = torch.argmax(y).item() - 1
-                
-                left_margin = min(left_distance)
-                right_margin = min(right_distance)
-                if left_margin > SIDE_DISTANCE_THRESHOLD and right_margin > SIDE_DISTANCE_THRESHOLD:
-                    vy = 0
-                elif left_margin > SIDE_DISTANCE_THRESHOLD:
-                    vy = -1.5
-                elif right_margin > SIDE_DISTANCE_THRESHOLD:
-                    vy = 1.5
-                else:
-                    if abs(left_margin - right_margin) > 80:
-                        if left_margin < right_margin:
-                            vy = 1.5
-                        else:
-                            vy = -1.5
-
-                if command == 0:
-                    self.robot.send_command_hover(0, self.move_speed_x, vy, 0)
-                elif command == 1:
-                    self.turn_ccw(30)
-                elif command == -1:
-                    self.turn_cw(30)
-            time.sleep(0.1)
-            distance -= 2
-        self.robot.send_command_hover(0, 0, 0, 0)
+        self._stop_moving()
         return True, False
 
-    def move_backward(self, distance: int) -> tuple[bool, bool]:
-        print(f"-> Moving backward {distance} cm")
-        self.robot.send_command_hover(0, 0, 0, 0)
-        while distance > 0:
-            self.robot.send_command_hover(0, -self.move_speed_x, 0, 0)
-            time.sleep(0.1)
-            distance -= 2
-        self.robot.send_command_hover(0, 0, 0, 0)
+    @overrides
+    def move_backward(self, dist: int) -> tuple[bool, bool]:
+        print(f"-> Moving backward {dist} cm")
+        twist = Twist()
+        twist.linear.x = -self.dog_move_speed
+
+        t = dist / self.dog_move_speed / 100.0
+        start_time = time.time()
+        while time.time() - start_time < t:
+            self.control_publisher.publish(twist)
+            time.sleep(self.dog_control_dt)
+
+        self._stop_moving()
         return True, False
 
-    def move_left(self, distance: int) -> tuple[bool, bool]:
-        print(f"-> Moving left {distance} cm")
-        self.robot.send_command_hover(0, 0, 0, 0)
-        while distance > 0:
-            self.robot.send_command_hover(0, 0, -self.move_speed_y, 0)
-            time.sleep(0.1)
-            distance -= 2
-        self.robot.send_command_hover(0, 0, 0, 0)
+    @overrides
+    def move_left(self, dist: int) -> tuple[bool, bool]:
+        print(f"-> Moving left {dist} cm")
+        twist = Twist()
+        twist.linear.y = self.dog_move_speed
+
+        t = dist / 100.0 / self.dog_move_speed
+        start_time = time.time()
+        while time.time() - start_time < t:
+            self.control_publisher.publish(twist)
+            time.sleep(self.dog_control_dt)
+
+        self._stop_moving()
         return True, False
 
-    def move_right(self, distance: int) -> tuple[bool, bool]:
-        print(f"-> Moving right {distance} cm")
-        self.robot.send_command_hover(0, 0, 0, 0)
-        while distance > 0:
-            self.robot.send_command_hover(0, 0, self.move_speed_y, 0)
-            time.sleep(0.1)
-            distance -= 2
-        self.robot.send_command_hover(0, 0, 0, 0)
+    @overrides
+    def move_right(self, dist: int) -> tuple[bool, bool]:
+        print(f"-> Moving right {dist} cm")
+        twist = Twist()
+        twist.linear.y = -self.dog_move_speed
+
+        t = dist / 100.0 / self.dog_move_speed
+        start_time = time.time()
+        while time.time() - start_time < t:
+            self.control_publisher.publish(twist)
+            time.sleep(self.dog_control_dt)
+
+        self._stop_moving()
         return True, False
 
-    def move_up(self, distance: int) -> tuple[bool, bool]:
-        print(f"-> Moving up {distance} cm")
+    def turn_45(self, clockwise: bool):
+        twist = Twist()
+        twist.angular.z = -1.5 if clockwise else 1.5
+        start_time = time.time()
+        while time.time() - start_time < 0.3:
+            self.control_publisher.publish(twist)
+            time.sleep(self.dog_control_dt)
+
+    def turn_slow(self, deg: int, clockwise: bool):
+        twist = Twist()
+        twist.angular.z = -0.5 if clockwise else 0.5
+
+        t = deg * 0.02 / 0.5
+        start_time = time.time()
+        while time.time() - start_time < t:
+            self.control_publisher.publish(twist)
+            time.sleep(self.dog_control_dt)
+
+    @overrides
+    def turn_ccw(self, deg: int) -> tuple[bool, bool]:
+        print(f"-> Turning CCW {deg} degrees")
+        for _ in range(deg // 45):
+            self.turn_45(False)
+
+        self.turn_slow(deg % 45, False)
+        self._stop_moving(self.dog_wait_time)
         return True, False
 
-    def move_down(self, distance: int) -> tuple[bool, bool]:
-        print(f"-> Moving down {distance} cm")
-        return True, False
-
-    def turn_ccw(self, degree: int) -> tuple[bool, bool]:
-        print(f"-> Turning CCW {degree} degrees")
-        self.robot.send_command_hover(0, 0, 0, 0)
-        self.robot.send_command_position(0, 0, 0, degree)
-        time.sleep(1 + degree / 50.0)
-        self.robot.send_command_hover(0, 0, 0, 0)
-        # if degree >= 90:
-        #     print("-> Turning CCW over 90 degrees")
-        #     return True, True
-        return True, False
-
-    def turn_cw(self, degree: int) -> tuple[bool, bool]:
-        print(f"-> Turning CW {degree} degrees")
-        self.robot.send_command_hover(0, 0, 0, 0)
-        self.robot.send_command_position(0, 0, 0, -degree)
-        time.sleep(1 + degree / 50.0)
-        self.robot.send_command_hover(0, 0, 0, 0)
-        # if degree >= 90:
-        #     print("-> Turning CW over 90 degrees")
-        #     return True, True
-        return True, False
-    
-    def move_in_circle(self, cw) -> tuple[bool, bool]:
-        if cw:
-            vy = -8
-            vr = -12
-        else:
-            vy = 8
-            vr = 12
-        for i in range(50):
-            self.robot.send_command_hover(0, 0, vy, vr)
-            time.sleep(0.1)
-        self.robot.send_command_hover(0, 0, 0, 0)
+    @overrides
+    def turn_cw(self, deg: int) -> tuple[bool, bool]:
+        print(f"-> Turning CW {deg} degrees")
+        for _ in range(deg // 45):
+            self.turn_45(True)
+        
+        self.turn_slow(deg % 45, True)
+        self._stop_moving(self.dog_wait_time)
         return True, False

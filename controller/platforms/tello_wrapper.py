@@ -164,31 +164,36 @@ class TelloWrapper(RobotWrapper):
         time.sleep(0.5)
         return True, dist > SCENE_CHANGE_DIST
 
+    @overrides
     def move_backward(self, dist: int) -> tuple[bool, bool]:
         self.drone.move_back(self._cap_dist(dist))
         time.sleep(0.5)
         return True, dist > SCENE_CHANGE_DIST
 
+    @overrides
     def move_left(self, dist: int) -> tuple[bool, bool]:
         self.drone.move_left(self._cap_dist(dist))
         time.sleep(0.5)
         return True, dist > SCENE_CHANGE_DIST
 
+    @overrides
     def move_right(self, dist: int) -> tuple[bool, bool]:
         self.drone.move_right(self._cap_dist(dist))
         time.sleep(0.5)
         return True, dist > SCENE_CHANGE_DIST
 
-    def turn_ccw(self, degree: int) -> tuple[bool, bool]:
-        self.drone.rotate_counter_clockwise(degree)
+    @overrides
+    def turn_ccw(self, deg: int) -> tuple[bool, bool]:
+        self.drone.rotate_counter_clockwise(deg)
         time.sleep(1)
-        # return True, degree > SCENE_CHANGE_ANGLE
+        # return True, deg > SCENE_CHANGE_ANGLE
         return True, False
 
-    def turn_cw(self, degree: int) -> tuple[bool, bool]:
-        self.drone.rotate_clockwise(degree)
+    @overrides
+    def turn_cw(self, deg: int) -> tuple[bool, bool]:
+        self.drone.rotate_clockwise(deg)
         time.sleep(1)
-        # return True, degree > SCENE_CHANGE_ANGLE
+        # return True, deg > SCENE_CHANGE_ANGLE
         return True, False
     
     def move_up(self, dist: int) -> tuple[bool, bool]:
