@@ -10,6 +10,6 @@ COPY ../.. /workspace
 WORKDIR /workspace
 
 # generate the python files from the proto files
-RUN cd /workspace/proto && bash ./generate.sh
+RUN cd /workspace/typefly/proto && bash ./generate.sh
 
-CMD ["python", "./serving/edge/edge_service.py"]
+CMD ["python", "typefly/serving/edge/edge_service.py"]
