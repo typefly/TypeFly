@@ -5,10 +5,10 @@ import cv2
 from filterpy.kalman import KalmanFilter
 from abc import ABC, abstractmethod
 
-from ..controller.skill_item import SkillArg
-from ..controller.skillset import LowLevelSkillItem, SkillSet
-from ..controller.robot_wrapper import RobotObservation
-from ..controller.yolo_client import ObjectInfo
+from ..typefly.skill_item import SkillArg
+from ..typefly.skillset import LowLevelSkillItem, SkillSet
+from ..typefly.robot_wrapper import RobotObservation
+from ..typefly.yolo_client import ObjectInfo
 
 def iou(boxA, boxB):
     # Calculate the intersection over union (IoU) of two bounding boxes

@@ -50,16 +50,16 @@ class TypeFly:
         with self.ui:
             gr.HTML("""<h1>🪽 TypeFly: Power the Drone with Large Language Model</h1>""")
             gr.HTML(generate_drone_povs(robot_info_list))
-            gr.ChatInterface(self.ui_process_message, fill_height=False, examples=default_sentences).queue()
+            gr.ChatInterface(self.ui_process_message, fill_height=False, examples=default_sentences, type='messages').queue()
 
     def ui_process_message(self, message: str, history: list):
         print_t(f"[S] Receiving task description: {message}")
         if message == "exit":
             self.llm_controller.stop_controller()
             self.system_stop = True
-            yield "Shutting down..."
+            yield gr.ChatMessage(role="assistant", content="Shutting down...")
         elif len(message) == 0:
-            yield "[WARNING] Empty command!]"
+            yield gr.ChatMessage(role="assistant", content="[WARNING] Empty command!]")
         else:
             task_thread = Thread(target=self.llm_controller.handle_task, args=(message,))
             task_thread.start()
@@ -67,7 +67,7 @@ class TypeFly:
             while True:
                 msg = self.message_queue.get()
                 if isinstance(msg, tuple): # (image,)
-                    yield msg
+                    yield gr.ChatMessage(role="assistant", content=msg)
                 elif isinstance(msg, str): # "text"
                     if msg == 'end':
                         # Indicate end of the task to Gradio chat
@@ -80,7 +80,7 @@ class TypeFly:
                         complete_response += msg.rstrip('\\\\')
                     else:
                         complete_response += msg + '\n'
-                yield complete_response
+                yield gr.ChatMessage(role="assistant", content=complete_response)
 
     def generate_mjpeg_stream(self, robot_id):
         """Generate MJPEG stream for a specific robot by robot_id."""
@@ -141,7 +141,7 @@ class TypeFly:
 """
 Available robot types: ['tello', 'virtual', 'go2']
 """
-if __name__ == "__main__":
+def main():
     robot_info_list = []
     with open(os.path.join(CURRENT_DIR, 'robot_list.json'), 'r') as f:
         robot_list = json.load(f)

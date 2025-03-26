@@ -1,5 +1,5 @@
 import time, os
-from ...controller.robot_wrapper import RobotWrapper
+from ...typefly.robot_wrapper import RobotWrapper
 from podtp import Podtp
 import torch
 import torch.nn as nn

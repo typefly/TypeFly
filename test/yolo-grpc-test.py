@@ -12,8 +12,7 @@ def image_to_bytes(image: Image.Image) -> bytes:
     return imgByteArr.getvalue()
 
 PARENT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-sys.path.append(os.path.join(PARENT_DIR, "proto/generated"))
+sys.path.append(os.path.join(PARENT_DIR, "typefly/proto"))
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 

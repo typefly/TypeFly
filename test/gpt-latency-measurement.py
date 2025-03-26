@@ -1,7 +1,9 @@
-import sys, time
+import time
 import tiktoken
-sys.path.append("..")
-from controller.llm_wrapper import LLMWrapper
+
+import sys
+sys.path.append('..')
+from typefly.llm_wrapper import LLMWrapper
 
 llm = LLMWrapper()
 

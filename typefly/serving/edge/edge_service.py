@@ -3,8 +3,8 @@ from quart import Quart, request, jsonify
 import multiprocessing, signal
 import logging
 
-from service_manager import ServiceManager
-import yolo_service
+from .service_manager import ServiceManager
+from . import yolo_service
 
 PROJ_DIR = os.environ.get("PROJ_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
 sys.path.insert(0, PROJ_DIR)
@@ -81,7 +81,7 @@ def start_yolo_service():
     
     return processes
 
-if __name__ == "__main__":
+def main():
     processes = start_yolo_service()
     def cleanup(_signalnum, _frame):
         print("Shutting down YOLO services...")

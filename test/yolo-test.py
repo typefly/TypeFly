@@ -1,8 +1,10 @@
-import sys, json, requests, os
+import json, requests, os
 from PIL import Image
-sys.path.append("..")
-from controller.yolo_client import YoloClient
-from serving.edge.service_manager import RobotInfo
+
+import sys
+sys.path.append('..')
+from typefly.yolo_client import YoloClient
+from typefly.robot_info import RobotInfo
 
 EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
 
