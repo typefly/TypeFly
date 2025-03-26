@@ -3,7 +3,7 @@ TypeFly aims to generate robot task plan using large language model (LLM) and ou
 
 Also, check out the demo video here: [Demo 1: Find edible or drinkable items](http://www.youtube.com/watch?v=HEJYaTLWKfY), [Demo 2: Find a specific chair](http://www.youtube.com/watch?v=QwnBniFaINE).
 
-## Install
+## 1. Installation
 [Optional] Create a conda environment.
 ```bash
 conda create -n typefly python=3.12
@@ -17,7 +17,7 @@ cd TypeFly
 pip install -e .
 ```
 
-## Hardware Requirement
+## 2. Hardware Requirement
 ### No Robot
 By default, typefly will try to access your camera with `cv2.VideoCapture(0)` and plan with that visual capture. This is for you to quickly try out the planning function.
 
@@ -30,10 +30,10 @@ TODO.
 ### Other Robots
 To support other robots, you need to implement the robot control interface based on the `RobotWrapper`, see examples in `typefly/platforms/*`.
 
-## OPENAI API KEY Requirement
+## 3. OPENAI API KEY Requirement
 TypeFly use GPT API as the remote LLM planner, please make sure you have set the `OPENAI_API_KEY` environment variable.
 
-## Setup Vision Encoder
+## 4. Setup Vision Encoder
 ### Local Service
 TypeFly uses YOLOv8 to generate the scene description. We provide a scalable implementation of the http yolo service. Enter this to run the service directly on your machine.
 ```bash
@@ -46,7 +46,7 @@ We recommand using [docker](https://docs.docker.com/engine/install/ubuntu/) to r
 make edge_build
 ```
 
-## Start TypeFly Web UI
+## 5. Start TypeFly Web UI
 To play with the TypeFly, please run the following command after setting up the vision service:
 ```bash
 python3 -m typefly.serving.webui
