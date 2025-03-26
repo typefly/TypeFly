@@ -163,7 +163,7 @@ cython_debug/
 .vscode/
 images/
 .DS_Store
-proto/generated/*.py
+*_pb2*.py
 test.py
 cache/
 chat_log.txt

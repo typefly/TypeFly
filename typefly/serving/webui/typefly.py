@@ -1,16 +1,15 @@
 import queue
-import sys, os
-import asyncio
+import os, sys
 import io, time, json
 import gradio as gr
 from flask import Flask, Response
 from threading import Thread
 
-PROJ_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(PROJ_DIR)
-from controller.llm_controller import LLMController
-from controller.utils import print_t
-from controller.robot_info import RobotInfo
+PROJ_DIR = os.environ.get("PROJ_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+sys.path.insert(0, PROJ_DIR)
+from typefly.llm_controller import LLMController
+from typefly.utils import print_t
+from typefly.robot_info import RobotInfo
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -49,7 +48,7 @@ class TypeFly:
             "Go to the chair without book.",
         ]
         with self.ui:
-            gr.HTML(open(os.path.join(CURRENT_DIR, 'header.html'), 'r').read())
+            gr.HTML("""<h1>🪽 TypeFly: Power the Drone with Large Language Model</h1>""")
             gr.HTML(generate_drone_povs(robot_info_list))
             gr.ChatInterface(self.ui_process_message, fill_height=False, examples=default_sentences).queue()
 

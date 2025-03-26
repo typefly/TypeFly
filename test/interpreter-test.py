@@ -1,8 +1,8 @@
 import sys
 sys.path.append("..")
-from controller.platforms.virtual_robot_wrapper import VirtualRobotWrapper
-from controller.llm_controller import LLMController
-from controller.minispec_interpreter import MiniSpecInterpreter, MiniSpecProgram
+from typefly.platforms.virtual_robot_wrapper import VirtualRobotWrapper
+from typefly.llm_controller import LLMController
+from typefly.minispec_interpreter import MiniSpecInterpreter, MiniSpecProgram
 
 llm_output = '```json\n{\n    \"thoughts\": \"The user instruction is to turn around, which typically means a 180-degree rotation. This can be achieved by using the turn_cw skill with 180 degrees.\",\n    \"<plan, robot1>\": \"mf(180);tp()\"\n}\n```'
 

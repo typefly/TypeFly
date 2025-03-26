@@ -3,23 +3,25 @@ from quart import Quart, request, jsonify
 import multiprocessing, signal
 import logging
 
-DIR = os.path.dirname(os.path.abspath(__file__))
+from service_manager import ServiceManager
+import yolo_service
+
+PROJ_DIR = os.environ.get("PROJ_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+sys.path.insert(0, PROJ_DIR)
+from typefly.robot_info import RobotInfo
+
+sys.path.append(os.path.join(PROJ_DIR, "typefly/proto"))
+import hyrch_serving_pb2
+import hyrch_serving_pb2_grpc
+
 logging.basicConfig(
-    filename=os.path.join(DIR, 'app.log'),
+    filename=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app.log'),
     level=logging.DEBUG,  # Capture all levels
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-PROJ_DIR = os.environ.get("PROJ_PATH", os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 EDGE_SERVICE_PORT = os.environ.get("EDGE_SERVICE_PORT", "50049")
-
-sys.path.append(os.path.join(PROJ_DIR, "proto/generated"))
-import hyrch_serving_pb2
-import hyrch_serving_pb2_grpc
-
-from service_manager import ServiceManager, RobotInfo
-import yolo_service
 YOLO_SERVICE_INFO = { "host": "localhost", "port" : [50050, 50051]}
 
 app = Quart(__name__)

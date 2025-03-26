@@ -1,39 +1,11 @@
 import grpc
+import os, sys
 import asyncio
 import time, json
 
-class RobotInfo:
-    def __init__(self, robot_id: str, robot_type: str, ip: str):
-        self.robot_id = robot_id
-        self.robot_type = robot_type
-        self.ip = ip
-    
-    def __hash__(self) -> int:
-        return hash((self.robot_id, self.robot_type, self.ip))
-
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, RobotInfo):
-            return False
-        return self.robot_id == other.robot_id and self.robot_type == other.robot_type and self.ip == other.ip
-    
-    def to_dict(self) -> dict:
-        return {
-            "robot_id": self.robot_id,
-            "robot_type": self.robot_type,
-            "ip": self.ip
-        }
-
-    def to_json(self) -> str:
-        return json.dumps(self.to_dict())
-    
-    @classmethod
-    def from_dict(cls, data: dict) -> 'RobotInfo':
-        return cls(data["robot_id"], data["robot_type"], data["ip"])
-    
-    @classmethod
-    def from_json(cls, json_str: str) -> 'RobotInfo':
-        data = json.loads(json_str)
-        return cls.from_dict(data)
+PROJ_DIR = os.environ.get("PROJ_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+sys.path.insert(0, PROJ_DIR)
+from typefly.robot_info import RobotInfo
 
 class ServiceManager:
     def __init__(self):

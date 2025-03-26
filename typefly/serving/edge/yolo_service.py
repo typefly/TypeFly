@@ -7,14 +7,13 @@ import grpc
 import torch
 from ultralytics import YOLO
 
-PROJ_DIR = os.environ.get("PROJ_PATH", os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+PROJ_DIR = os.environ.get("PROJ_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+sys.path.append(os.path.join(PROJ_DIR, "typefly/proto"))
+import hyrch_serving_pb2
+import hyrch_serving_pb2_grpc
 
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models/")
 MODEL_TYPE = "yolov8m.pt"
-
-sys.path.append(os.path.join(PROJ_DIR, "proto/generated"))
-import hyrch_serving_pb2
-import hyrch_serving_pb2_grpc
 
 def load_model():
     model = YOLO(MODEL_PATH + MODEL_TYPE)

@@ -10,8 +10,8 @@ from .robot_info import RobotInfo
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 
-EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
-# EDGE_SERVICE_IP = "localhost"
+# EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
+EDGE_SERVICE_IP = "localhost"
 EDGE_SERVICE_PORT = os.environ.get("EDGE_SERVICE_PORT", "50049")
 
 class ObjectInfo:
@@ -89,7 +89,9 @@ class YoloClient():
             # The ClientSession now uses the defined timeout
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(service_url, data=form_data) as response:
-                    response.raise_for_status()  # Optional: raises exception for 4XX/5XX responses
+                    if response.status != 200:
+                        print_t(f"[Y] Invalid response status: {response.status}")
+                        response.raise_for_status()  # Optional: raises exception for 4XX/5XX responses
                     yield response
         except aiohttp.ServerTimeoutError:
             print_t(f"[Y] Timeout error when connecting to {service_url}")
