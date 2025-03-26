@@ -8,9 +8,10 @@
     },
     {
         "robot_id": "robot2",
-        "robot_type": "virtual",
-        "extra": {
-            "capture": 1
-        }
+        "robot_type": "tello"
+    },
+    {
+        "robot_id": "robot3",
+        "robot_type": "go2"
     }
 ]

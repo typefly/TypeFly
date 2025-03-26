@@ -1,6 +1,10 @@
-.PHONY: stop, start, remove, open, build
+.PHONY: edge_stop, edge_start, edge_remove, edge_open, edge_build
 
 GPU_OPTIONS=--gpus all
+
+ifneq ($(origin OPENAI_API_KEY), environment)
+  $(error Environment variable OPENAI_API_KE is not defined)
+endif
 
 edge_stop:
 	@echo "=> Stopping typefly-edge..."
@@ -31,8 +35,3 @@ edge_build:
 	docker build -t typefly-edge:0.1 -f ./docker/edge/Dockerfile .
 	@echo -n "=>"
 	@make edge_start
-
-typefly:
-	bash ./serving/webui/install_requirements.sh
-	cd ./proto && bash generate.sh
-	python3 ./serving/webui/typefly.py --use_virtual_robot

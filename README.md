@@ -3,36 +3,52 @@ TypeFly aims to generate robot task plan using large language model (LLM) and ou
 
 Also, check out the demo video here: [Demo 1: Find edible or drinkable items](http://www.youtube.com/watch?v=HEJYaTLWKfY), [Demo 2: Find a specific chair](http://www.youtube.com/watch?v=QwnBniFaINE).
 
+## Install
+[Optional] Create a conda environment.
+```bash
+conda create -n typefly python=3.12
+conda activate typefly
+```
+
+Clone this repo and install the package.
+```bash
+git clone https://github.com/typefly/TypeFly.git
+cd TypeFly
+pip install -e .
+```
+
 ## Hardware Requirement
-TypeFly works with DJI Tello drone by default. Since Tello drone requires your device to connect to its wifi and TypeFly requires Internet connection, you need to have both wifi adapter and ethernet adapter to run TypeFly.
-To support other drones, you need to implement the `RobotWrapper` interface in `controller/abs/drone_wrapper.py`.
+### No Robot
+By default, typefly will try to access your camera with `cv2.VideoCapture(0)` and plan with that visual capture. This is for you to quickly try out the planning function.
+
+### Tello
+TypeFly works with the DJI Tello drone. However, since Tello drone requires your device to connect to its WiFi network and TypeFly requires a Internet connection for GPT API, you need to have both WiFi adapter and ethernet adapter to run TypeFly for tello. To use this option, edit the `typefly/serving/webui/robot_list.info`, change the `robot_type` from `virtual` to `tello`.
+
+### Go2
+TODO.
+
+### Other Robots
+To support other robots, you need to implement the robot control interface based on the `RobotWrapper`, see examples in `typefly/platforms/*`.
 
 ## OPENAI API KEY Requirement
-TypeFly use GPT-4 API as the remote LLM planner, please make sure you have set the `OPENAI_API_KEY` environment variable.
+TypeFly use GPT API as the remote LLM planner, please make sure you have set the `OPENAI_API_KEY` environment variable.
 
-## Vision Encoder
-TypeFly uses YOLOv8 to generate the scene description. We provide the implementation of gRPC YOLO service and a optional http router to serve as a scheduler when working with multiple drones. We recommand using [docker](https://docs.docker.com/engine/install/ubuntu/) to run the YOLO and router. To deploy the YOLO servive with docker, please install the [Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html), then run the following command:
+## Setup Vision Encoder
+### Local Service
+TypeFly uses YOLOv8 to generate the scene description. We provide a scalable implementation of the http yolo service. Enter this to run the service directly on your machine.
 ```bash
-make SERVICE=yolo build
-```
-Optional: To deploy the router, please run the following command:
-```bash
-make SERVICE=router build
+python3 -m typefly.serving.edge
 ```
 
-## TypeFly Web UI
-To play with the TypeFly web UI, please run the following command:
+### Docker (Optional)
+We recommand using [docker](https://docs.docker.com/engine/install/ubuntu/) to run the YOLO and the http router. To deploy the YOLO servive with docker, please install the [Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html), then run the following command:
 ```bash
-make typefly
+make edge_build
 ```
-This will start the web UI at `http://localhost:50001` with your default camera (please make sure your device has a camera) and a virtual drone wrapper. You should be able to see the image capture window displayed with YOLO detection results. You can test the planning ability of TypeFly by typing in the chat box. 
 
-To work with a real drone, please disable the `--use_virtual_robot` flag in `Makefile`.
-
-Here we assume your YOLO and router are deployed on the same machine running the TypeFly webui, if not, please define the environment variables `VISION_SERVICE_IP`, which is the IP address where you deploy your YOLO (or router) service, before running the webui.
-
-## Task Execution
-Here are some examples of task descriptions, the `[Q]` prefix indicates TypeFly will output an answer to the question:
-- `Can you find something edible?`
-- `Can you see a person behind you?`
-- `[Q] Tell me how many people you can see?`
+## Start TypeFly Web UI
+To play with the TypeFly, please run the following command after setting up the vision service:
+```bash
+python3 -m typefly.serving.webui
+```
+This will start the web UI at `http://localhost:50001`. You should be able to see the image capture window displayed with YOLO detection results. You can test the planning ability of TypeFly by typing in the chat box. (If your vision service is on a different machine (e.g. an edge server or cloud), you need to setup the `EDGE_SERVICE_IP` and `EDGE_SERVICE_PORT` environment variables.)
