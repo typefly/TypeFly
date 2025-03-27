@@ -1,7 +1,6 @@
 FROM ultralytics/ultralytics:latest
 RUN apt update
-RUN apt install -y nano wget
-RUN pip install grpcio-tools lapx quart
+RUN pip install grpcio-tools quart uvicorn
 
 # copy the contents of the current project to /workspace
 COPY ../.. /workspace
