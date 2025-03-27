@@ -3,8 +3,7 @@ import signal
 import uvicorn
 import os
 
-from typefly.serving.edge import yolo_service
-
+from . import yolo_service
 YOLO_SERVICE_INFO = { "host": "localhost", "port" : [50050, 50051] }
 EDGE_SERVICE_PORT = int(os.environ.get("EDGE_SERVICE_PORT", "50049"))
 
