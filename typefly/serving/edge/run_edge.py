@@ -1,9 +1,11 @@
 import multiprocessing
 import signal
 import uvicorn
-import os
+import os, sys
 
-from . import yolo_service
+PROJ_DIR = os.environ.get("PROJ_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+sys.path.insert(0, PROJ_DIR)
+from typefly.serving.edge import yolo_service
 YOLO_SERVICE_INFO = { "host": "localhost", "port" : [50050, 50051] }
 EDGE_SERVICE_PORT = int(os.environ.get("EDGE_SERVICE_PORT", "50049"))
 

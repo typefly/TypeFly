@@ -1,8 +1,10 @@
 from quart import Quart, request
-import logging, os, json
+import os, json, sys
 
-from .service_manager import ServiceManager
+PROJ_DIR = os.environ.get("PROJ_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+sys.path.insert(0, PROJ_DIR)
 from typefly.robot_info import RobotInfo
+from typefly.serving.edge.service_manager import ServiceManager
 
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
