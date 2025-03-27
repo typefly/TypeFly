@@ -34,7 +34,6 @@ class LLMController():
                 self.robots[info] = Go2Wrapper(info, self.controller_func)
         
         self.planner.set_robot_dict(self.robots)
-
         self.current_plan = None
         self.execution_history = None
 

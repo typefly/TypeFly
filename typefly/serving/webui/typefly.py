@@ -55,7 +55,6 @@ class TypeFly:
     def ui_process_message(self, message: str, history: list):
         print_t(f"[S] Receiving task description: {message}")
         if message == "exit":
-            self.llm_controller.stop_controller()
             self.system_stop = True
             yield gr.ChatMessage(role="assistant", content="Shutting down...")
         elif len(message) == 0:

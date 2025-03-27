@@ -24,20 +24,27 @@ class Go2Observation(RobotObservation):
         self.interval: float = 1.0 / rate
         self.yolo_client = YoloClient(robot_info)
 
-        rclpy.init()
+        if not rclpy.ok():
+            rclpy.init()
         self.node = rclpy.create_node('typefly_go2_observation')
+
         qos_profile = QoSProfile(
             reliability=QoSReliabilityPolicy.BEST_EFFORT,  # Match camera publisher
             history=QoSHistoryPolicy.KEEP_LAST,
             depth=10,
             durability=QoSDurabilityPolicy.VOLATILE
         )
-        self.node.create_subscription(
-            msg.Image, 
-            '/camera/image_raw',  # Change this to your actual topic
-            self.image_callback, 
-            qos_profile
-        )
+
+        self.gstreamer = self.robot_info.extra.get("gstreamer", False)
+        if self.gstreamer:
+            self._init_gstreamer()
+        else:
+            self.node.create_subscription(
+                msg.Image, 
+                '/camera/image_raw',  # Change this to your actual topic
+                self.ros_image_callback, 
+                qos_profile
+            )
 
         self.node.create_subscription(
             Odometry, 
@@ -48,7 +55,62 @@ class Go2Observation(RobotObservation):
 
         self.ros_thread = threading.Thread(target=self.ros_spin)
 
-    def image_callback(self, image: msg.Image):
+    def _init_gstreamer(self):
+        import sys
+        sys.path.append("/usr/lib/python3/dist-packages")
+
+        import gi
+        gi.require_version('Gst', '1.0')
+        from gi.repository import Gst, GLib
+
+        Gst.init(None)
+
+        def on_new_sample(sink):
+            sample = sink.emit("pull-sample")
+            if not sample:
+                return Gst.FlowReturn.ERROR
+
+            buffer = sample.get_buffer()
+            caps = sample.get_caps()
+            width = caps.get_structure(0).get_value('width')
+            height = caps.get_structure(0).get_value('height')
+
+            success, map_info = buffer.map(Gst.MapFlags.READ)
+            if not success:
+                return Gst.FlowReturn.ERROR
+
+            frame = np.frombuffer(map_info.data, np.uint8).reshape((height, width, 3))
+            buffer.unmap(map_info)
+
+            self._image = Image.fromarray(frame[:, :, ::-1])
+            return Gst.FlowReturn.OK
+
+        pipeline_str = """
+            udpsrc address=230.1.1.1 port=1720 multicast-iface=wlan0
+            ! application/x-rtp, media=video, encoding-name=H264
+            ! rtph264depay
+            ! h264parse
+            ! avdec_h264
+            ! videoconvert
+            ! video/x-raw, format=BGR
+            ! appsink name=appsink emit-signals=true max-buffers=1 drop=true
+        """
+
+        self.pipeline = Gst.parse_launch(pipeline_str)
+        self.appsink = self.pipeline.get_by_name("appsink")
+        self.appsink.set_property("emit-signals", True)
+        self.appsink.set_property("sync", False)
+        self.appsink.connect("new-sample", on_new_sample)
+
+        print("GStreamer pipeline created")
+        self.pipeline.set_state(Gst.State.PLAYING)
+
+        from gi.repository import GLib  # Re-import here in case it's needed outside callback
+        self.glib_loop = GLib.MainLoop()
+        self.glib_thread = threading.Thread(target=self.glib_loop.run, daemon=True)
+        self.glib_thread.start()
+
+    def ros_image_callback(self, image: msg.Image):
         # Convert RGB to BGR
         buffer = np.frombuffer(image.data, dtype=np.uint8).reshape((image.height, image.width, 3))[:, :, ::-1]
         self._image = Image.fromarray(buffer)
@@ -68,8 +130,19 @@ class Go2Observation(RobotObservation):
     
     @overrides
     def _stop(self):
+        if self.gstreamer:
+            print("Stopping GStreamer pipeline...")
+            from gi.repository import GLib
+            self.pipeline.set_state(Gst.State.NULL)
+            self.glib_loop.quit()
+            self.glib_thread.join()
+
+        # Shutdown ROS to unblock rclpy.spin()
+        if rclpy.ok():
+            rclpy.shutdown()
+        if self.ros_thread.is_alive():
+            self.ros_thread.join()
         self.node.destroy_node()
-        rclpy.shutdown()
 
     @overrides
     def update_observation(self):
@@ -84,8 +157,9 @@ class Go2Observation(RobotObservation):
                 start_time = time.time()
 
                 # Add a new task to the set
-                task = asyncio.create_task(self.yolo_client.detect(self._image))
-                tasks.add(task)
+                if self._image is not None:
+                    task = asyncio.create_task(self.yolo_client.detect(self._image))
+                    tasks.add(task)
                 
                 # Clean up completed tasks
                 tasks = {t for t in tasks if not t.done()}

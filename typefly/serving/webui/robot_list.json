@@ -1,9 +1,9 @@
 [
     {
         "robot_id": "robot1",
-        "robot_type": "virtual",
+        "robot_type": "go2",
         "extra": {
-            "capture": "0"
+            "gstreamer": false
         }
     }
 ]

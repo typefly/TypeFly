@@ -12,6 +12,9 @@
     },
     {
         "robot_id": "robot3",
-        "robot_type": "go2"
+        "robot_type": "go2",
+        "extra": {
+            "gstreamer": true
+        }
     }
 ]
