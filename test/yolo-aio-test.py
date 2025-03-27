@@ -8,7 +8,7 @@ async def detect():
     image_path = '../test/images/kitchen.webp'
     
     config = {
-        'robot_info': '{"robot_id": "robot", "robot_type": "drone", "ip": "127.0.0.1"}',
+        'robot_info': '{"robot_id": "robot1", "robot_type": "drone", "ip": "127.0.0.1"}',
         'service_type': 'yolo',
         'tracking_mode': False,
         'image_id': 1,

@@ -109,13 +109,20 @@ class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
         # print(f"Detection took {time.time() - start_time} seconds")
         return hyrch_serving_pb2.DetectResponse(json_data=json.dumps(info))
 
-def serve(port):
-    print(f"Starting Yolo service at port {port}")
+def serve(port, stop_event):
+    print(f"Yolo service at port {port} [STARTING]")
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
     hyrch_serving_pb2_grpc.add_YoloServiceServicer_to_server(YoloService(port), server)
     server.add_insecure_port(f'[::]:{port}')
     server.start()
-    server.wait_for_termination()
+
+    try:
+        # Wait until the event is set
+        while not stop_event.is_set():
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print(f"YOLO service at port {port} [STOPPED]")
+        server.stop(0)
 
 if __name__ == "__main__":
     # test the service

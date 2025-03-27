@@ -10,8 +10,8 @@ from .robot_info import RobotInfo
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 
-EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
-# EDGE_SERVICE_IP = "localhost"
+# EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
+EDGE_SERVICE_IP = "localhost"
 EDGE_SERVICE_PORT = os.environ.get("EDGE_SERVICE_PORT", "50049")
 
 class ObjectInfo:
