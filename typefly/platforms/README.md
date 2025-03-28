@@ -1,9 +1,18 @@
 # Go2 Setup
 
 ## Gstreamer
-Create a `gstream-forward.sh` script with the following code to create a gstreamer stream on `eth0` then forward it to `wlan0`. You can run it directly or add it to systemmd service for auto-run after dog is up.
+On the go2 dog (you need to enable secondary development and ssh into it), create a `gstream-forward.sh` script to receive the video stream created by the `videohub` service on `eth0` then forward it to `wlan0` for remote access over WiFi. You can run it directly or add it to systemd service for auto-start after dog is up and the `videohub` is running.
+```
+nano gstream-forward.sh
+```
+Paste this in the script:
 ```
 #!/bin/bash
+
+while ! pgrep -f '/unitree/module/video_hub/videohub'; do
+    sleep 1
+done
+
 gst-launch-1.0 -v \
   udpsrc address=230.1.1.1 port=1720 multicast-iface=eth0 \
   ! application/x-rtp, media=video, encoding-name=H264 \
@@ -11,7 +20,7 @@ gst-launch-1.0 -v \
   ! udpsink host=230.1.1.1 port=1720 auto-multicast=true multicast-iface=wlan0
 ```
 
-### Add the script to systemmd for auto-start
+### Add the script to systemd for auto-start
 ```
 chmod +x gstream-forward.sh
 sudo nano /etc/systemd/system/mystartup.service
