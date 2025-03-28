@@ -3,7 +3,8 @@
         "robot_id": "robot1",
         "robot_type": "go2",
         "extra": {
-            "gstreamer": false
+            "capture": 1,
+            "gstreamer": true
         }
     }
 ]
