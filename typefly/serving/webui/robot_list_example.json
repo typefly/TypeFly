@@ -14,7 +14,8 @@
         "robot_id": "robot3",
         "robot_type": "go2",
         "extra": {
-            "gstreamer": true
+            "ros": false,
+            "ip": "192.168.0.253"
         }
     }
 ]

@@ -1,10 +1,12 @@
 [
     {
         "robot_id": "robot1",
-        "robot_type": "go2",
+        "robot_type": "virtual",
         "extra": {
             "capture": 1,
-            "gstreamer": true
+            "ros": false,
+            "ip": "192.168.0.253",
+            "port": 18080
         }
     }
 ]

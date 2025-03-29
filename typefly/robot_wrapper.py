@@ -3,6 +3,7 @@ from typing import Optional
 from numpy import ndarray
 import time, threading
 from PIL import Image
+import asyncio
 
 from .skillset import SkillSet
 from .robot_info import RobotInfo
@@ -11,7 +12,8 @@ from .skill_item import SKILL_RET_TYPE
 from .utils import evaluate_value
 
 class RobotObservation(ABC):
-    def __init__(self, robot_info: RobotInfo):
+    def __init__(self, robot_info: RobotInfo, rate: int):
+        self.interval: float = 1.0 / rate
         self.robot_info = robot_info
 
         self._image: Optional[Image.Image] = None
@@ -64,8 +66,38 @@ class RobotObservation(ABC):
         with self._image_process_lock:
             return self._image_process_result
     
-    @abstractmethod
     def update_observation(self):
+        # Create a new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        async def schedule_tasks():
+            tasks: set[asyncio.Task] = set()
+            
+            while self.running:
+                start_time = time.time()
+
+                # Add a new task to the set
+                if self._image is not None:
+                    task = asyncio.create_task(self.process_image(self._image))
+                    tasks.add(task)
+                
+                # Clean up completed tasks
+                tasks = {t for t in tasks if not t.done()}
+                with self._image_process_lock:
+                    self._image_process_result = self.fetch_processed_result()
+                # Sleep for the interval
+                elapsed_time = time.time() - start_time
+                await asyncio.sleep(max(0, self.interval - elapsed_time))
+        # Run the async function in the event loop
+        loop.run_until_complete(schedule_tasks())
+
+    @abstractmethod
+    async def process_image(self, image: Image.Image):
+        pass
+    
+    @abstractmethod
+    def fetch_processed_result(self) -> tuple[Image.Image, list]:
         pass
 
 class RobotWrapper(ABC):

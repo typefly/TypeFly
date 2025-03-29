@@ -2,7 +2,7 @@ import time, cv2
 import numpy as np
 from djitellopy import Tello
 from PIL import Image
-import asyncio
+import threading
 from overrides import overrides
 
 from ..robot_wrapper import RobotWrapper, RobotObservation
@@ -50,11 +50,19 @@ def sharpen_image(img):
 
 class TelloObservation(RobotObservation):
     def __init__(self, drone, robot_info: RobotInfo, rate: int = 10):
-        super().__init__(robot_info)
+        super().__init__(robot_info, rate)
         self.drone = drone
-        self.interval: float = 1.0 / rate
         self.yolo_client = YoloClient(robot_info)
         self.alive_count = 0
+
+        def _capture_spin():
+            while self.running:
+                frame = self.drone.get_frame_read().frame
+                if frame is None:
+                    continue
+                # Convert the frame to RGB and store it in self._image
+                self._image = Image.fromarray(frame)
+        self.capture_thread = threading.Thread(target=_capture_spin)
 
     def keep_alive(self):
         self.alive_count += 1
@@ -65,39 +73,20 @@ class TelloObservation(RobotObservation):
     @overrides
     def _start(self):
         self.drone.streamon()
+        self.capture_thread.start()
     
     @overrides
     def _stop(self):
+        self.capture_thread.join()
         self.drone.streamoff()
 
     @overrides
-    def update_observation(self):
-        # Create a new event loop for this thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        async def schedule_tasks():
-            tasks = set()
-            
-            while self.running:
-                self.keep_alive()
-
-                start_time = time.time()
-                frame = self.drone.get_frame_read().frame
-                self._image = Image.fromarray(frame)
-                # Add a new task to the set
-                task = asyncio.create_task(self.yolo_client.detect(self._image))
-                tasks.add(task)
-                
-                # Clean up completed tasks
-                tasks = {t for t in tasks if not t.done()}
-                with self._image_process_lock:
-                    self._image_process_result = self.yolo_client.latest_result
-                # Sleep for the interval
-                elapsed_time = time.time() - start_time
-                await asyncio.sleep(max(0, self.interval - elapsed_time))
-        # Run the async function in the event loop
-        loop.run_until_complete(schedule_tasks())
+    async def process_image(self, image: Image.Image):
+        await self.yolo_client.detect(image)
+    
+    @overrides
+    def fetch_processed_result(self) -> tuple[Image.Image, list]:
+        return self.yolo_client.latest_result
 
 class TelloWrapper(RobotWrapper):
     def __init__(self, robot_info: RobotInfo, system_skill_func: list[callable]):

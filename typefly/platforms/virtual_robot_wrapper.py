@@ -1,5 +1,5 @@
 import cv2, time
-import asyncio
+import threading
 from PIL import Image
 from overrides import overrides
 
@@ -12,48 +12,44 @@ SKILL_EXECUTION_TIME = 0.2
 
 class VirtualObservation(RobotObservation):
     def __init__(self, robot_info: RobotInfo, rate: int = 10):
-        super().__init__(robot_info)
-        self.interval: float = 1.0 / rate
+        super().__init__(robot_info, rate)
         self.yolo_client = YoloClient(robot_info)
+
+        if "capture" not in robot_info.extra:
+            raise ValueError("Robot info must contain 'capture' key in extra, which is the camera index")
+
+        self.cap: cv2.VideoCapture = None
+        def _capture_spin():
+            # must create the capture and read in the same thread
+            self.cap = cv2.VideoCapture(int(self.robot_info.extra["capture"]))
+            if not self.cap.isOpened():
+                raise RuntimeError("Failed to open GStreamer pipeline")
+            while self.running:
+                ret, frame = self.cap.read()
+                if not ret:
+                    continue
+                # Convert the frame to RGB and store it in self._image
+                self._image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                cv2.waitKey(1)
+        self.capture_thread = threading.Thread(target=_capture_spin)
     
     @overrides
     def _start(self):
-        self.cap = cv2.VideoCapture(int(self.robot_info.extra["capture"]))
-        if not self.cap.isOpened():
-            raise ValueError("Could not open video device")
+        self.capture_thread.start()
 
     @overrides  
     def _stop(self):
-        self.cap.release()
+        self.capture_thread.join()
+        if self.cap is not None:
+            self.cap.release()
 
     @overrides
-    def update_observation(self):
-        # Create a new event loop for this thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        async def schedule_tasks():
-            tasks = set()
-            
-            while self.running:
-                start_time = time.time()
-                ret, frame = self.cap.read()
-                if not ret:
-                    raise ValueError("Could not read frame")
-                self._image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                # Add a new task to the set
-                task = asyncio.create_task(self.yolo_client.detect(self._image))
-                tasks.add(task)
-                
-                # Clean up completed tasks
-                tasks = {t for t in tasks if not t.done()}
-                with self._image_process_lock:
-                    self._image_process_result = self.yolo_client.latest_result
-                # Sleep for the interval
-                elapsed_time = time.time() - start_time
-                await asyncio.sleep(max(0, self.interval - elapsed_time))
-        # Run the async function in the event loop
-        loop.run_until_complete(schedule_tasks())
+    async def process_image(self, image: Image.Image):
+        await self.yolo_client.detect(image)
+    
+    @overrides
+    def fetch_processed_result(self) -> tuple[Image.Image, list]:
+        return self.yolo_client.latest_result
 
 class VirtualRobotWrapper(RobotWrapper):
     def __init__(self, robot_info: RobotInfo, system_skill_func: list[callable]):
