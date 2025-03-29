@@ -49,19 +49,22 @@ def sharpen_image(img):
     return sharpened
 
 class TelloObservation(RobotObservation):
-    def __init__(self, drone, robot_info: RobotInfo, rate: int = 10):
+    def __init__(self, drone: Tello, robot_info: RobotInfo, rate: int = 10):
         super().__init__(robot_info, rate)
         self.drone = drone
         self.yolo_client = YoloClient(robot_info)
         self.alive_count = 0
 
         def _capture_spin():
+            frame_reader = self.drone.get_frame_read()
             while self.running:
-                frame = self.drone.get_frame_read().frame
-                if frame is None:
-                    continue
+                frame = None
+                if frame_reader:
+                    frame = frame_reader.frame
                 # Convert the frame to RGB and store it in self._image
-                self._image = Image.fromarray(frame)
+                if frame is not None:
+                    self._image = Image.fromarray(frame)
+                time.sleep(0.1)
         self.capture_thread = threading.Thread(target=_capture_spin)
 
     def keep_alive(self):
@@ -138,7 +141,7 @@ class TelloWrapper(RobotWrapper):
             return False
         else:
             self.drone.takeoff()
-        self.move_up(25)
+        # self.move_up(25)
         self.observation.start()
         return True
 
