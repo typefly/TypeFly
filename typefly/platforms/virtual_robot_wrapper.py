@@ -96,18 +96,18 @@ class VirtualRobotWrapper(RobotWrapper):
         self.observation.stop()
 
     @overrides
-    def move(self, dx: int, dy: int) -> tuple[bool, bool]:
+    def move(self, dx: float, dy: float) -> tuple[bool, bool]:
         print(f"-> Move by ({dx}, {dy}) cm")
         time.sleep(SKILL_EXECUTION_TIME)
         return True, False
 
     @overrides
-    def rotate(self, deg: int) -> tuple[bool, bool]:
+    def rotate(self, deg: float) -> tuple[bool, bool]:
         print(f"-> Rotate by {deg} degrees")
         time.sleep(SKILL_EXECUTION_TIME)
         return True, False
     
-    def lift(self, dist: int) -> tuple[bool, bool]:
+    def lift(self, dist: float) -> tuple[bool, bool]:
         print(f"-> Lift for {dist} cm")
         time.sleep(SKILL_EXECUTION_TIME)
         return True, False

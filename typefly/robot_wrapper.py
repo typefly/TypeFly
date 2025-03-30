@@ -4,6 +4,7 @@ from numpy import ndarray
 import time, threading
 from PIL import Image
 import asyncio
+import re
 
 from .skillset import SkillSet
 from .robot_info import RobotInfo
@@ -144,11 +145,11 @@ class RobotWrapper(ABC):
 
     # movement skills
     @abstractmethod
-    def move(self, dx: int, dy: int) -> tuple[bool, bool]:
+    def move(self, dx: float, dy: float) -> tuple[bool, bool]:
         pass
 
     @abstractmethod
-    def rotate(self, deg: int) -> tuple[bool, bool]:
+    def rotate(self, deg: float) -> tuple[bool, bool]:
         pass
 
     # vision skills
@@ -184,6 +185,12 @@ class RobotWrapper(ABC):
         return getattr(info, attr), False
     
     def object_x(self, object_name: str) -> tuple[float | str, bool]:
+        # if `[float]` is in the object_name, use it
+        match = re.search(r'\[(-?\d+(\.\d+)?)\]', object_name)
+        if match:
+            # Extract the number and return it as a float
+            extracted_number = float(match.group(1))
+            return extracted_number, False
         return self._get_object_attribute(object_name, 'x')
     
     def object_y(self, object_name: str) -> tuple[float | str, bool]:

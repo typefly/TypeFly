@@ -70,7 +70,7 @@ class TelloWrapper(RobotWrapper):
         super().__init__(robot_info, TelloObservation(self.drone, robot_info), system_skill_func)
 
         # extra movement skills
-        self.ll_skillset.add_low_level_skill("lift", self.lift, "Move up/down by a distance", args=[SkillArg("dist", int)])
+        self.ll_skillset.add_low_level_skill("lift", self.lift, "Move up/down by a distance", args=[SkillArg("dist", float)])
         
         high_level_skills = [
             {
@@ -123,7 +123,7 @@ class TelloWrapper(RobotWrapper):
         self.observation.stop()
 
     @overrides
-    def move(self, dx: int, dy: int) -> tuple[bool, bool]:
+    def move(self, dx: float, dy: float) -> tuple[bool, bool]:
         print(f"-> Move by ({dx}, {dy}) cm")
         if dx > 0:
             self.drone.move_forward(self._cap_dist(dx))
@@ -139,13 +139,13 @@ class TelloWrapper(RobotWrapper):
         return True, False
 
     @overrides
-    def rotate(self, deg: int) -> tuple[bool, bool]:
+    def rotate(self, deg: float) -> tuple[bool, bool]:
         print(f"-> Rotate by {deg} degrees")
         self.drone.rotate_counter_clockwise(deg) if deg > 0 else self.drone.rotate_clockwise(-deg)
         time.sleep(EXECUTION_DELAY)
         return True, False
     
-    def lift(self, dist: int) -> tuple[bool, bool]:
+    def lift(self, dist: float) -> tuple[bool, bool]:
         print(f"-> Lift for {dist} cm")
         self.drone.move_up(self._cap_dist(dist)) if dist > 0 else self.drone.move_down(self._cap_dist(-dist))
         time.sleep(EXECUTION_DELAY)

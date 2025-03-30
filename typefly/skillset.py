@@ -79,8 +79,8 @@ class SkillSet():
     @staticmethod
     def get_common_skillset(movement_skills: list[callable], vision_skills: list[callable], other_skills: list[callable]) -> 'SkillSet':
         skillset = SkillSet(level=SkillSetLevel.LOW)
-        skillset.add_low_level_skill("move", movement_skills[0], "Move by (dx, dy) cm distance (dx: +forward/-backward, dy: +left/-right)", args=[SkillArg("dx", int), SkillArg("dy", int)])
-        skillset.add_low_level_skill("rotate", movement_skills[1], "Rotate by a certain degree (deg: +left/-right)", args=[SkillArg("deg", int)])
+        skillset.add_low_level_skill("move", movement_skills[0], "Move by (dx, dy) cm distance (dx: +forward/-backward, dy: +left/-right)", args=[SkillArg("dx", float), SkillArg("dy", float)])
+        skillset.add_low_level_skill("rotate", movement_skills[1], "Rotate by a certain degree (deg: +left/-right)", args=[SkillArg("deg", float)])
 
         skillset.add_low_level_skill("is_visible", vision_skills[0], "Check if object is visible", args=[SkillArg("obj", str)])
         skillset.add_low_level_skill("object_x", vision_skills[1], "Get object's x position (0-1)", args=[SkillArg("obj", str)])

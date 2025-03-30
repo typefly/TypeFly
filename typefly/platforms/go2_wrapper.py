@@ -165,7 +165,7 @@ class Go2Wrapper(RobotWrapper):
                 print_t(f"[Go2] {response.text}")
 
             self.ll_skillset.add_low_level_skill("stand_up", lambda: self._action('stand_up'), "Stand up")
-            self.ll_skillset.add_low_level_skill("stand_down", lambda: self._action('stand_down'), "Stand down")
+            self.ll_skillset.add_low_level_skill("lay_down", lambda: self._action('stand_down'), "Stand down")
 
         self.action_wait_time = 1.0
 
@@ -182,7 +182,7 @@ class Go2Wrapper(RobotWrapper):
             },
             {
                 "name": "orienting",
-                "definition": "4{_1=ox($1);?_1>0.6{rotate(-15)}:?_1<0.4{rotate(15)}:{->True}}->False",
+                "definition": "{_1=ox($1);rotate((0.5-_1)*80)}",
                 "description": "Rotate to align with object $1",
             },
             {
@@ -231,7 +231,7 @@ class Go2Wrapper(RobotWrapper):
             self.control_publisher.publish(twist)
         time.sleep(wait_time)
 
-    def _move(self, linear_x=0.0, linear_y=0.0, angular_z=0.0, duration=3.0):
+    def _move(self, linear_x: float=0.0, linear_y: float=0.0, angular_z: float=0.0, duration: float=3.0):
         """
         Helper function to publish Twist messages for a specified duration.
         """
@@ -261,7 +261,7 @@ class Go2Wrapper(RobotWrapper):
         self._stop_moving(self.action_wait_time)
 
     @overrides
-    def move(self, dx: int, dy: int) -> tuple[bool, bool]:
+    def move(self, dx: float, dy: float) -> tuple[bool, bool]:
         """
         Moves the robot by the specified distance in the x (forward/backward) and y (left/right) directions.
         """
@@ -280,7 +280,7 @@ class Go2Wrapper(RobotWrapper):
         return True, False
 
     @overrides
-    def rotate(self, deg: int) -> tuple[bool, bool]:
+    def rotate(self, deg: float) -> tuple[bool, bool]:
         """
         Rotates the robot by the specified angle in degrees.
         """

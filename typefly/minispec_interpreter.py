@@ -463,6 +463,11 @@ class Statement:
     def eval_expr(self, expr: str) -> MiniSpecReturnValue:
         _print_debug(f'Eval expr: {expr}')
         expr = expr.strip()
+
+        # stripe ()
+        if expr.startswith('(') and expr.endswith(')'):
+            expr = expr[1:-1].strip()
+
         if len(expr) == 0:
             raise Exception('Empty expression')
         
@@ -514,6 +519,7 @@ class Statement:
         for op, func in operators.items():
             if op in expr:
                 operands = split_expression(expr, op)
+                print(f'Operands: {operands}')
                 if len(operands) < 2:
                     continue
                 # Evaluate the first operand

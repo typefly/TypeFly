@@ -48,7 +48,7 @@ class SkillItem(ABC):
         """Parses the string of arguments and converts them to the expected types."""
         # Check the number of arguments
         if len(args_str_list) != len(self.args):
-            raise ValueError(f"Expected {len(self.args)} arguments, but got {len(args_str_list)}.")
+            raise ValueError(f"Func {self.name} expected {len(self.args)} arguments, but got {len(args_str_list)}.")
         
         parsed_args = []
         for i, arg in enumerate(args_str_list):
