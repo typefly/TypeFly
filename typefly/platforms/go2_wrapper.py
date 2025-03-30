@@ -164,6 +164,9 @@ class Go2Wrapper(RobotWrapper):
             else:
                 print_t(f"[Go2] {response.text}")
 
+            self.ll_skillset.add_low_level_skill("stand_up", lambda: self._action('stand_up'), "Stand up")
+            self.ll_skillset.add_low_level_skill("stand_down", lambda: self._action('stand_down'), "Stand down")
+
         self.action_wait_time = 1.0
 
         high_level_skills = [
@@ -202,6 +205,25 @@ class Go2Wrapper(RobotWrapper):
     def stop(self):
         self.observation.stop()
 
+    def _action(self, action: str):
+        if not self.ros:
+            control = {
+                "command": action,
+                "timeout": 3.0
+            }
+            self._send_control(control)
+        else:
+            print_t(f"[Go2] Unsupported action for ros: {action}")
+
+    def _send_control(self, control: dict):
+        response = requests.post(
+            self.robot_url + "control",
+            json=control,
+            headers={"Content-Type": "application/json"}
+        )
+        if response.status_code != 200:
+            print_t(f"[Go2] Failed to send command: {response.json()}")
+
     def _stop_moving(self, wait_time: float = 0.0):
         if self.ros:
             from geometry_msgs.msg import Twist
@@ -234,13 +256,7 @@ class Go2Wrapper(RobotWrapper):
             elif angular_z != 0.0:
                 control["command"] = "rotate"
                 control["delta_angle"] = angular_z
-            response = requests.post(
-                self.robot_url + "control",
-                json=control,
-                headers={"Content-Type": "application/json"}
-            )
-            if response.status_code != 200:
-                print_t(f"[Go2] Failed to send command: {response.json()}")
+            self._send_control(control)
 
         self._stop_moving(self.action_wait_time)
 
