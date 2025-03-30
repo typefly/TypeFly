@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import glob
 import os
+import argparse
 import matplotlib.pyplot as plt
 
 class FisheyeCameraCalibration:
@@ -148,7 +149,7 @@ def debug_calibration(images_folder):
     # Display processed images with corners
     for img in processed_images:
         cv2.imshow('Detected Corners', img)
-        cv2.waitKey(200)
+        cv2.waitKey(100)
     cv2.destroyAllWindows()
     
     # Calibrate camera
@@ -187,7 +188,8 @@ def debug_calibration(images_folder):
     
     return None, None
 
-# Run the debug script
 if __name__ == '__main__':
-    images_folder = '../examples/cache/image'
-    debug_calibration(images_folder)
+    parser = argparse.ArgumentParser(description='Camera Calibration Debug Tool')
+    parser.add_argument('images_folder', type=str, help='Path to folder containing calibration images')
+    args = parser.parse_args()
+    debug_calibration(args.images_folder)

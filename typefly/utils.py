@@ -1,4 +1,4 @@
-import datetime
+import datetime, cv2
 import numpy as np
 from numpy import ndarray
 from .skill_item import SKILL_RET_TYPE
@@ -55,3 +55,34 @@ def quaternion_to_rpy(qx, qy, qz, qw) -> ndarray:
     yaw = np.arctan2(siny_cosp, cosy_cosp)
 
     return np.array([roll, pitch, yaw])
+
+def undistort_image(img: cv2.Mat, K: ndarray, D: ndarray, balance: float=0.2) -> cv2.Mat:
+    """
+    Undistort an image with optional balance parameter to control field of view
+    
+    :param img: Input image
+    :param K: Camera matrix
+    :param D: Distortion coefficients
+    :param balance: Balance parameter to control FOV (0.0 to 1.0)
+    :return: Undistorted image
+    """
+    dim1 = img.shape[:2][::-1]
+    
+    # Compute new camera matrix
+    new_K = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(
+        K, D, dim1, np.eye(3), balance=balance
+    )
+    
+    # Create map for undistortion
+    map1, map2 = cv2.fisheye.initUndistortRectifyMap(
+        K, D, np.eye(3), new_K, dim1, cv2.CV_16SC2
+    )
+    
+    # Remap the image
+    undistorted_img = cv2.remap(
+        img, map1, map2, 
+        interpolation=cv2.INTER_LINEAR, 
+        borderMode=cv2.BORDER_CONSTANT
+    )
+    
+    return undistorted_img

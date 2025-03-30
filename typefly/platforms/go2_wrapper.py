@@ -1,6 +1,6 @@
-import time, os
+import time, os, math
 import numpy as np
-import threading
+import threading, requests
 from overrides import overrides
 from PIL import Image
 import cv2
@@ -9,9 +9,20 @@ from ..robot_wrapper import RobotWrapper, RobotObservation
 from ..robot_info import RobotInfo
 from ..yolo_client import YoloClient
 from ..skillset import SkillSet, SkillArg, SkillSetLevel
-from ..utils import quaternion_to_rpy
+from ..utils import quaternion_to_rpy, print_t, undistort_image
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+GO2_CAM_K = np.array([
+    [818.18507419, 0.0, 637.94628188],
+    [0.0, 815.32431463, 338.3480119],
+    [0.0, 0.0, 1.0]
+], dtype=np.float32)
+
+GO2_CAM_D = np.array([[-0.07203219],
+                      [-0.05228525],
+                      [ 0.05415833],
+                      [-0.02288355]], dtype=np.float32)
 
 class Go2Observation(RobotObservation):
     def __init__(self, robot_info: RobotInfo, rate: int = 10):
@@ -22,7 +33,7 @@ class Go2Observation(RobotObservation):
         if self.ros:
             self.init_ros_observation()
         else:
-            self.init_custom_sdk(self.robot_info.extra)
+            self.init_custom_sdk()
 
     def init_ros_observation(self):
         from sensor_msgs import msg
@@ -36,6 +47,8 @@ class Go2Observation(RobotObservation):
         def _ros_image_callback(image: msg.Image):
             # Convert RGB to BGR
             buffer = np.frombuffer(image.data, dtype=np.uint8).reshape((image.height, image.width, 3))[:, :, ::-1]
+            # Undistort the image
+            buffer = undistort_image(buffer, GO2_CAM_K, GO2_CAM_D)
             self._image = Image.fromarray(buffer)
 
         def _ros_odom_callback(odom: Odometry):
@@ -69,12 +82,7 @@ class Go2Observation(RobotObservation):
         )
         self.ros_thread = threading.Thread(target=_ros_spin)
 
-    def init_custom_sdk(self, extra: dict):
-        if "ip" not in extra or "port" not in extra:
-            raise ValueError("IP and port must be provided in extra")
-        self.ip = extra["ip"]
-        self.port = extra["port"]
-
+    def init_custom_sdk(self):
         # Use gstreamer and OpenCV to read the video stream
         # You need to start the gstreamer pipeline on the robot, see platforms/README.md
         GSTREAMER_PIPELINE_STR = """
@@ -98,6 +106,8 @@ class Go2Observation(RobotObservation):
                 if not ret:
                     continue
                 # Convert the frame to RGB and store it in self._image
+                
+                frame = undistort_image(frame, GO2_CAM_K, GO2_CAM_D)
                 self._image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                 cv2.waitKey(1)
         self.gstreamer_thread = threading.Thread(target=_gstreamer_spin)
@@ -140,10 +150,21 @@ class Go2Wrapper(RobotWrapper):
             import rclpy
             self.node = rclpy.create_node('typefly_go2_control')
             self.control_publisher = self.node.create_publisher(Twist, '/cmd_vel', 10)
+            self.ros_move_speed = 0.8
+            self.ros_rotate_speed = 1.0
+            self.ros_control_dt = 0.1
+        else:
+            extra = self.robot_info.extra
+            if "url" not in extra:
+                raise ValueError("Control url must be provided in extra")
+            self.robot_url = extra["url"]
+            response = requests.get(self.robot_url)
+            if response.status_code != 200:
+                raise RuntimeError(f"[Go2] Failed to connect to robot at {self.robot_url}")
+            else:
+                print_t(f"[Go2] {response.text}")
 
-        self.dog_move_speed = 0.8
-        self.dog_control_dt = 0.1
-        self.dog_wait_time = 1.0
+        self.action_wait_time = 1.0
 
         high_level_skills = [
             {
@@ -188,114 +209,79 @@ class Go2Wrapper(RobotWrapper):
             self.control_publisher.publish(twist)
         time.sleep(wait_time)
 
-    @overrides
-    def move_forward(self, dist: int) -> tuple[bool, bool]:
-        print(f"-> Moving forward {dist} cm")
+    def _move(self, linear_x=0.0, linear_y=0.0, angular_z=0.0, duration=3.0):
+        """
+        Helper function to publish Twist messages for a specified duration.
+        """
         if self.ros:
             from geometry_msgs.msg import Twist
             twist = Twist()
-            twist.linear.x = self.dog_move_speed
+            twist.linear.x = linear_x
+            twist.linear.y = linear_y
+            twist.angular.z = angular_z
 
-            t = dist / self.dog_move_speed / 100.0
             start_time = time.time()
-            while time.time() - start_time < t:
+            while time.time() - start_time < duration:
                 self.control_publisher.publish(twist)
-                time.sleep(self.dog_control_dt)
+                time.sleep(self.ros_control_dt)
+        else:
+            control = { "timeout": duration }
+            if linear_x != 0.0 or linear_y != 0.0:
+                control["command"] = "move"
+                control["dx"] = linear_x
+                control["dy"] = linear_y
+                control["body_frame"] = True
+            elif angular_z != 0.0:
+                control["command"] = "rotate"
+                control["delta_angle"] = angular_z
+            response = requests.post(
+                self.robot_url + "control",
+                json=control,
+                headers={"Content-Type": "application/json"}
+            )
+            if response.status_code != 200:
+                print_t(f"[Go2] Failed to send command: {response.json()}")
 
-        self._stop_moving()
+        self._stop_moving(self.action_wait_time)
+
+    @overrides
+    def move_forward(self, dist: int) -> tuple[bool, bool]:
+        print(f"-> Moving forward {dist} cm")
+        duration = dist / 100.0 / self.ros_move_speed if self.ros else dist / 100.0
+        self._move(linear_x=self.ros_move_speed if self.ros else dist / 100.0, duration=duration)
         return True, False
 
     @overrides
     def move_backward(self, dist: int) -> tuple[bool, bool]:
         print(f"-> Moving backward {dist} cm")
-        if self.ros:
-            from geometry_msgs.msg import Twist
-            twist = Twist()
-            twist.linear.x = -self.dog_move_speed
-
-            t = dist / self.dog_move_speed / 100.0
-            start_time = time.time()
-            while time.time() - start_time < t:
-                self.control_publisher.publish(twist)
-                time.sleep(self.dog_control_dt)
-
-        self._stop_moving()
+        duration = dist / 100.0 / self.ros_move_speed if self.ros else dist / 100.0
+        self._move(linear_x=-self.ros_move_speed if self.ros else -dist / 100.0, duration=duration)
         return True, False
 
     @overrides
     def move_left(self, dist: int) -> tuple[bool, bool]:
         print(f"-> Moving left {dist} cm")
-        if self.ros:
-            from geometry_msgs.msg import Twist
-            twist = Twist()
-            twist.linear.y = self.dog_move_speed
-
-            t = dist / 100.0 / self.dog_move_speed
-            start_time = time.time()
-            while time.time() - start_time < t:
-                self.control_publisher.publish(twist)
-                time.sleep(self.dog_control_dt)
-
-        self._stop_moving()
+        duration = dist / 100.0 / self.ros_move_speed if self.ros else dist / 100.0
+        self._move(linear_y=self.ros_move_speed if self.ros else dist / 100.0, duration=duration)
         return True, False
 
     @overrides
     def move_right(self, dist: int) -> tuple[bool, bool]:
         print(f"-> Moving right {dist} cm")
-        if self.ros:
-            from geometry_msgs.msg import Twist
-            twist = Twist()
-            twist.linear.y = -self.dog_move_speed
-
-            t = dist / 100.0 / self.dog_move_speed
-            start_time = time.time()
-            while time.time() - start_time < t:
-                self.control_publisher.publish(twist)
-                time.sleep(self.dog_control_dt)
-
-        self._stop_moving()
+        duration = dist / 100.0 / self.ros_move_speed if self.ros else dist / 100.0
+        self._move(linear_y=-self.ros_move_speed if self.ros else -dist / 100.0, duration=duration)
         return True, False
-
-    def turn_45(self, clockwise: bool):
-        if self.ros:
-            from geometry_msgs.msg import Twist
-            twist = Twist()
-            twist.angular.z = -1.5 if clockwise else 1.5
-            start_time = time.time()
-            while time.time() - start_time < 0.3:
-                self.control_publisher.publish(twist)
-                time.sleep(self.dog_control_dt)
-
-    def turn_slow(self, deg: int, clockwise: bool):
-        if self.ros:
-            from geometry_msgs.msg import Twist
-            twist = Twist()
-            twist.angular.z = -0.5 if clockwise else 0.5
-
-            t = deg * 0.02 / 0.5
-            start_time = time.time()
-            while time.time() - start_time < t:
-                self.control_publisher.publish(twist)
-                time.sleep(self.dog_control_dt)
 
     @overrides
     def turn_ccw(self, deg: int) -> tuple[bool, bool]:
         print(f"-> Turning CCW {deg} degrees")
-        if self.ros:
-            for _ in range(deg // 45):
-                self.turn_45(False)
-
-            self.turn_slow(deg % 45, False)
-        self._stop_moving(self.dog_wait_time)
+        duration = deg * math.pi / 180.0 / self.ros_rotate_speed if self.ros else deg
+        self._move(angular_z=self.ros_rotate_speed if self.ros else deg, duration=duration)
         return True, False
 
     @overrides
     def turn_cw(self, deg: int) -> tuple[bool, bool]:
         print(f"-> Turning CW {deg} degrees")
-        if self.ros:
-            for _ in range(deg // 45):
-                self.turn_45(True)
-            
-            self.turn_slow(deg % 45, True)
-        self._stop_moving(self.dog_wait_time)
+        duration = deg * math.pi / 180.0 / self.ros_rotate_speed if self.ros else deg
+        self._move(angular_z=-self.ros_rotate_speed if self.ros else -deg, duration=duration)
         return True, False

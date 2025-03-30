@@ -1,8 +1,7 @@
 import cv2
 import requests
-import json
 
-def gstreamer_tet():
+def gstreamer_test(folder_path: str = None):
     pipeline_str = """
                 udpsrc address=230.1.1.1 port=1720 multicast-iface=wlan0
                 ! application/x-rtp, media=video, encoding-name=H264
@@ -19,6 +18,7 @@ def gstreamer_tet():
 
     frame_rate = cap.get(cv2.CAP_PROP_FPS)
     print(f"Frame rate: {frame_rate} FPS")
+    frame_index = 0
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -27,31 +27,32 @@ def gstreamer_tet():
 
         # Process the frame (for example, display it)
         cv2.imshow('Frame', frame)
+        if folder_path:
+            cv2.imwrite(folder_path + f"/frame_{frame_index:04}.jpg", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+        frame_index += 1
     cap.release()
     cv2.destroyAllWindows()
 
 BASE_URL = "http://192.168.0.253:18080/control"
+def test_move(dx, dy):
+    move_payload = {
+        "command": "move",
+        "dx": dx,
+        "dy": dy,
+        "body_frame": True,
+        "timeout": 3.0
+    }
+    print("\nTesting 'move' command:")
+    response = requests.post(BASE_URL, json=move_payload)
+    print(f"Status: {response.status_code}")
+    print(f"Response: {response.json()}")
 
-def test_control_api():
-    # Test valid 'move' command
-    # move_payload = {
-    #     "command": "move",
-    #     "dx": 0.3,
-    #     "dy": 0.0,
-    #     "body_frame": True,
-    #     "timeout": 3.0
-    # }
-    # print("\nTesting 'move' command:")
-    # response = requests.post(BASE_URL, json=move_payload)
-    # print(f"Status: {response.status_code}")
-    # print(f"Response: {response.json()}")
-
-    # Test valid 'rotate' command
+def test_rotate(delta_angle):
     rotate_payload = {
         "command": "rotate",
-        "delta_angle": -720.0,
+        "delta_angle": delta_angle,
         "timeout": 1.0
     }
     print("\nTesting 'rotate' command:")
@@ -59,7 +60,7 @@ def test_control_api():
     print(f"Status: {response.status_code}")
     print(f"Response: {response.json()}")
 
-    # Test invalid command
+def test_invalid_command():
     invalid_payload = {
         "command": "jump",  # Doesn't exist
         "dx": 1.0
@@ -69,7 +70,7 @@ def test_control_api():
     print(f"Status: {response.status_code}")
     print(f"Response: {response.text}")
 
-    # Test malformed JSON
+def test_malformed_json():
     malformed_data = "{not_valid_json}"
     print("\nTesting malformed JSON:")
     response = requests.post(
@@ -80,5 +81,26 @@ def test_control_api():
     print(f"Status: {response.status_code}")
     print(f"Response: {response.text}")
 
+def test_stand(up: bool = True):
+    stand_payload = {
+        "command": "stand_up" if up else "stand_down"
+    }
+    print("\nTesting 'stand' command:")
+    response = requests.post(BASE_URL, json=stand_payload)
+    print(f"Status: {response.status_code}")
+    print(f"Response: {response.json()}")
+
+def test_control_api():
+    print("Testing Control API...")
+    test_move(1.0, 0.0)
+    test_move(-1.0, 0.0)
+    test_rotate(90)
+    test_rotate(-90)
+    test_invalid_command()
+    test_malformed_json()
+    test_stand(False)
+    test_stand(True)
+
 if __name__ == "__main__":
-    test_control_api()
+    # test_control_api()
+    gstreamer_test('./cache')
