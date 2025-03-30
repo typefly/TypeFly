@@ -79,12 +79,8 @@ class SkillSet():
     @staticmethod
     def get_common_skillset(movement_skills: list[callable], vision_skills: list[callable], other_skills: list[callable]) -> 'SkillSet':
         skillset = SkillSet(level=SkillSetLevel.LOW)
-        skillset.add_low_level_skill("move_forward", movement_skills[0], "Move forward by distance", args=[SkillArg("dist", int)])
-        skillset.add_low_level_skill("move_backward", movement_skills[1], "Move backward by distance", args=[SkillArg("dist", int)])
-        skillset.add_low_level_skill("move_left", movement_skills[2], "Move left by distance", args=[SkillArg("dist", int)])
-        skillset.add_low_level_skill("move_right", movement_skills[3], "Move right by distance", args=[SkillArg("dist", int)])
-        skillset.add_low_level_skill("turn_cw", movement_skills[4], "Rotate clockwise/right by degrees", args=[SkillArg("deg", int)])
-        skillset.add_low_level_skill("turn_ccw", movement_skills[5], "Rotate counterclockwise/left by degrees", args=[SkillArg("deg", int)])
+        skillset.add_low_level_skill("move", movement_skills[0], "Move by (dx, dy) cm distance (dx: +forward/-backward, dy: +left/-right)", args=[SkillArg("dx", int), SkillArg("dy", int)])
+        skillset.add_low_level_skill("rotate", movement_skills[1], "Rotate by a certain degree (deg: +left/-right)", args=[SkillArg("deg", int)])
 
         skillset.add_low_level_skill("is_visible", vision_skills[0], "Check if object is visible", args=[SkillArg("obj", str)])
         skillset.add_low_level_skill("object_x", vision_skills[1], "Get object's x position (0-1)", args=[SkillArg("obj", str)])

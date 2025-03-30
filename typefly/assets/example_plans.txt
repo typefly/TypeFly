@@ -46,7 +46,7 @@ Turn around and go to the apple behind you.
 ## OUTPUT
 {
     "thoughts": "Turn 180 degrees then go to the general object apple.",
-    "<plan, robot1>": "tc(180);g('apple')"
+    "<plan, robot1>": "r(180);g('apple')"
 }
 ```
 
@@ -73,12 +73,12 @@ Find and go any edible object.
 - remote: (x:0.23, y:0.49), size: (0.09x0.07)
 
 ## USER INSTRUCTION
-Turn with 30 degrees step until you can see a person.
+Turn with 30 degrees step clockwise until you can see a person.
 
 ## OUTPUT
 {
     "thoughts": "Use loop and is_visible to find a person.",
-    "<plan, robot1>": "12{?iv('person'){->True}tc(30)}->False"
+    "<plan, robot1>": "12{?iv('person'){->True}r(-30)}->False"
 }
 ```
 

@@ -4,7 +4,6 @@ from openai import Stream
 from typing import Optional
 
 from .yolo_client import YoloClient
-from .platforms.tello_wrapper import TelloWrapper
 from .platforms.virtual_robot_wrapper import VirtualRobotWrapper
 from .robot_wrapper import RobotWrapper
 from .llm_planner import LLMPlanner
@@ -28,6 +27,7 @@ class LLMController():
             if info.robot_type == "virtual":
                 self.robots[info] = VirtualRobotWrapper(info, self.controller_func)
             elif info.robot_type == "tello":
+                from .platforms.tello_wrapper import TelloWrapper
                 self.robots[info] = TelloWrapper(info, self.controller_func)
             elif info.robot_type == "go2":
                 from .platforms.go2_wrapper import Go2Wrapper

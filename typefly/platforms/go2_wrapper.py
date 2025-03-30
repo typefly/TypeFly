@@ -172,22 +172,22 @@ class Go2Wrapper(RobotWrapper):
         high_level_skills = [
             {
                 "name": "scan",
-                "definition": "{8{?is_visible($1){->True}turn_cw(45)}->False}",
-                "description": "Rotate to find object $1 when it's *not* in current view",
+                "definition": "{8{?is_visible($1){->True}rotate(45)}->False}",
+                "description": "Rotate to find a specific object $1 when it's *not* in current view",
             },
             {
                 "name": "scan_description",
-                "definition": "{8{_1=probe($1);?_1!=False{->_1}turn_cw(45)}->False}",
-                "description": "Rotate to find object $1 when it's *not* in current view",
+                "definition": "{8{_1=probe($1);?_1!=False{->_1}rotate(45)}->False}",
+                "description": "Rotate to find an abstract object $1 when it's *not* in current view",
             },
             {
                 "name": "orienting",
-                "definition": "4{_1=ox($1);?_1>0.6{tc(15)}:?_1<0.4{tu(15)}:{->True}}->False",
+                "definition": "4{_1=ox($1);?_1>0.6{rotate(-15)}:?_1<0.4{rotate(15)}:{->True}}->False",
                 "description": "Rotate to align with object $1",
             },
             {
                 "name": "goto",
-                "definition": "?orienting($1){move_forward(80)}",
+                "definition": "?orienting($1){move(80, 0)}",
                 "description": "Move to object $1 in the view"
             }
         ]
@@ -255,49 +255,51 @@ class Go2Wrapper(RobotWrapper):
                 control["body_frame"] = True
             elif angular_z != 0.0:
                 control["command"] = "rotate"
-                control["delta_angle"] = angular_z
+                control["delta_rad"] = angular_z
             self._send_control(control)
 
         self._stop_moving(self.action_wait_time)
 
     @overrides
-    def move_forward(self, dist: int) -> tuple[bool, bool]:
-        print(f"-> Moving forward {dist} cm")
-        duration = dist / 100.0 / self.ros_move_speed if self.ros else dist / 100.0
-        self._move(linear_x=self.ros_move_speed if self.ros else dist / 100.0, duration=duration)
+    def move(self, dx: int, dy: int) -> tuple[bool, bool]:
+        """
+        Moves the robot by the specified distance in the x (forward/backward) and y (left/right) directions.
+        """
+        print(f"-> Move by ({dx}, {dy}) cm")
+        
+        # Convert distances from cm to meters
+        dx_m = dx / 100.0
+        dy_m = dy / 100.0
+
+        # Calculate duration based on speed
+        duration = max(abs(dx_m), abs(dy_m)) / self.ros_move_speed if self.ros else max(abs(dx_m), abs(dy_m))
+
+        # Perform the movement
+        self._move(linear_x=dx_m, linear_y=dy_m, duration=duration)
+
         return True, False
 
     @overrides
-    def move_backward(self, dist: int) -> tuple[bool, bool]:
-        print(f"-> Moving backward {dist} cm")
-        duration = dist / 100.0 / self.ros_move_speed if self.ros else dist / 100.0
-        self._move(linear_x=-self.ros_move_speed if self.ros else -dist / 100.0, duration=duration)
-        return True, False
+    def rotate(self, deg: int) -> tuple[bool, bool]:
+        """
+        Rotates the robot by the specified angle in degrees.
+        """
+        print(f"-> Rotate by {deg} degrees")
+        
+        # Convert degrees to radians
+        rad = math.radians(deg)
 
-    @overrides
-    def move_left(self, dist: int) -> tuple[bool, bool]:
-        print(f"-> Moving left {dist} cm")
-        duration = dist / 100.0 / self.ros_move_speed if self.ros else dist / 100.0
-        self._move(linear_y=self.ros_move_speed if self.ros else dist / 100.0, duration=duration)
-        return True, False
+        # Calculate duration based on rotation speed
+        if self.ros:
+            duration = abs(rad) / self.ros_rotate_speed if self.ros else abs(rad)
+            angular_z = self.ros_rotate_speed if deg > 0 else -self.ros_rotate_speed
+        else:
+            duration = 3.0
+            angular_z = rad
 
-    @overrides
-    def move_right(self, dist: int) -> tuple[bool, bool]:
-        print(f"-> Moving right {dist} cm")
-        duration = dist / 100.0 / self.ros_move_speed if self.ros else dist / 100.0
-        self._move(linear_y=-self.ros_move_speed if self.ros else -dist / 100.0, duration=duration)
-        return True, False
+        # Perform the rotation
 
-    @overrides
-    def turn_ccw(self, deg: int) -> tuple[bool, bool]:
-        print(f"-> Turning CCW {deg} degrees")
-        duration = deg * math.pi / 180.0 / self.ros_rotate_speed if self.ros else deg
-        self._move(angular_z=self.ros_rotate_speed if self.ros else deg, duration=duration)
-        return True, False
+        self._move(angular_z=angular_z, duration=duration)
 
-    @overrides
-    def turn_cw(self, deg: int) -> tuple[bool, bool]:
-        print(f"-> Turning CW {deg} degrees")
-        duration = deg * math.pi / 180.0 / self.ros_rotate_speed if self.ros else deg
-        self._move(angular_z=-self.ros_rotate_speed if self.ros else -deg, duration=duration)
         return True, False
+        

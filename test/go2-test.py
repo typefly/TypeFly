@@ -50,9 +50,11 @@ def test_move(dx, dy):
     print(f"Response: {response.json()}")
 
 def test_rotate(delta_angle):
+    # Convert degrees to radians
+    delta_rad = delta_angle * (3.14159 / 180)
     rotate_payload = {
         "command": "rotate",
-        "delta_angle": delta_angle,
+        "delta_rad": delta_rad,
         "timeout": 1.0
     }
     print("\nTesting 'rotate' command:")
@@ -102,5 +104,5 @@ def test_control_api():
     test_stand(True)
 
 if __name__ == "__main__":
-    # test_control_api()
-    gstreamer_test('./cache')
+    test_control_api()
+    # gstreamer_test('./cache')

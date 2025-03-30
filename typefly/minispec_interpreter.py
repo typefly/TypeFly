@@ -489,11 +489,33 @@ class Statement:
             '/': lambda a, b: a / b,
         }
 
+        # Split the expression while respecting parentheses and negative numbers
+        def split_expression(expr, operator):
+            depth = 0
+            parts = []
+            current = []
+            for i, char in enumerate(expr):
+                if char == '(':
+                    depth += 1
+                elif char == ')':
+                    depth -= 1
+                elif char == operator and depth == 0:
+                    # Ensure we don't split on a negative sign (e.g., "-10")
+                    if operator == '-' and (i == 0 or expr[i - 1] in ' ('):
+                        current.append(char)
+                        continue
+                    parts.append(''.join(current).strip())
+                    current = []
+                    continue
+                current.append(char)
+            parts.append(''.join(current).strip())
+            return parts
+
         for op, func in operators.items():
             if op in expr:
-                operands = expr.split(op)
+                operands = split_expression(expr, op)
                 if len(operands) < 2:
-                    raise Exception(f'Invalid expression: {expr}')
+                    continue
                 # Evaluate the first operand
                 result = self.eval_expr(operands[0]).value
                 # Apply the operator to the remaining operands

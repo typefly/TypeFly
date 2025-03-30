@@ -18,9 +18,9 @@ def input_t(literal):
     return input(f"[{current_time}] {literal}")
 
 def evaluate_value(s: str) -> SKILL_RET_TYPE:
-    if s.isdigit():
+    if s.lstrip('-').isdigit():  # Check for negative integers
         return int(s)
-    elif s.replace('.', '', 1).isdigit():
+    elif s.lstrip('-').replace('.', '', 1).isdigit():  # Check for negative floats
         return float(s)
     elif s == 'True':
         return True

@@ -107,12 +107,8 @@ class RobotWrapper(ABC):
         self._user_log = controller_func[0]
         self._probe = controller_func[1]
         common_movement_skill_func = [
-            self.move_forward,
-            self.move_backward,
-            self.move_left,
-            self.move_right,
-            self.turn_cw,
-            self.turn_ccw
+            self.move,
+            self.rotate,
         ]
 
         common_vision_skill_func = [
@@ -148,27 +144,11 @@ class RobotWrapper(ABC):
 
     # movement skills
     @abstractmethod
-    def move_forward(self, dist: int) -> tuple[bool, bool]:
-        pass
-    
-    @abstractmethod
-    def move_backward(self, dist: int) -> tuple[bool, bool]:
-        pass
-    
-    @abstractmethod
-    def move_left(self, dist: int) -> tuple[bool, bool]:
+    def move(self, dx: int, dy: int) -> tuple[bool, bool]:
         pass
 
     @abstractmethod
-    def move_right(self, dist: int) -> tuple[bool, bool]:
-        pass
-
-    @abstractmethod
-    def turn_ccw(self, deg: int) -> tuple[bool, bool]:
-        pass
-
-    @abstractmethod
-    def turn_cw(self, deg: int) -> tuple[bool, bool]:
+    def rotate(self, deg: int) -> tuple[bool, bool]:
         pass
 
     # vision skills

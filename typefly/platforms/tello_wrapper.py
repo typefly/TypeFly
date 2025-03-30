@@ -19,34 +19,7 @@ MOVEMENT_MAX = 300
 SCENE_CHANGE_DIST = 300
 SCENE_CHANGE_ANGLE = 360
 
-def adjust_exposure(img, alpha=1.0, beta=0):
-    """
-    Adjust the exposure of an image.
-    
-    :param img: Input image
-    :param alpha: Contrast control (1.0-3.0). Higher values increase exposure.
-    :param beta: Brightness control (0-100). Higher values add brightness.
-    :return: Exposure adjusted image
-    """
-    # Apply exposure adjustment using the formula: new_img = img * alpha + beta
-    new_img = cv2.convertScaleAbs(img, alpha=alpha, beta=beta)
-    return new_img
-
-def sharpen_image(img):
-    """
-    Apply a sharpening filter to an image.
-    
-    :param img: Input image
-    :return: Sharpened image
-    """
-    # Define a sharpening kernel
-    kernel = np.array([[0, -1, 0],
-                       [-1, 5, -1],
-                       [0, -1, 0]])
-    
-    # Apply the sharpening filter
-    sharpened = cv2.filter2D(img, -1, kernel)
-    return sharpened
+EXECUTION_DELAY = 0.8
 
 class TelloObservation(RobotObservation):
     def __init__(self, drone: Tello, robot_info: RobotInfo, rate: int = 10):
@@ -97,29 +70,28 @@ class TelloWrapper(RobotWrapper):
         super().__init__(robot_info, TelloObservation(self.drone, robot_info), system_skill_func)
 
         # extra movement skills
-        self.ll_skillset.add_low_level_skill("move_up", self.move_up, "Move up by a distance", args=[SkillArg("dist", int)])
-        self.ll_skillset.add_low_level_skill("move_down", self.move_down, "Move down by a distance", args=[SkillArg("dist", int)])
+        self.ll_skillset.add_low_level_skill("lift", self.lift, "Move up/down by a distance", args=[SkillArg("dist", int)])
         
         high_level_skills = [
             {
                 "name": "scan",
-                "definition": "{8{?is_visible($1){->True}turn_cw(45)}->False}",
-                "description": "Rotate to find object $1 when it's *not* in current view",
+                "definition": "{8{?is_visible($1){->True}rotate(45)}->False}",
+                "description": "Rotate to find a specific object $1 when it's *not* in current view",
             },
             {
                 "name": "scan_description",
-                "definition": "{8{_1=probe($1);?_1!=False{->_1}turn_cw(45)}->False}",
-                "description": "Rotate to find object $1 when it's *not* in current view",
+                "definition": "{8{_1=probe($1);?_1!=False{->_1}rotate(45)}->False}",
+                "description": "Rotate to find an abstract object $1 when it's *not* in current view",
             },
             {
                 "name": "orienting",
-                "definition": "4{_1=ox($1);?_1>0.6{tc(15)}:?_1<0.4{tu(15)}:{->True}}->False",
+                "definition": "4{_1=ox($1);?_1>0.6{rotate(-15)}:?_1<0.4{rotate(15)}:{->True}}->False",
                 "description": "Rotate to align with object $1",
             },
             {
                 "name": "goto",
-                "definition": "?orienting($1){move_forward(80)}",
-                "description": "Move to object $1 in the view"
+                "definition": "?orienting($1){move(80, 0)}",
+                "description": "Move to object $1 in the view (orienting then go forward)"
             }
         ]
 
@@ -151,51 +123,32 @@ class TelloWrapper(RobotWrapper):
         self.observation.stop()
 
     @overrides
-    def move_forward(self, dist: int) -> tuple[bool, bool]:
-        self.drone.move_forward(self._cap_dist(dist))
-        time.sleep(0.5)
-        return True, dist > SCENE_CHANGE_DIST
+    def move(self, dx: int, dy: int) -> tuple[bool, bool]:
+        print(f"-> Move by ({dx}, {dy}) cm")
+        if dx > 0:
+            self.drone.move_forward(self._cap_dist(dx))
+        elif dx < 0:
+            self.drone.move_back(self._cap_dist(-dx))
+        time.sleep(EXECUTION_DELAY)
 
-    @overrides
-    def move_backward(self, dist: int) -> tuple[bool, bool]:
-        self.drone.move_back(self._cap_dist(dist))
-        time.sleep(0.5)
-        return True, dist > SCENE_CHANGE_DIST
-
-    @overrides
-    def move_left(self, dist: int) -> tuple[bool, bool]:
-        self.drone.move_left(self._cap_dist(dist))
-        time.sleep(0.5)
-        return True, dist > SCENE_CHANGE_DIST
-
-    @overrides
-    def move_right(self, dist: int) -> tuple[bool, bool]:
-        self.drone.move_right(self._cap_dist(dist))
-        time.sleep(0.5)
-        return True, dist > SCENE_CHANGE_DIST
-
-    @overrides
-    def turn_ccw(self, deg: int) -> tuple[bool, bool]:
-        self.drone.rotate_counter_clockwise(deg)
-        time.sleep(1)
-        # return True, deg > SCENE_CHANGE_ANGLE
+        if dy > 0:
+            self.drone.move_left(self._cap_dist(dy))
+        elif dy < 0:
+            self.drone.move_right(self._cap_dist(-dy))
+        time.sleep(EXECUTION_DELAY)
         return True, False
 
     @overrides
-    def turn_cw(self, deg: int) -> tuple[bool, bool]:
-        self.drone.rotate_clockwise(deg)
-        time.sleep(1)
-        # return True, deg > SCENE_CHANGE_ANGLE
+    def rotate(self, deg: int) -> tuple[bool, bool]:
+        print(f"-> Rotate by {deg} degrees")
+        self.drone.rotate_counter_clockwise(deg) if deg > 0 else self.drone.rotate_clockwise(-deg)
+        time.sleep(EXECUTION_DELAY)
         return True, False
     
-    def move_up(self, dist: int) -> tuple[bool, bool]:
-        self.drone.move_up(self._cap_dist(dist))
-        time.sleep(0.5)
-        return True, False
-
-    def move_down(self, dist: int) -> tuple[bool, bool]:
-        self.drone.move_down(self._cap_dist(dist))
-        time.sleep(0.5)
+    def lift(self, dist: int) -> tuple[bool, bool]:
+        print(f"-> Lift for {dist} cm")
+        self.drone.move_up(self._cap_dist(dist)) if dist > 0 else self.drone.move_down(self._cap_dist(-dist))
+        time.sleep(EXECUTION_DELAY)
         return True, False
     
     def _is_battery_good(self) -> bool:
