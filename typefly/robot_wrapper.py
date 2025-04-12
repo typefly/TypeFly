@@ -29,8 +29,8 @@ class RobotObservation(ABC):
         self.thread = threading.Thread(target=self.update_observation, daemon=True)
 
     def start(self):
-        self._start()
         self.running = True
+        self._start()
         self.thread.start()
 
     def stop(self):

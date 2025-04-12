@@ -1,11 +1,9 @@
 [
     {
         "robot_id": "robot1",
-        "robot_type": "go2",
+        "robot_type": "pod",
         "extra": {
-            "capture": 1,
-            "ros": false,
-            "url": "http://192.168.0.253:18080/"
+            "ip": "192.168.0.125"
         }
     }
 ]
