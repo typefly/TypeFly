@@ -64,6 +64,7 @@ class PodWrapper(RobotWrapper):
 
         # extra movement skills
         self.ll_skillset.add_low_level_skill("lift", self.lift, "Move up/down by a distance", args=[SkillArg("dist", float)])
+        self.ll_skillset.add_low_level_skill("land", self.land, "Land the drone")
         
         high_level_skills = [
             {
@@ -107,13 +108,24 @@ class PodWrapper(RobotWrapper):
                 return False
             else:
                 self.podtp.start_stream()
-                self.podtp.command_takeoff()
+                self._take_off_from_dog()
                 print("Drone started")
         else:
             print("Failed to connect to the drone")
             return False
         self.observation.start()
         return True
+    
+    def _take_off_from_dog(self):
+        # dog is around 40cm high
+        self.podtp.reset_estimator(40)
+        count = 0
+        while count < 15:
+            self.podtp.command_hover(0, 0, 0, 0.5)
+            time.sleep(0.2)
+            count += 1
+        time.sleep(1)
+        self.podtp.command_position(0.3, 0, 0, 0)
 
     @overrides
     def stop(self):
@@ -143,5 +155,11 @@ class PodWrapper(RobotWrapper):
     def lift(self, dist: float) -> tuple[bool, bool]:
         print(f"-> Lift for {dist} cm")
         self.podtp.command_position(0, 0, self._cap_dist(dist) / 100.0, 0)
+        time.sleep(EXECUTION_DELAY)
+        return True, False
+    
+    def land(self) -> tuple[bool, bool]:
+        print("-> Land")
+        self.podtp.command_land()
         time.sleep(EXECUTION_DELAY)
         return True, False
