@@ -111,5 +111,5 @@ def test_control_api():
 
 if __name__ == "__main__":
     # test_control_api()
-    # gstreamer_test('./cache')
-    test_get_state()
+    gstreamer_test('./cache')
+    # test_get_state()

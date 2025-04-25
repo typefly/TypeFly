@@ -1,10 +1,12 @@
 [
     {
         "robot_id": "robot1",
-        "robot_type": "virtual",
+        "robot_type": "go2",
         "extra": {
             "capture": 0,
-            "ip": "192.168.8.103"
+            "ip": "192.168.8.103",
+            "url": "http://192.168.8.213:18080/",
+            "ros": false
         }
     }
 ]
