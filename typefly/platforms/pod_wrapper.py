@@ -118,14 +118,14 @@ class PodWrapper(RobotWrapper):
     
     def _take_off_from_dog(self):
         # dog is around 40cm high
-        self.podtp.reset_estimator(40)
+        self.podtp.reset_estimator(0)
         count = 0
         while count < 15:
-            self.podtp.command_hover(0, 0, 0, 0.5)
+            self.podtp.command_hover(0, 0, 0, 0.6)
             time.sleep(0.2)
             count += 1
         time.sleep(1)
-        self.podtp.command_position(0.3, 0, 0, 0)
+        self.podtp.command_position(0, 0, 0, 0)
 
     @overrides
     def stop(self):

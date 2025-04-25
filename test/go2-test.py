@@ -35,7 +35,7 @@ def gstreamer_test(folder_path: str = None):
     cap.release()
     cv2.destroyAllWindows()
 
-BASE_URL = "http://192.168.0.253:18080/control"
+BASE_URL = "http://192.168.8.213:18080"
 def test_move(dx, dy):
     move_payload = {
         "command": "move",
@@ -45,7 +45,7 @@ def test_move(dx, dy):
         "timeout": 3.0
     }
     print("\nTesting 'move' command:")
-    response = requests.post(BASE_URL, json=move_payload)
+    response = requests.post(BASE_URL + '/control', json=move_payload)
     print(f"Status: {response.status_code}")
     print(f"Response: {response.json()}")
 
@@ -58,7 +58,7 @@ def test_rotate(delta_angle):
         "timeout": 1.0
     }
     print("\nTesting 'rotate' command:")
-    response = requests.post(BASE_URL, json=rotate_payload)
+    response = requests.post(BASE_URL + '/control', json=rotate_payload)
     print(f"Status: {response.status_code}")
     print(f"Response: {response.json()}")
 
@@ -68,7 +68,7 @@ def test_invalid_command():
         "dx": 1.0
     }
     print("\nTesting invalid command:")
-    response = requests.post(BASE_URL, json=invalid_payload)
+    response = requests.post(BASE_URL + '/control', json=invalid_payload)
     print(f"Status: {response.status_code}")
     print(f"Response: {response.text}")
 
@@ -76,7 +76,7 @@ def test_malformed_json():
     malformed_data = "{not_valid_json}"
     print("\nTesting malformed JSON:")
     response = requests.post(
-        BASE_URL,
+        BASE_URL + '/control',
         data=malformed_data,
         headers={"Content-Type": "application/json"}
     )
@@ -88,7 +88,13 @@ def test_stand(up: bool = True):
         "command": "stand_up" if up else "stand_down"
     }
     print("\nTesting 'stand' command:")
-    response = requests.post(BASE_URL, json=stand_payload)
+    response = requests.post(BASE_URL + '/control', json=stand_payload)
+    print(f"Status: {response.status_code}")
+    print(f"Response: {response.json()}")
+
+def test_get_state():
+    print("\nTesting 'get_state' command:")
+    response = requests.get(BASE_URL + '/state')
     print(f"Status: {response.status_code}")
     print(f"Response: {response.json()}")
 
@@ -104,5 +110,6 @@ def test_control_api():
     test_stand(True)
 
 if __name__ == "__main__":
-    test_control_api()
+    # test_control_api()
     # gstreamer_test('./cache')
+    test_get_state()
