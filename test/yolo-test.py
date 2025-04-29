@@ -12,8 +12,8 @@ def detect_local(image: Image, conf=0.2):
     image_bytes = YoloClient.image_to_bytes(image.resize((640, 352)))
 
     json_data = {
-        'robot_info': RobotInfo('robot3', 'drone', '127.0.0.1').to_json(),
-        'service_type': 'yolo',
+        'robot_info': RobotInfo('robot3', 'drone', None).to_json(),
+        'service_type': 'yolo3d',
         'tracking_mode': False,
         'image_id': 1,
         'conf': conf
