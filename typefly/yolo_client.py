@@ -75,12 +75,12 @@ class YoloClient():
             y2 = str_float_to_int(obj.y + obj.h / 2, h)
 
             # Draw bounding box
-            draw.rectangle([x1, y1, x2, y2], outline='blue', width=4)
+            draw.rectangle([x1, y1, x2, y2], outline='#00FFFF', width=6)
 
             # Draw label and depth
             label = f"{obj.name}"
             if obj.depth is not None:
-                label += f" ({(1.5-obj.depth):.2f}m)"
+                label += f" ({obj.depth:.2f}m)"
             draw.text((x1, y1 - 40), label, fill='red', font=font)
     
     @staticmethod
