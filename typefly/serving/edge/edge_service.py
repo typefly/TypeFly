@@ -17,6 +17,7 @@ YOLO_SERVICE_INFO = { "host": "localhost", "port" : [50050, 50051] }
 @app.before_serving
 async def before_serving():
     grpcServiceManager.add_service("yolo", YOLO_SERVICE_INFO["host"], YOLO_SERVICE_INFO["port"])
+    grpcServiceManager.add_service("yolo3d", 'localhost', [50060])
     await grpcServiceManager._initialize_channels()
 
 @app.route('/process', methods=['POST'])
@@ -32,7 +33,7 @@ async def process():
         robot_info = RobotInfo.from_json(json_data["robot_info"])
         service_type = json_data["service_type"]
 
-        if service_type == "yolo":
+        if service_type == "yolo" or service_type == "yolo3d":
             files = await request.files
             image_data = files['image']
             image_bytes = image_data.read()
@@ -45,7 +46,7 @@ async def process():
     if isinstance(channel, str):
         return {"error": f"Channel error: {channel}"}, 400
 
-    if service_type == "yolo":
+    if service_type == "yolo" or service_type == "yolo3d":
         stub = hyrch_serving_pb2_grpc.YoloServiceStub(channel)
         response = await stub.Detect(hyrch_serving_pb2.DetectRequest(
             json_data=json_str,
