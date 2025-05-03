@@ -15,15 +15,16 @@ EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
 EDGE_SERVICE_PORT = os.environ.get("EDGE_SERVICE_PORT", "50049")
 
 class ObjectInfo:
-    def __init__(self, name: str, x, y, w, h):
+    def __init__(self, name: str, x, y, w, h, depth=None):
         self.name: str = name
         self.x: float = float(x)
         self.y: float = float(y)
         self.w: float = float(w)
         self.h: float = float(h)
+        self.depth: float = float(depth) if depth is not None else None
 
     def from_json(json_data: dict):
-        return ObjectInfo(json_data['name'], json_data['x'], json_data['y'], json_data['w'], json_data['h'])
+        return ObjectInfo(json_data['name'], json_data['x'], json_data['y'], json_data['w'], json_data['h'], json_data['depth'])
 
     def __str__(self) -> str:
         return f"- {self.name}: (x:{self.x:.2f}, y:{self.y:.2f}), size: ({self.w:.2f}x{self.h:.2f})"
@@ -59,18 +60,31 @@ class YoloClient():
     def plot_results_ps(image: Image.Image, object_list: list[ObjectInfo]):
         if not image or len(object_list) == 0:
             return
+
         def str_float_to_int(value, multiplier):
             return int(float(value) * multiplier)
+
         draw = ImageDraw.Draw(image)
-        font = ImageFont.truetype(os.path.join(DIR, "assets/Roboto-Medium.ttf"), size=50)
+        font = ImageFont.truetype(os.path.join(DIR, "assets/Roboto-Medium.ttf"), size=36)
         w, h = image.size
+
         for obj in object_list:
-            draw.rectangle((str_float_to_int(obj.x - obj.w / 2, w), str_float_to_int(obj.y - obj.h / 2, h), str_float_to_int(obj.x + obj.w / 2, w), str_float_to_int(obj.y + obj.h / 2, h)),
-                        fill=None, outline='blue', width=4)
-            draw.text((str_float_to_int(obj.x - obj.w / 2, w), str_float_to_int(obj.y - obj.h / 2, h) - 50), obj.name, fill='red', font=font)
+            x1 = str_float_to_int(obj.x - obj.w / 2, w)
+            y1 = str_float_to_int(obj.y - obj.h / 2, h)
+            x2 = str_float_to_int(obj.x + obj.w / 2, w)
+            y2 = str_float_to_int(obj.y + obj.h / 2, h)
+
+            # Draw bounding box
+            draw.rectangle([x1, y1, x2, y2], outline='blue', width=4)
+
+            # Draw label and depth
+            label = f"{obj.name}"
+            if obj.depth is not None:
+                label += f" ({(1.5-obj.depth):.2f}m)"
+            draw.text((x1, y1 - 40), label, fill='red', font=font)
     
     @staticmethod
-    def cc_to_ps(result: list) -> list[ObjectInfo]:
+    def cc_to_ps(result: list[dict]) -> list[ObjectInfo]:
         return [
             ObjectInfo.from_json({
                 'name': obj['name'],
@@ -78,6 +92,7 @@ class YoloClient():
                 'y': (obj['box']['y1'] + obj['box']['y2']) / 2,
                 'w': obj['box']['x2'] - obj['box']['x1'],
                 'h': obj['box']['y2'] - obj['box']['y1'],
+                'depth': obj.get('depth', None)
             })
             for obj in result
         ]
@@ -104,7 +119,7 @@ class YoloClient():
             
             config = {
                 'robot_info': self.robot_info.to_json(),
-                'service_type': 'yolo',
+                'service_type': 'yolo3d',
                 'tracking_mode': False,
                 'image_id': self.frame_id,
                 'conf': conf

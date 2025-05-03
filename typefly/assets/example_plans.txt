@@ -130,3 +130,19 @@ Go to a chair with a laptop on it.
     "<plan, robot1>": "?_1=sd('Any chair with a laptop on it?'){g(_1)}"
 }
 ```
+
+## Example 9
+```
+## Scene Description
+### robot1 (tello)
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go right by 0.5 meters and then go to the chair.
+
+## OUTPUT
+{
+    "thoughts": "Move right by 0.5 meters and then go to the chair.",
+    "<plan, robot1>": "m(0, -50);g('chair')"
+}
+```

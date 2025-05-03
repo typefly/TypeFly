@@ -62,6 +62,10 @@ class PodWrapper(RobotWrapper):
         self.podtp = Podtp(robot_info.extra)
         super().__init__(robot_info, PodObservation(self.podtp.sensor_data, robot_info), system_skill_func)
 
+        self.height = 0.6
+        self.xy_speed = 0.3
+        self.flying = False
+
         # extra movement skills
         self.ll_skillset.add_low_level_skill("lift", self.lift, "Move up/down by a distance", args=[SkillArg("dist", float)])
         self.ll_skillset.add_low_level_skill("land", self.land, "Land the drone")
@@ -102,63 +106,88 @@ class PodWrapper(RobotWrapper):
 
     @overrides
     def start(self) -> bool:
-        if self.podtp.connect():
-            if not self.podtp.ctrl_lock(False):
-                print("Failed to unlock control")
-                return False
-            else:
-                self.podtp.start_stream()
-                self._take_off_from_dog()
-                print("Drone started")
-        else:
+        if not self.podtp.connect():
             print("Failed to connect to the drone")
             return False
+        self.podtp.start_stream()
         self.observation.start()
         return True
     
+    def _take_off(self):
+        if not self.podtp.ctrl_lock(False):
+            print("Failed to unlock control")
+            return False
+        else:
+            self.flying = True
+            self._take_off_from_dog()
+            print("Drone started")
+    
     def _take_off_from_dog(self):
         # dog is around 40cm high
-        self.podtp.reset_estimator(0)
+        self.podtp.reset_estimator(40)
         count = 0
         while count < 15:
-            self.podtp.command_hover(0, 0, 0, 0.6)
+            self.podtp.command_hover(0, 0, 0, self.height)
             time.sleep(0.2)
             count += 1
-        time.sleep(1)
-        self.podtp.command_position(0, 0, 0, 0)
+        # self.podtp.command_position(0.6, 0, 0, 0)
+        self.move(60, 0)
 
     @overrides
     def stop(self):
         self.observation.stop()
-        self.podtp.command_land()
+        if self.flying:
+            self.podtp.command_land()
         self.podtp.disconnect()
 
     @overrides
     def move(self, dx: float, dy: float) -> tuple[bool, bool]:
+        if not self.flying:
+            self._take_off()
+
         print(f"-> Move by ({dx}, {dy}) cm")
         if dx != 0:
-            self.podtp.command_position(self._cap_dist(dx) / 100.0, 0, 0, 0)
+            # self.podtp.command_position(self._cap_dist(dx) / 100.0, 0, 0, 0)
+            for i in range(int(abs(dx) / 20 / self.xy_speed)):
+                speed = self.xy_speed if dx > 0 else -self.xy_speed
+                self.podtp.command_hover(speed, 0, 0, self.height)
+                time.sleep(0.2)
+            self.podtp.command_hover(0, 0, 0, self.height)
         time.sleep(EXECUTION_DELAY)
 
         if dy != 0:
-            self.podtp.command_position(0, self._cap_dist(dx) / 100.0, 0, 0)
+            # self.podtp.command_position(0, self._cap_dist(dy) / 100.0, 0, 0)
+            for i in range(int(abs(dy) / 20 / self.xy_speed)):
+                speed = self.xy_speed if dy > 0 else -self.xy_speed
+                self.podtp.command_hover(0, speed, 0, self.height)
+                time.sleep(0.2)
+            self.podtp.command_hover(0, 0, 0, self.height)
         time.sleep(EXECUTION_DELAY)
         return True, False
 
     @overrides
     def rotate(self, deg: float) -> tuple[bool, bool]:
+        if not self.flying:
+            self._take_off()
         print(f"-> Rotate by {deg} degrees")
         self.podtp.command_position(0, 0, 0, deg)
         time.sleep(EXECUTION_DELAY)
         return True, False
     
     def lift(self, dist: float) -> tuple[bool, bool]:
+        if not self.flying:
+            self._take_off()
         print(f"-> Lift for {dist} cm")
+        self.height += dist / 100.0
         self.podtp.command_position(0, 0, self._cap_dist(dist) / 100.0, 0)
         time.sleep(EXECUTION_DELAY)
         return True, False
     
     def land(self) -> tuple[bool, bool]:
+        if not self.flying:
+            return True, False
+        
+        self.flying = False
         print("-> Land")
         self.podtp.command_land()
         time.sleep(EXECUTION_DELAY)
