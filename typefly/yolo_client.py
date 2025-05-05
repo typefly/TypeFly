@@ -81,21 +81,27 @@ class YoloClient():
             label = f"{obj.name}"
             if obj.depth is not None:
                 label += f" ({obj.depth:.2f}m)"
-            draw.text((x1, y1 - 40), label, fill='red', font=font)
+            draw_y = y1 - 40 if y1 - 40 > 0 else y2 + 10
+            draw.text((x1, draw_y), label, fill='red', font=font)
     
     @staticmethod
     def cc_to_ps(result: list[dict]) -> list[ObjectInfo]:
-        return [
-            ObjectInfo.from_json({
+        rslt = []
+        for obj in result:
+            obj_info = ObjectInfo.from_json({
                 'name': obj['name'],
                 'x': (obj['box']['x1'] + obj['box']['x2']) / 2,
                 'y': (obj['box']['y1'] + obj['box']['y2']) / 2,
                 'w': obj['box']['x2'] - obj['box']['x1'],
                 'h': obj['box']['y2'] - obj['box']['y1'],
-                'depth': obj.get('depth', None)
+                'depth': obj['depth'] / 2 if 'depth' in obj else None
             })
-            for obj in result
-        ]
+
+            if obj_info.name == 'person' and obj_info.h < 0.5:
+                continue
+            
+            rslt.append(obj_info)
+        return rslt
 
     @asynccontextmanager
     async def get_aiohttp_session_response(service_url, form_data, timeout_seconds=3):

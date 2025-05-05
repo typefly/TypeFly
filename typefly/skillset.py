@@ -88,6 +88,7 @@ class SkillSet():
         skillset.add_low_level_skill("object_width", vision_skills[3], "Get object's width (0-1)", args=[SkillArg("obj", str)])
         skillset.add_low_level_skill("object_height", vision_skills[4], "Get object's height (0-1)", args=[SkillArg("obj", str)])
         skillset.add_low_level_skill("take_picture", vision_skills[5], "Take a picture")
+        skillset.add_low_level_skill("object_dist", vision_skills[6], "Get object's dist (m)", args=[SkillArg("obj", str)])
 
         skillset.add_low_level_skill("log", other_skills[0], "Print text to user", args=[SkillArg("text", str)])
         skillset.add_low_level_skill("delay", other_skills[1], "Wait for seconds", args=[SkillArg("sec", float)])

@@ -73,12 +73,12 @@ class PodWrapper(RobotWrapper):
         high_level_skills = [
             {
                 "name": "scan",
-                "definition": "{8{?is_visible($1){->True}rotate(45)}->False}",
+                "definition": "{8{?is_visible($1){->True}rotate(-45)}->False}",
                 "description": "Rotate to find a specific object $1 when it's *not* in current view",
             },
             {
                 "name": "scan_description",
-                "definition": "{8{_1=probe($1);?_1!=False{->_1}rotate(45)}->False}",
+                "definition": "{8{_1=probe($1);?_1!=False{->_1}rotate(-45)}->False}",
                 "description": "Rotate to find an abstract object $1 when it's *not* in current view",
             },
             {
@@ -86,9 +86,14 @@ class PodWrapper(RobotWrapper):
                 "definition": "4{_1=ox($1);?_1>0.6{rotate(-15)}:?_1<0.4{rotate(15)}:{->True}}->False",
                 "description": "Rotate to align with object $1",
             },
+            # {
+            #     "name": "goto",
+            #     "definition": "{orienting($1);move(120, 0)}",
+            #     "description": "Move to object $1 in the view (orienting then go forward)"
+            # },
             {
                 "name": "goto",
-                "definition": "?orienting($1){move(80, 0)}",
+                "definition": "2{orienting($1);_1=object_dist($1)/2;{move(_1, 0)}}",
                 "description": "Move to object $1 in the view (orienting then go forward)"
             }
         ]

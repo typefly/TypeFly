@@ -74,9 +74,14 @@ class VirtualRobotWrapper(RobotWrapper):
                 "definition": "4{_1=ox($1);?_1>0.6{rotate(-15)};?_1<0.4{rotate(15)};_2=ox($1);?_2<0.6&&_2>0.4{->True}}->False",
                 "description": "Rotate to align with object $1",
             },
+            # {
+            #     "name": "goto",
+            #     "definition": "?orienting($1){move(80, 0)}",
+            #     "description": "Move to object $1 in the view (orienting then go forward)"
+            # }
             {
                 "name": "goto",
-                "definition": "?orienting($1){move(80, 0)}",
+                "definition": "2{orienting($1);_1=object_dist($1)/2;{move(_1, 0)}}",
                 "description": "Move to object $1 in the view (orienting then go forward)"
             }
         ]

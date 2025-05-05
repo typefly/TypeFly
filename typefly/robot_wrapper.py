@@ -118,7 +118,8 @@ class RobotWrapper(ABC):
             self.object_y,
             self.object_width,
             self.object_height,
-            self.take_picture
+            self.take_picture,
+            self.object_dist
         ]
 
         other_skills = [
@@ -201,6 +202,10 @@ class RobotWrapper(ABC):
     
     def object_height(self, object_name: str) -> tuple[float | str, bool]:
         return self._get_object_attribute(object_name, 'h')
+    
+    def object_dist(self, object_name: str) -> tuple[float | str, bool]:
+        depth_info = self._get_object_attribute(object_name, 'depth')
+        return (depth_info[0] * 100, False)
     
     def take_picture(self) -> tuple[bool, bool]:
         return self._user_log(self.observation.image)
