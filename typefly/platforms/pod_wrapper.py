@@ -62,7 +62,7 @@ class PodWrapper(RobotWrapper):
         self.podtp = Podtp(robot_info.extra)
         super().__init__(robot_info, PodObservation(self.podtp.sensor_data, robot_info), system_skill_func)
 
-        self.height = 0.6
+        self.height = 0.7
         self.xy_speed = 0.3
         self.flying = False
 
@@ -81,9 +81,14 @@ class PodWrapper(RobotWrapper):
                 "definition": "{8{_1=probe($1);?_1!=False{->_1}rotate(-45)}->False}",
                 "description": "Rotate to find an abstract object $1 when it's *not* in current view",
             },
+            # {
+            #     "name": "orienting",
+            #     "definition": "4{_1=ox($1);?_1>0.6{rotate(-15)}:?_1<0.4{rotate(15)}:{->True}}->False",
+            #     "description": "Rotate to align with object $1",
+            # },
             {
                 "name": "orienting",
-                "definition": "4{_1=ox($1);?_1>0.6{rotate(-15)}:?_1<0.4{rotate(15)}:{->True}}->False",
+                "definition": "{_1=ox($1);rotate((0.5-_1)*80)}",
                 "description": "Rotate to align with object $1",
             },
             # {
@@ -176,7 +181,8 @@ class PodWrapper(RobotWrapper):
             self._take_off()
         print(f"-> Rotate by {deg} degrees")
         self.podtp.command_position(0, 0, 0, deg)
-        time.sleep(EXECUTION_DELAY)
+        time.sleep(abs(deg) / 360.0 * 4)
+        self.podtp.command_hover(0, 0, 0, self.height)
         return True, False
     
     def lift(self, dist: float) -> tuple[bool, bool]:
@@ -186,6 +192,7 @@ class PodWrapper(RobotWrapper):
         self.height += dist / 100.0
         self.podtp.command_position(0, 0, self._cap_dist(dist) / 100.0, 0)
         time.sleep(EXECUTION_DELAY)
+        self.podtp.command_hover(0, 0, 0, self.height)
         return True, False
     
     def land(self) -> tuple[bool, bool]:

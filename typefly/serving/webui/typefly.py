@@ -22,7 +22,7 @@ def generate_drone_povs(robot_info_list: list[RobotInfo]):
         <div>
             <h3>{robot.robot_type}</h3>
             <img src="http://localhost:50000/robot-pov/{robot.robot_id}/" alt="{robot.robot_id}-pov" 
-                 style="border-radius: 10px; object-fit: contain; width: {1/num};">
+                 style="border-radius: 10px; object-fit: contain; width: 80%;">
         </div>
         """
     html_content += "</div>"
@@ -46,6 +46,9 @@ class TypeFly:
             "Follow that ball for 20 seconds",
             "Find a chair for me.",
             "Go to the chair without book.",
+        ]
+        default_sentences = [
+            "Find the potential hazard bottle in the room."
         ]
         with self.ui:
             gr.HTML("""<h1>🪽 TypeFly: Power the Drone with Large Language Model</h1>""")

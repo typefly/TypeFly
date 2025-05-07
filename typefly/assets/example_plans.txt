@@ -146,3 +146,19 @@ Go right by 0.5 meters and then go to the chair.
     "<plan, robot1>": "m(0, -50);g('chair')"
 }
 ```
+
+## Example 10
+```
+## Scene Description
+### robot1 (tello)
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Find the potential hazard bottle.
+
+## OUTPUT
+{
+    "thoughts": "Find the object bottle.",
+    "<plan, robot1>": "s('bottle')"
+}
+```

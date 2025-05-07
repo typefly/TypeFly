@@ -29,6 +29,48 @@ class ObjectInfo:
     def __str__(self) -> str:
         return f"- {self.name}: (x:{self.x:.2f}, y:{self.y:.2f}), size: ({self.w:.2f}x{self.h:.2f})"
 
+from filterpy.kalman import KalmanFilter
+from typing import Optional
+import time
+import numpy as np
+class ObjectTracker:
+    def __init__(self, name, x, y, w, h, d) -> None:
+        self.name = name
+        self.kf_pos = self.init_filter()
+        self.kf_siz = self.init_filter()
+        self.timestamp = 0
+        self.size = None
+        self.update(x, y, w, h, d)
+
+    def update(self, x, y, w, h, d):
+        self.kf_pos.update((x, y))
+        self.kf_siz.update((w, h))
+        self.depth = d
+        self.timestamp = time.time()
+
+    def predict(self) -> Optional[ObjectInfo]:
+        # if no update in 2 seconds, return None
+        if time.time() - self.timestamp > 1.0:
+            return None
+        self.kf_pos.predict()
+        self.kf_siz.predict()
+        if self.kf_siz.x[0][0] <= 0 or self.kf_siz.x[1][0] <= 0:
+            return None
+        return ObjectInfo(self.name, self.kf_pos.x[0][0], self.kf_pos.x[1][0], self.kf_siz.x[0][0], self.kf_siz.x[1][0], self.depth)
+
+    def init_filter(self):
+        kf = KalmanFilter(dim_x=4, dim_z=2)  # 4 state dimensions (x, y, vx, vy), 2 measurement dimensions (x, y)
+        kf.F = np.array([[1, 0, 1, 0],  # State transition matrix
+                        [0, 1, 0, 1],
+                        [0, 0, 1, 0],
+                        [0, 0, 0, 1]])
+        kf.H = np.array([[1, 0, 0, 0],  # Measurement function
+                        [0, 1, 0, 0]])
+        kf.R *= 1  # Measurement uncertainty
+        kf.P *= 1000  # Initial uncertainty
+        kf.Q *= 0.01  # Process uncertainty
+        return kf
+
 """
 Access the YOLO service through http.
 """
@@ -43,6 +85,8 @@ class YoloClient():
         self.frame_queue = asyncio.Queue() # queue element: (frame_id, frame)
         self.frame_queue_lock = asyncio.Lock()
         print_t(f"[Y] YoloClient initialized with service url: {self.service_url}")
+
+        self.object_trackers: dict[str, ObjectTracker] = {}
 
     @property
     def latest_result(self) -> tuple[Image.Image, list]:
@@ -84,8 +128,7 @@ class YoloClient():
             draw_y = y1 - 40 if y1 - 40 > 0 else y2 + 10
             draw.text((x1, draw_y), label, fill='red', font=font)
     
-    @staticmethod
-    def cc_to_ps(result: list[dict]) -> list[ObjectInfo]:
+    def cc_to_ps(self, result: list[dict]) -> list[ObjectInfo]:
         rslt = []
         for obj in result:
             obj_info = ObjectInfo.from_json({
@@ -97,10 +140,27 @@ class YoloClient():
                 'depth': obj['depth'] / 2 if 'depth' in obj else None
             })
 
-            if obj_info.name == 'person' and obj_info.h < 0.5:
+            if obj_info.name == 'person' and obj_info.h < 0.3:
                 continue
+
+            if obj_info.w <= 0 or obj_info.h <= 0 or obj_info.name in ['airplane', 'suitcase']:
+                continue
+
+            if obj_info.name not in self.object_trackers:
+                self.object_trackers[obj_info.name] = ObjectTracker(obj_info.name, obj_info.x, obj_info.y, obj_info.w, obj_info.h, obj_info.depth)
+            else:
+                self.object_trackers[obj_info.name].update(obj_info.x, obj_info.y, obj_info.w, obj_info.h, obj_info.depth)
             
-            rslt.append(obj_info)
+        to_delete = []
+        for name, tracker in self.object_trackers.items():
+            obj = tracker.predict()
+            if obj is not None:
+                rslt.append(obj)
+            else:
+                to_delete.append(name)   
+        for name in to_delete:
+            del self.object_trackers[name] 
+        
         return rslt
 
     @asynccontextmanager
