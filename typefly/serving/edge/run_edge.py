@@ -32,7 +32,7 @@ def main():
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
     from typefly.serving.edge.edge_service import app
-    uvicorn.run(app, host="0.0.0.0", port=EDGE_SERVICE_PORT, debug=False)
+    uvicorn.run(app, host="0.0.0.0", port=EDGE_SERVICE_PORT)
 
 if __name__ == "__main__":
     main()
