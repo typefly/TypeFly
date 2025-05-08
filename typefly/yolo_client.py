@@ -140,10 +140,7 @@ class YoloClient():
                 'depth': obj['depth'] / 2 if 'depth' in obj else None
             })
 
-            if obj_info.name == 'person' and obj_info.h < 0.3:
-                continue
-
-            if obj_info.w <= 0 or obj_info.h <= 0 or obj_info.name in ['airplane', 'suitcase']:
+            if obj_info.w <= 0 or obj_info.h <= 0:
                 continue
 
             if obj_info.name not in self.object_trackers:

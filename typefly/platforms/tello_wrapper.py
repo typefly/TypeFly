@@ -85,12 +85,12 @@ class TelloWrapper(RobotWrapper):
             },
             {
                 "name": "orienting",
-                "definition": "4{_1=ox($1);?_1>0.6{rotate(-15)}:?_1<0.4{rotate(15)}:{->True}}->False",
+                "definition": "{_1=ox($1);rotate((0.5-_1)*80)}",
                 "description": "Rotate to align with object $1",
             },
             {
                 "name": "goto",
-                "definition": "?orienting($1){move(80, 0)}",
+                "definition": "2{orienting($1);_1=object_dist($1)/2;{move(_1, 0)}}",
                 "description": "Move to object $1 in the view (orienting then go forward)"
             }
         ]
