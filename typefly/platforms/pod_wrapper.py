@@ -88,7 +88,7 @@ class PodWrapper(RobotWrapper):
             },
             {
                 "name": "goto",
-                "definition": "2{orienting($1);_1=object_dist($1)/2;{move(_1, 0)}}",
+                "definition": "2{orienting($1);_1=object_dist($1)/2;move(_1, 0)}",
                 "description": "Move to object $1 in the view (orienting then go forward)"
             }
         ]

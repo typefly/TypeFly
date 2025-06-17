@@ -35,6 +35,9 @@ class LLMController():
             elif info.robot_type == "pod":
                 from .platforms.pod_wrapper import PodWrapper
                 self.robots[info] = PodWrapper(info, self.controller_func)
+            elif info.robot_type == "gear":
+                from .platforms.gear_wrapper import GearWrapper
+                self.robots[info] = GearWrapper(info, self.controller_func)
         
         self.planner.set_robot_dict(self.robots)
         self.current_plan = None
