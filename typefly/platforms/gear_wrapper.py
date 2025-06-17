@@ -17,7 +17,7 @@ class GearWrapper(RobotWrapper):
     def __init__(self, robot_info: RobotInfo, system_skill_func: list[callable]):
         self.podtp = Podtp(robot_info.extra)
         super().__init__(robot_info, PodObservation(self.podtp.sensor_data, robot_info), system_skill_func)
-        self.xy_speed = 0.3
+        self.xy_speed = 1.5
         
         high_level_skills = [
             {
@@ -66,7 +66,7 @@ class GearWrapper(RobotWrapper):
         print(f"-> Move by ({dx}, {dy}) cm")
         if dx != 0:
             # self.podtp.command_position(self._cap_dist(dx) / 100.0, 0, 0, 0)
-            for i in range(int(abs(dx) / 20 / self.xy_speed)):
+            for i in range(int(abs(dx) / 2 / self.xy_speed)):
                 speed = self.xy_speed if dx > 0 else -self.xy_speed
                 self.podtp.command_hover(speed, 0, 0, 0)
                 time.sleep(0.2)
@@ -75,7 +75,7 @@ class GearWrapper(RobotWrapper):
 
         if dy != 0:
             # self.podtp.command_position(0, self._cap_dist(dy) / 100.0, 0, 0)
-            for i in range(int(abs(dy) / 20 / self.xy_speed)):
+            for i in range(int(abs(dy) / 2 / self.xy_speed)):
                 speed = self.xy_speed if dy > 0 else -self.xy_speed
                 self.podtp.command_hover(0, -speed, 0, 0)
                 time.sleep(0.2)
