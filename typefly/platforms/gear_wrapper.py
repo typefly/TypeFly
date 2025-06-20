@@ -37,7 +37,7 @@ class GearWrapper(RobotWrapper):
             },
             {
                 "name": "goto",
-                "definition": "2{orienting($1);move(0.8, 0)}",
+                "definition": "2{orienting($1);move(80, 0)}",
                 "description": "Move to object $1 in the view (orienting then go forward)"
             }
         ]

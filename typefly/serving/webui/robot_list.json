@@ -4,7 +4,7 @@
         "robot_type": "gear",
         "extra": {
             "capture": 0,
-            "ip": "192.168.0.116",
+            "ip": "192.168.0.54",
             "url": "http://192.168.8.213:18080/",
             "ros": false
         }

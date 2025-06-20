@@ -193,7 +193,7 @@ class Statement:
         elif self.action == CodeAction.LOOP:
             s += f'[{self.loop_count}] {{...}}'
         elif self.action == CodeAction.SEQ:
-            s += '{...}'
+            s += 'SEQ {...}'
         elif self.action == CodeAction.ATOMIC:
             s += f'{self.sub_statements[0]}'
         else:
@@ -287,13 +287,14 @@ class Statement:
                         self.parse_buffer += c
 
                 case CodeAction.SEQ:
+                    executable = self.current_statement.executable
                     done = self.current_statement.parse(c)
 
-                    if self.current_statement.executable:
+                    if not executable and self.current_statement.executable:
                         self.executable = True
+                        self.sub_statements.append(self.current_statement)
 
                     if done:
-                        self.sub_statements.append(self.current_statement)
                         self.current_statement = Statement(self.env, self.robot)
                         self.current_statement.parse(c)
 
