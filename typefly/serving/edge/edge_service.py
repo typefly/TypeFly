@@ -17,7 +17,7 @@ YOLO_SERVICE_INFO = { "host": "localhost", "port" : [50050, 50051] }
 @app.before_serving
 async def before_serving():
     grpcServiceManager.add_service("yolo", YOLO_SERVICE_INFO["host"], YOLO_SERVICE_INFO["port"])
-    grpcServiceManager.add_service("yolo3d", 'localhost', [50060])
+    # grpcServiceManager.add_service("yolo3d", 'localhost', [50060])
     await grpcServiceManager._initialize_channels()
 
 @app.route('/process', methods=['POST'])

@@ -7,6 +7,7 @@ from typefly.yolo_client import YoloClient
 from typefly.robot_info import RobotInfo
 
 EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
+EDGE_SERVICE_IP = "localhost"  # For local testing, you can set this to your edge service IP
 
 def detect_local(image: Image, conf=0.2):
     image_bytes = YoloClient.image_to_bytes(image.resize((640, 352)))
