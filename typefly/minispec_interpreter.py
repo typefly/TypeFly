@@ -53,6 +53,7 @@ class MiniSpecProgram:
         self.message_queue = message_queue
 
     def parse(self, json_output: Stream | str, stream_interpreting: bool=False) -> bool:
+        print(self.parse_state, self.parse_buffer, self.skip)
         for chunk in json_output:
             # Get the code from the chunk
             if isinstance(chunk, str):
@@ -327,8 +328,14 @@ class Statement:
                                 # read condition between '?' and '{'
                                 self.parse_buffer += c
                         case StatementParsingState.IF_SUB_STATEMENT:
-                            if self.current_statement.parse(c):
+                            print_t(f'IF SUB STATEMENT: {c}, depth: {self.parse_depth}')
+                            executable = self.current_statement.executable
+                            done = self.current_statement.parse(c)
+
+                            if not executable and self.current_statement.executable:
                                 self.sub_statements.append(self.current_statement)
+
+                            if done:
                                 self.current_statement = Statement(self.env, self.robot)
 
                             if c == '{':
@@ -398,6 +405,8 @@ class Statement:
                         return condition_val
                     
                     if condition_val.value == True:
+                        while len(self.sub_statements) <= i:
+                            time.sleep(0.1)
                         ret_val = self.sub_statements[i].eval()
                         if self.sub_statements[i].ret:
                             self.ret = True
