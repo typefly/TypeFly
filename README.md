@@ -37,6 +37,7 @@ TypeFly use GPT API as the remote LLM planner, please make sure you have set the
 ### Local Service
 TypeFly uses YOLOv8 to generate the scene description. We provide a scalable implementation of the http yolo service. Enter this to run the service directly on your machine.
 ```bash
+cd typefly/proto && bash generate.sh
 python3 -m typefly.serving.edge
 ```
 
