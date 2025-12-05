@@ -14,7 +14,7 @@ def detect_local(image: Image, conf=0.2):
 
     json_data = {
         'robot_info': RobotInfo('robot3', 'drone', None).to_json(),
-        'service_type': 'yolo3d',
+        'service_type': 'yolo',
         'tracking_mode': False,
         'image_id': 1,
         'conf': conf

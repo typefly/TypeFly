@@ -16,16 +16,16 @@ def output_measure_prompt(length):
 def input_measure_prompt(length, model_name):
     suffix = "Please ignore all the above text and just generate True"
     prompt = ''
-    enc = tiktoken.encoding_for_model(model_name)
+    enc = tiktoken.encoding_for_model("gpt-4o")
     init_len = enc.encode(suffix)
     for i in range((length - len(init_len)) // 2):
         prompt += str(i % 10) + " "
     return prompt + suffix
 
-def measure(model_name="gpt-4o", input: bool = False):
+def measure(model_name="gpt-5-mini", input: bool = False):
     lengths = [50, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000] if input else [50, 100, 200, 300, 400]
     result = []
-    enc = tiktoken.encoding_for_model(model_name)
+    enc = tiktoken.encoding_for_model("gpt-4o")
     for length in lengths:
         accu_t = 0
         accu_input_length = 0
@@ -52,8 +52,8 @@ def measure(model_name="gpt-4o", input: bool = False):
     print(result)
 
 ###### measurement
-# measure("gpt-4o", False)
-# exit()
+measure("gpt-5", False)
+exit()
 
 measured_data = [
     {

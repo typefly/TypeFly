@@ -5,20 +5,20 @@ from openai import OpenAI, Stream, ChatCompletion
 class ModelType(Enum):
     GPT4 = "gpt-4"
     GPT4O = "gpt-4o"
+    GPT5 = "gpt-5"
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 CHAT_LOG_FILE = os.path.join(CURRENT_DIR, "assets/chat_log.txt")
 
 class LLMWrapper:
-    def __init__(self, temperature: float=0.0):
+    def __init__(self, temperature: float=0.1):
         self.temperature = temperature
         self.gpt_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-    def request(self, prompt, model_type: ModelType, stream: bool=False) -> str | Stream[ChatCompletion.ChatCompletionChunk]:        
+    def request(self, prompt, model_type: ModelType | str, stream: bool=False) -> str | Stream[ChatCompletion.ChatCompletionChunk]:        
         response = self.gpt_client.chat.completions.create(
-            model=model_type.value,
+            model=model_type.value if isinstance(model_type, ModelType) else model_type,
             messages=[{"role": "user", "content": prompt}],
-            temperature=self.temperature,
             stream=stream,
         )
 
