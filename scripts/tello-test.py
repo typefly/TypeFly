@@ -1,7 +1,8 @@
 from djitellopy import Tello
 import cv2
+import argparse
 
-class TelloLLM():
+class TelloTest():
     def __init__(self):
         self.drone = Tello()
         self.drone.connect()
@@ -43,12 +44,20 @@ class TelloLLM():
             if key == 27:
                 break
             count += 1
+        
+        self.stop()
+
+    def stop(self):
         self.drone.streamoff()
         self.drone.land()
 
-def main():
-    tello = TelloLLM()
-    tello.start()
-
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Tello Test')
+    parser.add_argument('--stop', action='store_true', help='Stop the tello test')
+    args = parser.parse_args()
+    if not args.stop:
+        tello = TelloTest()
+        tello.start()
+    else:
+        tello = TelloTest()
+        tello.stop()
