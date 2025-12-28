@@ -12,7 +12,7 @@ from .minispec_interpreter import MiniSpecInterpreter
 from .robot_info import RobotInfo
 
 class LLMController():
-    def __init__(self, robot_info_list: list[RobotInfo], message_queue: Optional[queue.Queue]=None):
+    def __init__(self, robot_info: RobotInfo, message_queue: Optional[queue.Queue]=None):
         self.message_queue = message_queue
 
         self.planner = LLMPlanner()
@@ -22,24 +22,13 @@ class LLMController():
             self.probe
         ]
 
-        self.robots: dict[RobotInfo, RobotWrapper] = {}
-        for info in robot_info_list:
-            if info.robot_type == "virtual":
-                self.robots[info] = VirtualRobotWrapper(info, self.controller_func)
-            elif info.robot_type == "tello":
-                from .platforms.tello_wrapper import TelloWrapper
-                self.robots[info] = TelloWrapper(info, self.controller_func)
-            elif info.robot_type == "go2":
-                from .platforms.go2_wrapper import Go2Wrapper
-                self.robots[info] = Go2Wrapper(info, self.controller_func)
-            elif info.robot_type == "pod":
-                from .platforms.pod_wrapper import PodWrapper
-                self.robots[info] = PodWrapper(info, self.controller_func)
-            elif info.robot_type == "gear":
-                from .platforms.gear_wrapper import GearWrapper
-                self.robots[info] = GearWrapper(info, self.controller_func)
+        if robot_info.robot_type == "virtual":
+            self.robot = VirtualRobotWrapper(robot_info, self.controller_func)
+        elif robot_info.robot_type == "tello":
+            from .platforms.tello_wrapper import TelloWrapper
+            self.robot = TelloWrapper(robot_info, self.controller_func)
         
-        self.planner.set_robot_dict(self.robots)
+        self.planner.set_robot(self.robot)
         self.current_plan = None
         self.execution_history = None
 
@@ -62,12 +51,10 @@ class LLMController():
             self.message_queue.put(message)
 
     def start_controller(self):
-        for (_, wrapper) in self.robots.items():
-            wrapper.start()
+        self.robot.start()
         
     def stop_controller(self):
-        for (_, wrapper) in self.robots.items():
-            wrapper.stop()
+        self.robot.stop()
 
     def fetch_robot_observation(self, robot_info: RobotInfo, overlay: bool=False) -> Optional[Image.Image]:
         obs = self.robots[robot_info].observation

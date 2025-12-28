@@ -1,4 +1,4 @@
-from .run_edge import main
+from .run import main
 
 if __name__ == "__main__":
     main()

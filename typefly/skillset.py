@@ -2,48 +2,20 @@ from enum import Enum
 from typing import Optional
 from .skill_item import SkillItem, SkillArg, LowLevelSkillItem, HighLevelSkillItem
 
-class SkillSetLevel(Enum):
-    LOW = "low"
-    HIGH = "high"
-
 class SkillSet():
-    def __init__(self, level: SkillSetLevel = SkillSetLevel.LOW, lower_level_skillset: 'SkillSet' = None):
+    def __init__(self):
         self.skills: dict[str, SkillItem] = {}
-        self.level = level
-        self.lower_level_skillset = lower_level_skillset
-        self.abbr_dict: dict[str, str] = {}
-
-        if lower_level_skillset is not None:
-            self.abbr_dict = {**lower_level_skillset.abbr_dict}
     
-    def get_skill(self, name: str) -> Optional[SkillItem]:
-        """Returns a SkillItem by its name or abbr."""
+    def get_skill(self, name: str) -> SkillItem:
+        """Returns a SkillItem by its name."""
         skill = self.skills.get(name)
         if skill is None:
-            skill = self.skills.get(self.abbr_dict.get(name, ''))
+            raise ValueError(f"Skill '{name}' not found.")
         return skill
     
-    def add_low_level_skill(self, name: str, func: callable, description: str, args: list[SkillArg] = None):
-        """Adds a LowLevelSkillItem to the set."""
-        if self.level != SkillSetLevel.LOW:
-            raise ValueError("Cannot add low-level skill to high-level skillset.")
-        
-        if name in self.skills:
-            raise ValueError(f"A skill with the name '{name}' already exists.")
-        
-        abbr = self.generate_abbreviation(name)
-        self.skills[name] = LowLevelSkillItem(name, abbr, func, description, args)
-
-    def add_high_level_skill(self, name: str, definition: str, description: str):
-        """Adds a HighLevelSkillItem to the set."""
-        if self.level != SkillSetLevel.HIGH:
-            raise ValueError("Cannot add high-level skill to low-level skillset.")
-        
-        if name in self.skills:
-            raise ValueError(f"A skill with the name '{name}' already exists.")
-        
-        abbr = self.generate_abbreviation(name)
-        self.skills[name] = HighLevelSkillItem(name, abbr, definition, description, [self.lower_level_skillset, self])
+    def add_skill(self, name: str, func: callable, description: str, args: list[SkillArg] = None):
+        """Adds a skill to the set."""
+        self.skills[name] = SkillItem(name, func, description, args)
     
     def remove_skill(self, name: str):
         """Removes a SkillItem from the set by its name."""

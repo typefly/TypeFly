@@ -12,7 +12,7 @@ class LLMPlanner():
     def __init__(self, model_type: ModelType = ModelType.GPT4O):
         self.llm = LLMWrapper()
         self.model_type = model_type
-        self.robot_list = []
+        self.robot = None
 
         # read prompt from txt
         with open(os.path.join(CURRENT_DIR, f"./assets/prompt_plan.txt"), "r") as f:
@@ -27,23 +27,22 @@ class LLMPlanner():
         with open(os.path.join(CURRENT_DIR, f"./assets/example_plans.txt"), "r") as f:
             self.example_plans = f.read()
 
-    def set_robot_dict(self, robot_dict: dict[RobotInfo, RobotWrapper]):
-        self.robot_dict = robot_dict
+    def set_robot(self, robot: RobotWrapper):
+        self.robot = robot
 
     def plan(self, user_instruction: str, error_message: Optional[list[str]]=None, execution_history: Optional[list[str]]=None):
         robot_skills = ""
         scene_description = ""
 
-        for info, robot in self.robot_dict.items():
-            robot_skills += f"### {info.robot_id} ({info.get_robot_type(False)})\n"
-            robot_skills += f"#### Low-level skills\n"
-            robot_skills += str(robot.ll_skillset)
-            if robot.hl_skillset is not None:
-                robot_skills += f"\n#### High-level skills\n"
-                robot_skills += str(robot.hl_skillset)
+        robot_skills += f"### {self.robot.robot_info.robot_id} ({self.robot.robot_info.get_robot_type(False)})\n"
+        robot_skills += f"#### Low-level skills\n"
+        robot_skills += str(self.robot.ll_skillset)
+        if self.robot.hl_skillset is not None:
+            robot_skills += f"\n#### High-level skills\n"
+            robot_skills += str(self.robot.hl_skillset)
 
-            scene_description += f"### {info.robot_id} ({info.get_robot_type(False)})\n"
-            scene_description += robot.get_obj_list_str() + "\n"
+        scene_description += f"### {self.robot.robot_info.robot_id} ({self.robot.robot_info.get_robot_type(False)})\n"
+        scene_description += self.robot.get_obj_list_str() + "\n"
 
         prompt = self.prompt_plan.format(guidelines=self.guidelines,
                                          robot_skills=robot_skills,

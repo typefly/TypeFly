@@ -7,12 +7,12 @@ import grpc
 import torch
 from ultralytics import YOLO
 
-PROJ_DIR = os.environ.get("PROJ_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
-sys.path.append(os.path.join(PROJ_DIR, "typefly/proto"))
+from .config import PROJ_DIR
+sys.path.append(os.path.join(PROJ_DIR, "../proto"))
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 
-MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models/")
+MODEL_PATH = os.path.join(PROJ_DIR, "models/")
 MODEL_TYPE = "yolov8m.pt"
 
 def load_model():
@@ -81,11 +81,9 @@ class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
         info = json.loads(request.json_data)
         image = YoloService.bytes_to_image(request.image_data)
 
-        if 'tracking_mode' not in info:
-            info['tracking_mode'] = False
-
-        if 'conf' not in info:
-            info['conf'] = 0.3
+        # Set defaults if missing
+        info.setdefault('tracking_mode', False)
+        info.setdefault('conf', 0.3)
 
         if self.tracking_mode != info['tracking_mode']:
             self.tracking_mode = info['tracking_mode']
@@ -115,6 +113,10 @@ def serve(port, stop_event):
     hyrch_serving_pb2_grpc.add_YoloServiceServicer_to_server(YoloService(port), server)
     server.add_insecure_port(f'[::]:{port}')
     server.start()
+
+    if stop_event is None:
+        while True:
+            time.sleep(1)
 
     try:
         # Wait until the event is set

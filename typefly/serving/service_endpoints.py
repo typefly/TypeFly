@@ -1,10 +1,11 @@
 from quart import Quart, request
 import os, json, sys
 
-PROJ_DIR = os.environ.get("PROJ_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+PROJ_DIR = os.environ.get("PROJ_PATH", os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJ_DIR)
-from typefly.robot_info import RobotInfo
-from typefly.serving.edge.service_manager import ServiceManager
+from ..robot_info import RobotInfo
+from .service_manager import ServiceManager
+from .config import SERVICE_INFO
 
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
@@ -12,12 +13,10 @@ import hyrch_serving_pb2_grpc
 app = Quart(__name__)
 grpcServiceManager = ServiceManager()
 
-YOLO_SERVICE_INFO = { "host": "localhost", "port" : [50050, 50051] }
-
 @app.before_serving
 async def before_serving():
-    grpcServiceManager.add_service("yolo", YOLO_SERVICE_INFO["host"], YOLO_SERVICE_INFO["port"])
-    # grpcServiceManager.add_service("yolo3d", 'localhost', [50060])
+    for service in SERVICE_INFO:
+        grpcServiceManager.add_service(service["name"], service["host"], service["ports"])
     await grpcServiceManager._initialize_channels()
 
 @app.route('/process', methods=['POST'])

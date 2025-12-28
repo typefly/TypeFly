@@ -1,20 +1,21 @@
 import multiprocessing
 import signal
 import uvicorn
-import os, sys
+import os
 
-PROJ_DIR = os.environ.get("PROJ_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
-sys.path.insert(0, PROJ_DIR)
-from typefly.serving.edge import yolo_service
-YOLO_SERVICE_INFO = { "host": "localhost", "port" : [50050] }
-EDGE_SERVICE_PORT = int(os.environ.get("EDGE_SERVICE_PORT", "50049"))
+from .yolo_service import serve as yolo_service
+from .config import SERVICE_INFO, EDGE_SERVICE_PORT
 
 def start_yolo_service(stop_event):
     processes = []
-    for port in YOLO_SERVICE_INFO["port"]:
-        process = multiprocessing.Process(target=yolo_service.serve, args=(port, stop_event))
-        process.start()
-        processes.append(process)
+    for service in SERVICE_INFO:
+        for port in service["ports"]:
+            if service["name"] == "yolo":
+                process = multiprocessing.Process(target=yolo_service, args=(port, stop_event))
+                process.start()
+                processes.append(process)
+            else:
+                raise ValueError(f"Unknown service: {service['name']}")
     return processes
 
 def main():
@@ -31,7 +32,7 @@ def main():
 
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
-    from typefly.serving.edge.edge_service import app
+    from .service_endpoints import app
     uvicorn.run(app, host="0.0.0.0", port=EDGE_SERVICE_PORT)
 
 if __name__ == "__main__":

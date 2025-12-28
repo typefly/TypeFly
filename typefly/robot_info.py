@@ -2,6 +2,9 @@ import json
 from typing import Optional
 
 class RobotInfo:
+    """
+    Information about a robot, including its ID, type, and any extra parameters.
+    """
     def __init__(self, robot_id: str, robot_type: str, extra: Optional[dict] = None):
         self.robot_id = robot_id
         self.robot_type = robot_type
@@ -26,11 +29,6 @@ class RobotInfo:
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict())
-    
-    def get_robot_type(self, true_type: bool=True) -> str:
-        if not true_type and self.robot_type == "virtual":
-            return "tello"
-        return self.robot_type
     
     @classmethod
     def from_dict(cls, data: dict) -> 'RobotInfo':

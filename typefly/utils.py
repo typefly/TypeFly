@@ -1,7 +1,10 @@
 import datetime, cv2
 import numpy as np
 from numpy import ndarray
+import os
 from .skill_item import SKILL_RET_TYPE
+
+CURRENT_PROJ_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def print_t(*args, **kwargs):
     # Get the current timestamp

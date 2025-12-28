@@ -1,11 +1,8 @@
 import grpc
-import os, sys
 import asyncio
 import time, json
 
-PROJ_DIR = os.environ.get("PROJ_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
-sys.path.insert(0, PROJ_DIR)
-from typefly.robot_info import RobotInfo
+from ..robot_info import RobotInfo
 
 class ServiceManager:
     def __init__(self):
