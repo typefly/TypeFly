@@ -1,6 +1,7 @@
 .PHONY: serving_stop, serving_start, serving_remove, serving_open, serving_build
 
-GPU_OPTIONS=--gpus all
+GPU_DEVICES=0
+GPU_OPTIONS=$(shell if [ -f /proc/driver/nvidia/version ]; then echo "--gpus all -e CUDA_VISIBLE_DEVICES=$(GPU_DEVICES)"; else echo ""; fi)
 
 CONTAINER_NAME=typefly-serving
 

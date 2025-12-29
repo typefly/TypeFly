@@ -8,11 +8,11 @@ import torch
 from ultralytics import YOLO
 
 from .config import PROJ_DIR
-sys.path.append(os.path.join(PROJ_DIR, "../proto"))
+sys.path.append(os.path.join(PROJ_DIR, "./proto"))
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 
-MODEL_PATH = os.path.join(PROJ_DIR, "models/")
+MODEL_PATH = os.path.join(PROJ_DIR, "./serving/models/")
 MODEL_TYPE = "yolov8m.pt"
 
 def load_model():

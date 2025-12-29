@@ -1,6 +1,6 @@
 import os
 
-PROJ_DIR = os.environ.get("PROJ_PATH", os.path.dirname(os.path.abspath(__file__)))
+PROJ_DIR = os.environ.get("PROJ_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 EDGE_SERVICE_PORT = int(os.environ.get("EDGE_SERVICE_PORT", "50049"))
 
 """

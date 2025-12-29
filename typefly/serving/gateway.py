@@ -1,11 +1,10 @@
 from quart import Quart, request
-import os, json, sys
+import json, sys, os
 
-PROJ_DIR = os.environ.get("PROJ_PATH", os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJ_DIR)
 from .service_manager import ServiceManager
-from .config import SERVICE_INFO
+from .config import SERVICE_INFO, PROJ_DIR
 
+sys.path.append(os.path.join(PROJ_DIR, "./proto"))
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 
