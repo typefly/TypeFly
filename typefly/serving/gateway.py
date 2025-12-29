@@ -3,7 +3,6 @@ import os, json, sys
 
 PROJ_DIR = os.environ.get("PROJ_PATH", os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJ_DIR)
-from ..robot_info import RobotInfo
 from .service_manager import ServiceManager
 from .config import SERVICE_INFO
 
@@ -29,7 +28,7 @@ async def process():
 
     try:
         json_data = json.loads(json_str)
-        robot_info = RobotInfo.from_json(json_data["robot_info"])
+        robot_info = json_data["robot_info"]
         service_type = json_data["service_type"]
 
         if service_type == "yolo" or service_type == "yolo3d":

@@ -2,14 +2,12 @@ import grpc
 import asyncio
 import time, json
 
-from ..robot_info import RobotInfo
-
 class ServiceManager:
     def __init__(self):
         self.service_info: dict[str, tuple[str, list[int]]] = {}
         self.service_channels: dict[str, asyncio.Queue] = {}
         self.channels_initialized: bool = False
-        self.assigned_channels: dict[RobotInfo, dict[str, grpc.Channel]] = {}
+        self.assigned_channels: dict[str, dict[str, grpc.Channel]] = {}
         self.assigned_channels_timeout: int = 10
         self.last_cleanup: float = time.time()
         self.lock = asyncio.Lock()
@@ -49,7 +47,7 @@ class ServiceManager:
             for robot_info in users_to_remove:
                 del self.assigned_channels[robot_info]
 
-    async def get_service_channel(self, service_type: str, robot_info: RobotInfo) -> str | grpc.Channel:
+    async def get_service_channel(self, service_type: str, robot_info: str) -> str | grpc.Channel:
         async with self.lock:
             await self._initialize_channels()  # Ensure channels are initialized
             await self.clean_dedicated_channels()

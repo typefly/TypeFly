@@ -5,7 +5,6 @@ import threading
 from overrides import overrides
 
 from ..robot_wrapper import RobotWrapper, RobotObservation
-from ..skillset import SkillSet, SkillArg
 from ..yolo_client import YoloClient
 from ..robot_info import RobotInfo
 
@@ -25,7 +24,6 @@ class TelloObservation(RobotObservation):
         super().__init__(robot_info, rate)
         self.drone = drone
         self.yolo_client = YoloClient(robot_info)
-        self.alive_count = 0
 
         def _capture_spin():
             frame_reader = self.drone.get_frame_read()
@@ -38,12 +36,6 @@ class TelloObservation(RobotObservation):
                     self._image = Image.fromarray(frame)
                 time.sleep(0.1)
         self.capture_thread = threading.Thread(target=_capture_spin)
-
-    def keep_alive(self):
-        self.alive_count += 1
-        if self.alive_count > 15:
-            self.drone.send_control_command("command")
-            self.alive_count = 0
     
     @overrides
     def _start(self):
@@ -71,6 +63,18 @@ class TelloWrapper(RobotWrapper):
         # extra movement skills
         self.skillset.add_skill(self.lift, "Move up/down by a distance")
 
+
+        self.last_command_time = time.time()
+        self.keep_alive_thread = threading.Thread(target=self.keep_alive)
+        self.running = True
+
+    def keep_alive(self):
+        while self.running:
+            if time.time() - self.last_command_time > 4:
+                self.drone.send_control_command("command")
+                self.last_command_time = time.time()
+            time.sleep(0.5)
+
     def _cap_dist(self, dist):
         if dist < MOVEMENT_MIN:
             return MOVEMENT_MIN
@@ -88,12 +92,17 @@ class TelloWrapper(RobotWrapper):
             self.drone.takeoff()
         # self.move_up(25)
         self.observation.start()
+        self.keep_alive_thread.start()
+        self.running = True
         return True
 
     @overrides
-    def stop(self):
+    def stop(self) -> bool:
         self.drone.land()
         self.observation.stop()
+        self.running = False
+        self.keep_alive_thread.join()
+        return True
 
     @overrides
     def _move(self, dx: float, dy: float):
@@ -108,17 +117,20 @@ class TelloWrapper(RobotWrapper):
             self.drone.move_left(self._cap_dist(dy))
         elif dy < 0:
             self.drone.move_right(self._cap_dist(-dy))
+        self.last_command_time = time.time()
         time.sleep(EXECUTION_DELAY)
 
     @overrides
     def _rotate(self, deg: float):
         print(f"-> Rotate by {deg} degrees")
         self.drone.rotate_counter_clockwise(deg) if deg > 0 else self.drone.rotate_clockwise(-deg)
+        self.last_command_time = time.time()
         time.sleep(EXECUTION_DELAY)
     
     def lift(self, dist: float):
         print(f"-> Lift for {dist} cm")
         self.drone.move_up(self._cap_dist(dist)) if dist > 0 else self.drone.move_down(self._cap_dist(-dist))
+        self.last_command_time = time.time()
         time.sleep(EXECUTION_DELAY)
     
     def _is_battery_good(self) -> bool:

@@ -77,20 +77,33 @@ class YoloClient():
     def __init__(self, robot_info: RobotInfo):
         self.robot_info = robot_info
         self.service_url = 'http://{}:{}/process'.format(EDGE_SERVICE_IP, EDGE_SERVICE_PORT)
-        self.image_size = (640, 352)
-        self._latest_result_lock = threading.Lock()
+        self.target_image_width = 640
+        self._latest_result_lock = asyncio.Lock()
         self._latest_result = (None, [])
         self.frame_id = 0
-        self.frame_queue = asyncio.Queue() # queue element: (frame_id, frame)
-        self.frame_queue_lock = asyncio.Lock()
+        self.frame_id_lock = asyncio.Lock()
         print_t(f"[Y] YoloClient initialized with service url: {self.service_url}")
 
         self.object_trackers: dict[str, ObjectTracker] = {}
 
     @property
     def latest_result(self) -> tuple[Image.Image, list]:
-        with self._latest_result_lock:
-            return self._latest_result
+        result = self._latest_result
+        if result is None:
+            return None
+        image, objects = result
+        # shallow copy of list to decouple from async updates
+        return (image, list(objects))
+
+    @staticmethod
+    def scale_image(image: Image.Image, target_width: int) -> Image.Image:
+        w, h = image.size
+        if w <= target_width:
+            return image
+        scale = target_width / w
+        new_size = (target_width, int(h * scale))
+        # print_t(f"[Y] Scaling image from ({w}, {h}) to {new_size}")
+        return image.resize(new_size, Image.LANCZOS)
 
     @staticmethod
     def image_to_bytes(image: Image.Image) -> bytes:
@@ -173,53 +186,40 @@ class YoloClient():
         except aiohttp.ServerTimeoutError:
             print_t(f"[Y] Timeout error when connecting to {service_url}")
 
-    async def detect(self, image: Image.Image, conf=0.3):
-        async with self.frame_queue_lock:
+    async def detect(self, image: Image.Image, conf=0.2):
+        # Prepare image and config while not holding the lock
+        config = {
+            'robot_info': self.robot_info.robot_id,
+            'service_type': 'yolo',
+            'tracking_mode': False,
+            'image_id': 0,
+            'conf': conf,
+        }
+        image_bytes = YoloClient.image_to_bytes(YoloClient.scale_image(image, self.target_image_width))
+
+        async with self.frame_id_lock:
             self.frame_id += 1
-            # print_t(f"[Y] Sending request with image id: {self.frame_id} {self.frame_queue.qsize()}")
-            await self.frame_queue.put((self.frame_id, image))
+            config['image_id'] = self.frame_id
             
-            config = {
-                'robot_info': self.robot_info.to_json(),
-                'service_type': 'yolo',
-                'tracking_mode': False,
-                'image_id': self.frame_id,
-                'conf': conf
-            }
             form_data = aiohttp.FormData()
-            image_bytes = YoloClient.image_to_bytes(image.resize(self.image_size))
-            form_data.add_field('image', image_bytes, filename='frame.webp', content_type='image/webp')
+            form_data.add_field('image', image_bytes, filename='frame.jpeg', content_type='image/jpeg')
             form_data.add_field('json_data', json.dumps(config), content_type='application/json')
 
-        async with YoloClient.get_aiohttp_session_response(self.service_url, form_data) as response:
-            data = await response.text()
-
         try:
-            json_results = json.loads(data)
-        except:
-            print_t(f"[Y] Invalid json results: {data}")
+            async with YoloClient.get_aiohttp_session_response(self.service_url, form_data) as response:
+                data = await response.text()
+                json_results = json.loads(data)
+        except json.JSONDecodeError:
+            print_t(f"[YOLO] Invalid json results: {data}")
             return
-        
-        if 'image_id' not in json_results:
-            print_t(f"[Y] Missing image_id in results: {json_results}")
+        except Exception as e:
+            print_t(f"[YOLO] Request failed: {str(e)}")
             return
-        
-        # Safe queue processing
-        result_image_id = json_results['image_id']
-        # print_t(f"[Y] Received results for image id: {result_image_id} {self.frame_queue.qsize()}")
-        async with self.frame_queue_lock:
-            # Discard frames older than our result
-            while not self.frame_queue.empty():
-                head_frame = await self.frame_queue.get()
-                if head_frame[0] == result_image_id:
-                    matched_frame = head_frame
-                    break
-                elif head_frame[0] > result_image_id:
-                    print_t(f"[Y] Discarded old result: {head_frame[0]}")
-                    return
-                else:
-                    print_t(f"[Y] Discarded old frame: {head_frame[0]}")
 
-        # Update latest result
-        with self._latest_result_lock:
-            self._latest_result = (image, self.cc_to_ps(json_results["result"]))
+        if 'image_id' not in json_results:
+            print_t(f"[YOLO] Missing image_id in results: {json_results}")
+            return
+        
+        list_obj = self.cc_to_ps(json_results["result"])
+        async with self._latest_result_lock:
+            self._latest_result = (image, list_obj)

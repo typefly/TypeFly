@@ -32,7 +32,7 @@ def main():
 
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
-    from .service_endpoints import app
+    from .gateway import app
     uvicorn.run(app, host="0.0.0.0", port=EDGE_SERVICE_PORT)
 
 if __name__ == "__main__":
