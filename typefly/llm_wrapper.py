@@ -13,7 +13,10 @@ CHAT_LOG_FILE = os.path.join(CURRENT_DIR, "assets/chat_log.txt")
 class LLMWrapper:
     def __init__(self, temperature: float=0.1):
         self.temperature = temperature
-        self.gpt_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY is not set. Please set it in the environment variable or in the .env file.")
+        self.gpt_client = OpenAI(api_key=api_key)
 
     def request(self, prompt, model_type: ModelType | str, stream: bool=False) -> str | Stream[ChatCompletion.ChatCompletionChunk]:        
         response = self.gpt_client.chat.completions.create(
