@@ -3,8 +3,8 @@ import signal
 import uvicorn
 import os
 
-from .yolo_service import serve as yolo_service
-from .config import SERVICE_INFO, EDGE_SERVICE_PORT
+from typefly.serving.yolo_service import serve as yolo_service
+from typefly.serving.config import SERVICE_INFO, EDGE_SERVICE_PORT
 
 def start_service(stop_event):
     processes = []
@@ -33,7 +33,7 @@ def main():
 
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
-    from .gateway import app
+    from typefly.serving.gateway import app
     uvicorn.run(app, host="0.0.0.0", port=EDGE_SERVICE_PORT)
 
 if __name__ == "__main__":
