@@ -1,11 +1,7 @@
-from abc import ABC, abstractmethod
-from overrides import overrides
-import re
+from abc import ABC
 import inspect
 
 from typing import TYPE_CHECKING, Optional
-if TYPE_CHECKING:
-    from skillset import SkillSet  # Import only for type checking
 
 SKILL_ARG_TYPE = int | float | str
 PROBE_RET_TYPE = Optional[int | float | bool | str]
@@ -62,11 +58,3 @@ class SkillItem(ABC):
     
     def __repr__(self) -> str:
         return f"name: {self._name}, description: {self._description}, args: {[arg for arg in self._args]}"
-
-
-if __name__ == "__main__":
-    ### Test ###
-    def test_func(a: int, b: float, c: str) -> tuple[int, float, str]:
-        return a, b, c
-    skill = SkillItem(test_func, "Test function")
-    print(skill)

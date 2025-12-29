@@ -24,16 +24,20 @@ class LLMPlanner():
             self.example_plans = f.read()
 
     def plan(self, user_instruction: str, error_message: Optional[list[str]]=None, execution_history: Optional[list[str]]=None):
+        """
+        Plan the user instruction using the LLM
+        """
         prompt = self.prompt_plan.format(guidelines=self.guidelines,
                                          robot_skills=str(self.robot.skillset),
                                          example_plans=self.example_plans,
                                          scene_description=self.robot.get_obj_list_str(),
                                          user_instruction=user_instruction)
 
-        # print_t(f"[P] Prompt: {prompt}")
-        return self.llm.request(prompt, self.model_type, stream=False)
+        return self.llm.request(prompt, self.model_type)
     
     def probe(self, query: str, robot_info: RobotInfo) -> str:
+        """
+        Probe the LLM for question $query based on the scene description
+        """
         prompt = self.prompt_probe.format(scene_description=self.robot.get_obj_list_str(), query=query)
-        # print_t(f"[P] Probe prompt: {prompt}")
         return self.llm.request(prompt, self.model_type)

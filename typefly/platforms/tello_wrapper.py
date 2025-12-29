@@ -1,4 +1,5 @@
 import time
+from typing import Any
 from djitellopy import Tello
 from PIL import Image
 import threading
@@ -52,8 +53,11 @@ class TelloObservation(RobotObservation):
         await self.yolo_client.detect(image)
     
     @overrides
-    def fetch_processed_result(self) -> tuple[Image.Image, list]:
-        return self.yolo_client.latest_result
+    def fetch_processed_result(self) -> dict[str, Any]:
+        _, object_list = self.yolo_client.latest_result
+        return {
+            "yolo": object_list
+        }
 
 class TelloWrapper(RobotWrapper):
     def __init__(self, robot_info: RobotInfo):
@@ -106,7 +110,9 @@ class TelloWrapper(RobotWrapper):
 
     @overrides
     def _move(self, dx: float, dy: float):
-        print(f"-> Move by ({dx}, {dy}) cm")
+        print(f"-> Move by ({dx}, {dy}) m")
+        dx = int(dx * 100)
+        dy = int(dy * 100)
         if dx > 0:
             self.drone.move_forward(self._cap_dist(dx))
         elif dx < 0:

@@ -6,21 +6,22 @@ import os
 from .yolo_service import serve as yolo_service
 from .config import SERVICE_INFO, EDGE_SERVICE_PORT
 
-def start_yolo_service(stop_event):
+def start_service(stop_event):
     processes = []
-    for service in SERVICE_INFO:
-        for port in service["ports"]:
-            if service["name"] == "yolo":
+    for service_name, service_info in SERVICE_INFO.items():
+        for port in service_info["port"]:
+            if service_name == "yolo":
                 process = multiprocessing.Process(target=yolo_service, args=(port, stop_event))
                 process.start()
                 processes.append(process)
+            # elif other services, you can add more here
             else:
-                raise ValueError(f"Unknown service: {service['name']}")
+                raise ValueError(f"Unknown service: {service_name}")
     return processes
 
 def main():
     stop_event = multiprocessing.Event()
-    processes = start_yolo_service(stop_event)
+    processes = start_service(stop_event)
 
     def cleanup(_signalnum, _frame):
         print("Shutting down YOLO services...")

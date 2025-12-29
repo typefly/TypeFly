@@ -1,9 +1,9 @@
+from typing import Any
 import cv2, time
 import threading
 from PIL import Image
 from overrides import overrides
 
-from ..skillset import SkillItem
 from ..robot_wrapper import RobotWrapper, RobotObservation
 from ..yolo_client import YoloClient
 from ..robot_info import RobotInfo
@@ -29,55 +29,92 @@ class VirtualObservation(RobotObservation):
                 if not ret:
                     continue
                 # Convert the frame to RGB and store it in self._image
+                """
+                Convert the frame to RGB and store it in self._image
+                """
                 self._image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                 cv2.waitKey(1)
         self.capture_thread = threading.Thread(target=_capture_spin)
     
     @overrides
     def _start(self):
+        """
+        Start the capture thread
+        """
         self.capture_thread.start()
 
-    @overrides  
+    @overrides
     def _stop(self):
+        """
+        Stop the capture thread and release the capture
+        """
         self.capture_thread.join()
         if self.cap is not None:
             self.cap.release()
 
     @overrides
     async def process_image(self, image: Image.Image):
+        """
+        Process the image using the YOLO client
+        """
         await self.yolo_client.detect(image)
     
     @overrides
-    def fetch_processed_result(self) -> tuple[Image.Image, list]:
-        return self.yolo_client.latest_result
+    def fetch_processed_result(self) -> dict[str, Any]:
+        """
+        Fetch the processed result from the YOLO client
+        """
+        _, object_list = self.yolo_client.latest_result
+        return {
+            "yolo": object_list
+        }
 
 class VirtualRobotWrapper(RobotWrapper):
     def __init__(self, robot_info: RobotInfo):
         super().__init__(robot_info, VirtualObservation(robot_info))
 
-        # Example of adding a skill
+        # Example of adding a skill, the function name should be descriptive and concise
         self.skillset.add_skill(self.lift, "Lift the robot by a certain distance")
 
+    """
+    The following 4 methods are required to be implemented by the subclass
+    """
     @overrides
     def start(self) -> bool:
+        """
+        Start the robot
+        """
         self.observation.start()
         return True
 
     @overrides
     def stop(self) -> bool:
+        """
+        Stop the robot
+        """
         self.observation.stop()
         return True
 
     @overrides
     def _move(self, dx: float, dy: float):
+        """
+        Basic movement skills
+        """
         print(f"-> Move by ({dx}, {dy}) cm")
         time.sleep(SKILL_EXECUTION_TIME)
 
     @overrides
     def _rotate(self, deg: float):
+        """
+        Basic rotation skills
+        """
         print(f"-> Rotate by {deg} degrees")
         time.sleep(SKILL_EXECUTION_TIME)
 
+
+    """
+    Extra skills to be implemented by the subclass
+    """
     def lift(self, dist: float):
         print(f"-> Lift for {dist} cm")
         time.sleep(SKILL_EXECUTION_TIME)

@@ -14,8 +14,8 @@ grpcServiceManager = ServiceManager()
 
 @app.before_serving
 async def before_serving():
-    for service in SERVICE_INFO:
-        grpcServiceManager.add_service(service["name"], service["host"], service["ports"])
+    for service_name, service_info in SERVICE_INFO.items():
+        grpcServiceManager.add_service(service_name, service_info["host"], service_info["port"])
     await grpcServiceManager._initialize_channels()
 
 @app.route('/process', methods=['POST'])
@@ -31,12 +31,17 @@ async def process():
         robot_info = json_data["robot_info"]
         service_type = json_data["service_type"]
 
-        if service_type == "yolo" or service_type == "yolo3d":
-            files = await request.files
-            image_data = files['image']
+        if SERVICE_INFO[service_type]["require_image"]:
+            image_data = await request.files
+            if "image" not in image_data:
+                return {"error": "Missing image data"}, 400
+            image_data = image_data["image"]
             image_bytes = image_data.read()
+        else:
+            image_bytes = None
 
     except Exception as e:
+        print(f"Error: {e}")
         return {"error": f"{type(e).__name__}: {e}"}, 400
 
     channel = await grpcServiceManager.get_service_channel(service_type, robot_info)
@@ -44,11 +49,14 @@ async def process():
     if isinstance(channel, str):
         return {"error": f"Channel error: {channel}"}, 400
 
-    if service_type == "yolo" or service_type == "yolo3d":
+    if service_type == "yolo":
         stub = hyrch_serving_pb2_grpc.YoloServiceStub(channel)
         response = await stub.Detect(hyrch_serving_pb2.DetectRequest(
             json_data=json_str,
             image_data=image_bytes
         ))
+    # elif other services, you can add more here
+    else:
+        return {"error": "Service not found"}, 400
 
     return response.json_data

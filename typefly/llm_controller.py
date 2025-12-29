@@ -1,13 +1,11 @@
 from PIL import Image
 import queue, io, base64
-from openai import Stream
 from typing import Optional
 import threading
 import json
 import builtins
 
 from .yolo_client import YoloClient
-from .platforms.virtual_robot_wrapper import VirtualRobotWrapper
 from .robot_wrapper import RobotWrapper
 from .llm_planner import LLMPlanner
 from .utils import print_t
@@ -24,6 +22,7 @@ class LLMController():
         RobotWrapper.set_controller_func(self.controller_func)
 
         if robot_info.robot_type == "virtual":
+            from .platforms.virtual_robot_wrapper import VirtualRobotWrapper
             self.robot = VirtualRobotWrapper(robot_info)
         elif robot_info.robot_type == "tello":
             from .platforms.tello_wrapper import TelloWrapper
@@ -54,7 +53,8 @@ class LLMController():
         self.robot.stop()
 
     def fetch_robot_pov(self, overlay: bool=True) -> Optional[Image.Image]:
-        image, yolo_results = self.robot.observation.image_process_result
+        image = self.robot.observation.image
+        yolo_results = self.robot.observation.image_process_result.get("yolo", [])
         if overlay:
             YoloClient.plot_results_ps(image, yolo_results)
         return image

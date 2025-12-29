@@ -1,9 +1,8 @@
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from contextlib import asynccontextmanager
-
 import json, os
-import asyncio, aiohttp, threading
+import asyncio, aiohttp
 
 from .utils import print_t
 from .robot_info import RobotInfo
@@ -48,7 +47,7 @@ class ObjectTracker:
         self.timestamp = time.time()
 
     def predict(self) -> Optional[ObjectInfo]:
-        # if no update in 2 seconds, return None
+        # if no update in 1 seconds, return None
         if time.time() - self.timestamp > 1.0:
             return None
         self.kf_pos.predict()
@@ -70,21 +69,24 @@ class ObjectTracker:
         kf.Q *= 0.01  # Process uncertainty
         return kf
 
-"""
-Access the YOLO service through http.
-"""
+
 class YoloClient():
-    def __init__(self, robot_info: RobotInfo):
+    """
+    Access the YOLO service through http POST request.
+    You can enable tracking mode to track the objects across frames.
+    """
+    def __init__(self, robot_info: RobotInfo, enable_tracking: bool = True):
         self.robot_info = robot_info
         self.service_url = 'http://{}:{}/process'.format(EDGE_SERVICE_IP, EDGE_SERVICE_PORT)
         self.target_image_width = 640
+        self.enable_tracking = enable_tracking
         self._latest_result_lock = asyncio.Lock()
         self._latest_result = (None, [])
         self.frame_id = 0
         self.frame_id_lock = asyncio.Lock()
-        print_t(f"[Y] YoloClient initialized with service url: {self.service_url}")
-
         self.object_trackers: dict[str, ObjectTracker] = {}
+
+        print_t(f"[Y] YoloClient initialized with service url: {self.service_url}, tracking: {enable_tracking}")
 
     @property
     def latest_result(self) -> tuple[Image.Image, list]:
@@ -141,6 +143,10 @@ class YoloClient():
             draw.text((x1, draw_y), label, fill='red', font=font)
     
     def cc_to_ps(self, result: list[dict]) -> list[ObjectInfo]:
+        """
+        Convert the YOLO service result to a list of ObjectInfo.
+        If tracking is enabled, the object will be tracked across frames using Kalman filter.
+        """
         rslt = []
         for obj in result:
             obj_info = ObjectInfo.from_json({
@@ -155,20 +161,27 @@ class YoloClient():
             if obj_info.w <= 0 or obj_info.h <= 0:
                 continue
 
-            if obj_info.name not in self.object_trackers:
-                self.object_trackers[obj_info.name] = ObjectTracker(obj_info.name, obj_info.x, obj_info.y, obj_info.w, obj_info.h, obj_info.depth)
+            if self.enable_tracking:
+                # Use Kalman filter tracking
+                if obj_info.name not in self.object_trackers:
+                    self.object_trackers[obj_info.name] = ObjectTracker(obj_info.name, obj_info.x, obj_info.y, obj_info.w, obj_info.h, obj_info.depth)
+                else:
+                    self.object_trackers[obj_info.name].update(obj_info.x, obj_info.y, obj_info.w, obj_info.h, obj_info.depth)
             else:
-                self.object_trackers[obj_info.name].update(obj_info.x, obj_info.y, obj_info.w, obj_info.h, obj_info.depth)
-            
-        to_delete = []
-        for name, tracker in self.object_trackers.items():
-            obj = tracker.predict()
-            if obj is not None:
-                rslt.append(obj)
-            else:
-                to_delete.append(name)   
-        for name in to_delete:
-            del self.object_trackers[name] 
+                # No tracking, return objects directly
+                rslt.append(obj_info)
+        
+        if self.enable_tracking:
+            # Process tracked objects
+            to_delete = []
+            for name, tracker in self.object_trackers.items():
+                obj = tracker.predict()
+                if obj is not None:
+                    rslt.append(obj)
+                else:
+                    to_delete.append(name)   
+            for name in to_delete:
+                del self.object_trackers[name]
         
         return rslt
 
@@ -187,11 +200,13 @@ class YoloClient():
             print_t(f"[Y] Timeout error when connecting to {service_url}")
 
     async def detect(self, image: Image.Image, conf=0.2):
-        # Prepare image and config while not holding the lock
+        """
+        Detect the objects in the image asynchronously using the YOLO service.
+        """
         config = {
             'robot_info': self.robot_info.robot_id,
             'service_type': 'yolo',
-            'tracking_mode': False,
+            'tracking_mode': self.enable_tracking,
             'image_id': 0,
             'conf': conf,
         }
@@ -215,11 +230,7 @@ class YoloClient():
         except Exception as e:
             print_t(f"[YOLO] Request failed: {str(e)}")
             return
-
-        if 'image_id' not in json_results:
-            print_t(f"[YOLO] Missing image_id in results: {json_results}")
-            return
         
-        list_obj = self.cc_to_ps(json_results["result"])
+        list_obj = self.cc_to_ps(json_results.get("result", []))
         async with self._latest_result_lock:
             self._latest_result = (image, list_obj)

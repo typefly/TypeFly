@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Any, Optional
 from numpy import ndarray
 import time, threading
 from PIL import Image
@@ -13,6 +13,22 @@ from .skill_item import PROBE_RET_TYPE
 from .utils import evaluate_value, print_t
 
 class RobotObservation(ABC):
+    """
+    Get the latest observation from the robot. This information will be used by the LLM to plan and
+    execute the program.
+
+    The subclass should implement the following methods:
+    - _start: Start the observation thread
+    - _stop: Stop the observation thread
+    - process_image: Process the image from the robot
+    - fetch_processed_result: Fetch the processed result from the robot
+
+    The subclass should also implement the following properties, the image is required:
+    - image: The image from the robot (required)
+    - depth: The depth from the robot (optional)
+    - orientation: The orientation from the robot (optional)
+    - position: The position from the robot (optional)
+    """
     def __init__(self, robot_info: RobotInfo, rate: int):
         self.interval: float = 1.0 / rate
         self.robot_info = robot_info
@@ -26,24 +42,30 @@ class RobotObservation(ABC):
         self._image_process_result: tuple[Image.Image, list[ObjectInfo]] = (Image.new("RGB", (640, 480)), [])
 
         self.running: bool = False
-        self.thread = threading.Thread(target=self.update_observation, daemon=True)
+        self.processing_thread = threading.Thread(target=self.update_observation, daemon=True)
 
     def start(self):
         self.running = True
         self._start()
-        self.thread.start()
+        self.processing_thread.start()
 
     def stop(self):
         self.running = False
-        self.thread.join()
+        self.processing_thread.join()
         self._stop()
 
     @abstractmethod
     def _start(self):
+        """
+        This method should be implemented by the subclass to start the observation thread
+        """
         pass
 
     @abstractmethod
     def _stop(self):
+        """
+        This method should be implemented by the subclass to stop the observation thread
+        """
         pass
 
     @property
@@ -95,10 +117,22 @@ class RobotObservation(ABC):
 
     @abstractmethod
     async def process_image(self, image: Image.Image):
+        """
+        This method should be implemented by the subclass to process the image asynchronously.
+        The processing_thread will call this method periodically to process the image.
+        """
         pass
     
     @abstractmethod
-    def fetch_processed_result(self) -> tuple[Image.Image, list]:
+    def fetch_processed_result(self) -> dict[str, Any]:
+        """
+        This method should be implemented by the subclass to fetch the processed result
+        The return value should be a dictionary, the key is the name of the processed result,
+        the value is the processed result. For example, if you have a YOLO client, you can return:
+        {
+            "yolo": object_list
+        }
+        """
         pass
 
 class RobotWrapper(ABC):
@@ -147,12 +181,33 @@ class RobotWrapper(ABC):
 
     @abstractmethod
     def start(self) -> bool:
+        """
+        This method should be implemented by the subclass to start the robot
+        """
         pass
 
     @abstractmethod
     def stop(self) -> bool:
+        """
+        This method should be implemented by the subclass to stop the robot
+        """
         pass
 
+    @abstractmethod
+    def _move(self, dx: float, dy: float):
+        """
+        This method should be implemented by the subclass to move the robot
+        """
+        pass
+
+    @abstractmethod
+    def _rotate(self, deg: float):
+        """
+        This method should be implemented by the subclass to rotate the robot
+        """
+        pass
+
+    # movement skills
     def move_forward(self, dist: float):
         print_t(f"-> Move forward by {dist} m")
         self._move(dist, 0)
@@ -177,19 +232,13 @@ class RobotWrapper(ABC):
         print_t(f"-> Rotate right by {deg} degrees")
         self._rotate(-deg)
 
-    # movement skills to be implemented by the subclass
-    @abstractmethod
-    def _move(self, dx: float, dy: float):
-        pass
-
-    @abstractmethod
-    def _rotate(self, deg: float):
-        pass
-
     # vision skills
     def get_obj_list(self) -> list[ObjectInfo]:
-        """Returns a formatted string of detected objects."""
-        return self.observation.image_process_result[1] if self.observation.image_process_result else []
+        """
+        Returns the list of detected objects.
+        You should override this method if your robot has a different way to get the object list.
+        """
+        return self.observation.image_process_result.get("yolo", [])
     
     def get_obj_list_str(self) -> str:
         """Returns a formatted string of detected objects."""
@@ -243,6 +292,7 @@ class RobotWrapper(ABC):
         depth_info = self._get_object_attribute(object_name, 'depth')
         return depth_info * 100
     
+    # other skills
     def take_picture(self):
         self.controller_func[0](self.observation.image)
     
@@ -258,6 +308,7 @@ class RobotWrapper(ABC):
     def probe(self, query: str) -> PROBE_RET_TYPE:
         return evaluate_value(self.controller_func[1](query, self.robot_info))
 
+    # high-level skills
     def scan(self, object_name: str) -> bool:
         print(f"-> Scan for {object_name}")
         for _ in range(8):
@@ -279,7 +330,7 @@ class RobotWrapper(ABC):
         print(f"-> Orient to {object_name}")
         if not self.is_visible(object_name):
             return False
-        self.rotate_left((0.5 - self.object_x(object_name)) * 80)
+        self.rotate_left(int((0.5 - self.object_x(object_name)) * 80))
         return True
 
     def goto(self, object_name: str) -> bool:

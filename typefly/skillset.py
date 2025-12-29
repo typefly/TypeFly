@@ -1,8 +1,9 @@
-from enum import Enum
-from typing import Optional
-from .skill_item import SkillItem, SkillArg
+from .skill_item import SkillItem
 
 class SkillSet():
+    """
+    The set of skills that supported by the robot.
+    """
     def __init__(self):
         self.skills: dict[str, SkillItem] = {}
     
@@ -21,26 +22,7 @@ class SkillSet():
         """Removes a SkillItem from the set by its name."""
         if name not in self.skills:
             raise ValueError(f"No skill found with the name '{name}'.")
-        # remove skill by value
         del self.skills[name]
-
-    def generate_abbreviation(self, word):
-        split = word.split('_')
-        abbr = ''.join([part[0] for part in split])[0:2]
-
-        if abbr not in self.abbr_dict:
-            self.abbr_dict[abbr] = word
-            return abbr
-        
-        split = ''.join([part for part in split])[1:]
-
-        count = 0
-        while abbr in self.abbr_dict:
-            abbr = abbr[0] + split[count]
-            count += 1
-
-        self.abbr_dict[abbr] = word
-        return abbr
     
     def __repr__(self) -> str:
         string = ""
