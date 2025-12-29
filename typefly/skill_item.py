@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from skillset import SkillSet  # Import only for type checking
 
 SKILL_ARG_TYPE = int | float | str
-SKILL_RET_TYPE = Optional[int | float | bool | str]
+PROBE_RET_TYPE = Optional[int | float | bool | str]
 
 class SkillArg:
     def __init__(self, arg_name: str, arg_type: type):
@@ -21,9 +21,10 @@ class SkillArg:
 class SkillItem(ABC):
     def __init__(self, func: callable, description: str):
         # Auto-inspect function to get name
-        self._name = func.__name__
+        self._name = func.__name__.lower()
         
         self._description = description
+        self._func = func  # Store the function so it can be called
         
         # Auto-inspect function signature to get arguments
         sig = inspect.signature(func)   
@@ -41,7 +42,11 @@ class SkillItem(ABC):
                 )
             
             param_type = param.annotation
-            self._args.append(SkillArg(param_name, param_type))     
+            self._args.append(SkillArg(param_name, param_type))
+    
+    def __call__(self, *args, **kwargs):
+        """Make SkillItem callable by delegating to the stored function."""
+        return self._func(*args, **kwargs)     
 
     @property
     def name(self) -> str:

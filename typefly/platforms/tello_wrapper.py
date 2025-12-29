@@ -1,12 +1,11 @@
-import time, cv2
-import numpy as np
+import time
 from djitellopy import Tello
 from PIL import Image
 import threading
 from overrides import overrides
 
 from ..robot_wrapper import RobotWrapper, RobotObservation
-from ..skillset import SkillSet, SkillArg, SkillSetLevel
+from ..skillset import SkillSet, SkillArg
 from ..yolo_client import YoloClient
 from ..robot_info import RobotInfo
 
@@ -65,39 +64,12 @@ class TelloObservation(RobotObservation):
         return self.yolo_client.latest_result
 
 class TelloWrapper(RobotWrapper):
-    def __init__(self, robot_info: RobotInfo, system_skill_func: list[callable]):
+    def __init__(self, robot_info: RobotInfo):
         self.drone = Tello()
-        super().__init__(robot_info, TelloObservation(self.drone, robot_info), system_skill_func)
+        super().__init__(robot_info, TelloObservation(self.drone, robot_info))
 
         # extra movement skills
-        self.ll_skillset.add_low_level_skill("lift", self.lift, "Move up/down by a distance", args=[SkillArg("dist", float)])
-        
-        high_level_skills = [
-            {
-                "name": "scan",
-                "definition": "{8{?is_visible($1){->True}rotate(45)}->False}",
-                "description": "Rotate to find a specific object $1 when it's *not* in current view",
-            },
-            {
-                "name": "scan_description",
-                "definition": "{8{_1=probe($1);?_1!=False{->_1}rotate(45)}->False}",
-                "description": "Rotate to find an abstract object $1 when it's *not* in current view",
-            },
-            {
-                "name": "orienting",
-                "definition": "{_1=ox($1);rotate((0.5-_1)*80)}",
-                "description": "Rotate to align with object $1",
-            },
-            {
-                "name": "goto",
-                "definition": "2{orienting($1);_1=object_dist($1)/2;{move(_1, 0)}}",
-                "description": "Move to object $1 in the view (orienting then go forward)"
-            }
-        ]
-
-        self.hl_skillset = SkillSet(SkillSetLevel.HIGH, self.ll_skillset)
-        for skill in high_level_skills:
-            self.hl_skillset.add_high_level_skill(skill['name'], skill['definition'], skill['description'])
+        self.skillset.add_skill(self.lift, "Move up/down by a distance")
 
     def _cap_dist(self, dist):
         if dist < MOVEMENT_MIN:
@@ -110,6 +82,7 @@ class TelloWrapper(RobotWrapper):
     def start(self) -> bool:
         self.drone.connect()
         if not self._is_battery_good():
+            self.log("Battery is too low")
             return False
         else:
             self.drone.takeoff()
@@ -123,7 +96,7 @@ class TelloWrapper(RobotWrapper):
         self.observation.stop()
 
     @overrides
-    def move(self, dx: float, dy: float) -> tuple[bool, bool]:
+    def _move(self, dx: float, dy: float):
         print(f"-> Move by ({dx}, {dy}) cm")
         if dx > 0:
             self.drone.move_forward(self._cap_dist(dx))
@@ -136,20 +109,17 @@ class TelloWrapper(RobotWrapper):
         elif dy < 0:
             self.drone.move_right(self._cap_dist(-dy))
         time.sleep(EXECUTION_DELAY)
-        return True, False
 
     @overrides
-    def rotate(self, deg: float) -> tuple[bool, bool]:
+    def _rotate(self, deg: float):
         print(f"-> Rotate by {deg} degrees")
         self.drone.rotate_counter_clockwise(deg) if deg > 0 else self.drone.rotate_clockwise(-deg)
         time.sleep(EXECUTION_DELAY)
-        return True, False
     
-    def lift(self, dist: float) -> tuple[bool, bool]:
+    def lift(self, dist: float):
         print(f"-> Lift for {dist} cm")
         self.drone.move_up(self._cap_dist(dist)) if dist > 0 else self.drone.move_down(self._cap_dist(-dist))
         time.sleep(EXECUTION_DELAY)
-        return True, False
     
     def _is_battery_good(self) -> bool:
         self.battery = self.drone.query_battery()

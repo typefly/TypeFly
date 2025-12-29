@@ -9,8 +9,8 @@ import re
 from .skillset import SkillSet
 from .robot_info import RobotInfo
 from .yolo_client import ObjectInfo
-from .skill_item import SKILL_RET_TYPE
-from .utils import evaluate_value
+from .skill_item import PROBE_RET_TYPE
+from .utils import evaluate_value, print_t
 
 class RobotObservation(ABC):
     def __init__(self, robot_info: RobotInfo, rate: int):
@@ -23,7 +23,7 @@ class RobotObservation(ABC):
         self._position: Optional[ndarray] = None
 
         self._image_process_lock = threading.Lock()
-        self._image_process_result: tuple[Image.Image, list[ObjectInfo]] = (None, [])
+        self._image_process_result: tuple[Image.Image, list[ObjectInfo]] = (Image.new("RGB", (640, 480)), [])
 
         self.running: bool = False
         self.thread = threading.Thread(target=self.update_observation, daemon=True)
@@ -102,61 +102,94 @@ class RobotObservation(ABC):
         pass
 
 class RobotWrapper(ABC):
-    def __init__(self, robot_info: RobotInfo, observation: RobotObservation, controller_func: list[callable]):
+    controller_func: list[callable] = []
+    def __init__(self, robot_info: RobotInfo, observation: RobotObservation):
         self.robot_info = robot_info
-        self._observation = observation
-        self._user_log = controller_func[0]
-        self._probe = controller_func[1]
+        self.observation = observation
         common_movement_skill_func = [
-            self.move,
-            self.rotate,
+            (self.move_forward, "Move forward by a dist (m)"),
+            (self.move_backward, "Move backward by a dist (m)"),
+            (self.move_left, "Move left by a dist (m)"),
+            (self.move_right, "Move right by a dist (m)"),
+            (self.rotate_left, "Rotate left by a deg (deg)"),
+            (self.rotate_right, "Rotate right by a deg (deg)"),
         ]
 
         common_vision_skill_func = [
-            self.is_visible,
-            self.object_x,
-            self.object_y,
-            self.object_width,
-            self.object_height,
-            self.take_picture,
-            self.object_dist
+            (self.is_visible, "Check if object is visible"),
+            (self.object_x, "Get object's x position (0-1)"),
+            (self.object_y, "Get object's y position (0-1)"),
+            (self.object_width, "Get object's width (0-1)"),
+            (self.object_height, "Get object's height (0-1)"),
+            (self.object_dist, "Get object's dist (m)"),
         ]
 
         other_skills = [
-            self.log,
-            self.delay,
-            self.re_plan,
-            self.probe
+            (self.take_picture, "Take a picture"),
+            (self.log, "Print text to user"),
+            (self.delay, "Wait for seconds"),
+            (self.re_plan, "Trigger replanning"),
+            (self.probe, "Query LLM for reasoning"),
         ]
 
-        self.ll_skillset: SkillSet = SkillSet.get_common_skillset(common_movement_skill_func, common_vision_skill_func, other_skills)
-        self.hl_skillset: Optional[SkillSet] = None
+        high_level_skills = [
+            (self.scan, "Scan for a specific object"),
+            (self.scan_description, "Scan for an abstract object, return the object name if found"),
+            (self.orienting, "Orient to a specific object"),
+            (self.goto, "Go to a specific object in the view"),
+        ]
+
+        self.skillset: SkillSet = SkillSet.get_common_skillset(common_movement_skill_func + common_vision_skill_func + other_skills + high_level_skills)
+
+    @staticmethod
+    def set_controller_func(controller_func: list[callable]):
+        RobotWrapper.controller_func = controller_func
 
     @abstractmethod
     def start(self) -> bool:
         pass
 
     @abstractmethod
-    def stop(self):
+    def stop(self) -> bool:
         pass
 
-    @property
-    def observation(self) -> RobotObservation:
-        return self._observation
+    def move_forward(self, dist: float):
+        print_t(f"-> Move forward by {dist} m")
+        self._move(dist, 0)
+    
+    def move_backward(self, dist: float):
+        print_t(f"-> Move backward by {dist} m")
+        self._move(-dist, 0)
+    
+    def move_left(self, dist: float):
+        print_t(f"-> Move left by {dist} m")
+        self._move(0, dist)
+    
+    def move_right(self, dist: float):
+        print_t(f"-> Move right by {dist} m")
+        self._move(0, -dist)
+    
+    def rotate_left(self, deg: float):
+        print_t(f"-> Rotate left by {deg} degrees")
+        self._rotate(deg)
+    
+    def rotate_right(self, deg: float):
+        print_t(f"-> Rotate right by {deg} degrees")
+        self._rotate(-deg)
 
-    # movement skills
+    # movement skills to be implemented by the subclass
     @abstractmethod
-    def move(self, dx: float, dy: float) -> tuple[bool, bool]:
+    def _move(self, dx: float, dy: float):
         pass
 
     @abstractmethod
-    def rotate(self, deg: float) -> tuple[bool, bool]:
+    def _rotate(self, deg: float):
         pass
 
     # vision skills
     def get_obj_list(self) -> list[ObjectInfo]:
         """Returns a formatted string of detected objects."""
-        return self._observation.image_process_result[1] if self._observation.image_process_result else []
+        return self.observation.image_process_result[1] if self.observation.image_process_result else []
     
     def get_obj_list_str(self) -> str:
         """Returns a formatted string of detected objects."""
@@ -175,50 +208,83 @@ class RobotWrapper(ABC):
             time.sleep(0.2)
         return None
 
-    def is_visible(self, object_name: str) -> tuple[bool, bool]:
-        return self.get_obj_info(object_name) is not None, False
+    def is_visible(self, object_name: str) -> bool:
+        return self.get_obj_info(object_name) is not None
 
-    def _get_object_attribute(self, object_name: str, attr: str) -> tuple[float | str, bool]:
+    def _get_object_attribute(self, object_name: str, attr: str) -> tuple[float | str]:
         """Helper function to retrieve an object's attribute."""
         info = self.get_obj_info(object_name)
         if info is None:
-            return f'{attr}: {object_name} is not in sight', True
-        return getattr(info, attr), False
+            return f'{attr}: {object_name} is not in sight'
+        return getattr(info, attr)
     
-    def object_x(self, object_name: str) -> tuple[float | str, bool]:
+    def object_x(self, object_name: str) -> float:
         # if `[float]` is in the object_name, use it
         match = re.search(r'\[(-?\d+(\.\d+)?)\]', object_name)
         if match:
             # Extract the number and return it as a float
             extracted_number = float(match.group(1))
-            return extracted_number, False
+            if extracted_number is not None:
+                return extracted_number
+            else:
+                raise ValueError(f'{object_name} is not a valid number')
         return self._get_object_attribute(object_name, 'x')
     
-    def object_y(self, object_name: str) -> tuple[float | str, bool]:
+    def object_y(self, object_name: str) -> float:
         return self._get_object_attribute(object_name, 'y')
     
-    def object_width(self, object_name: str) -> tuple[float | str, bool]:
+    def object_width(self, object_name: str) -> float:
         return self._get_object_attribute(object_name, 'w')
     
-    def object_height(self, object_name: str) -> tuple[float | str, bool]:
+    def object_height(self, object_name: str) -> float:
         return self._get_object_attribute(object_name, 'h')
     
-    def object_dist(self, object_name: str) -> tuple[float | str, bool]:
+    def object_dist(self, object_name: str) -> float:
         depth_info = self._get_object_attribute(object_name, 'depth')
-        return (depth_info[0] * 100, False)
+        return depth_info * 100
     
-    def take_picture(self) -> tuple[bool, bool]:
-        return self._user_log(self.observation.image)
+    def take_picture(self):
+        self.controller_func[0](self.observation.image)
     
-    def log(self, message: str) -> tuple[None, bool]:
-        return self._user_log(message)
+    def log(self, message: str):
+        self.controller_func[0](message)
 
-    def delay(self, sec: float) -> tuple[None, bool]:
+    def delay(self, sec: float):
         time.sleep(sec)
-        return None, False
     
-    def re_plan(self) -> tuple[None, bool]:
-        return None, True
-    
-    def probe(self, query: str) -> tuple[SKILL_RET_TYPE, bool]:
-        return evaluate_value(self._probe(query, self.robot_info)), False
+    def re_plan(self):
+        return None
+
+    def probe(self, query: str) -> PROBE_RET_TYPE:
+        return evaluate_value(self.controller_func[1](query, self.robot_info))
+
+    def scan(self, object_name: str) -> bool:
+        print(f"-> Scan for {object_name}")
+        for _ in range(8):
+            if self.is_visible(object_name):
+                return True
+            self.rotate_left(45)
+        return False
+
+    def scan_description(self, description: str) -> bool:
+        print(f"-> Scan for {description}")
+        for _ in range(8):
+            ret = self.probe(description)
+            if ret != False:
+                return ret
+            self.rotate_left(45)
+        return False
+
+    def orienting(self, object_name: str) -> bool:
+        print(f"-> Orient to {object_name}")
+        if not self.is_visible(object_name):
+            return False
+        self.rotate_left((0.5 - self.object_x(object_name)) * 80)
+        return True
+
+    def goto(self, object_name: str) -> bool:
+        print(f"-> Go to {object_name}")
+        if not self.orienting(object_name):
+            return False
+        self.move_forward(1.0)
+        return True

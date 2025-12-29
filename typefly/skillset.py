@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Optional
-from .skill_item import SkillItem, SkillArg, LowLevelSkillItem, HighLevelSkillItem
+from .skill_item import SkillItem, SkillArg
 
 class SkillSet():
     def __init__(self):
@@ -13,9 +13,9 @@ class SkillSet():
             raise ValueError(f"Skill '{name}' not found.")
         return skill
     
-    def add_skill(self, name: str, func: callable, description: str, args: list[SkillArg] = None):
+    def add_skill(self, func: callable, description: str):
         """Adds a skill to the set."""
-        self.skills[name] = SkillItem(name, func, description, args)
+        self.skills[func.__name__.lower()] = SkillItem(func, description)
     
     def remove_skill(self, name: str):
         """Removes a SkillItem from the set by its name."""
@@ -49,23 +49,9 @@ class SkillSet():
         return string
     
     @staticmethod
-    def get_common_skillset(movement_skills: list[callable], vision_skills: list[callable], other_skills: list[callable]) -> 'SkillSet':
-        skillset = SkillSet(level=SkillSetLevel.LOW)
-        skillset.add_low_level_skill("move", movement_skills[0], "Move by (dx, dy) cm distance (dx: +forward/-backward, dy: +left/-right)", args=[SkillArg("dx", float), SkillArg("dy", float)])
-        skillset.add_low_level_skill("rotate", movement_skills[1], "Rotate by a certain degree (deg: +left/-right)", args=[SkillArg("deg", float)])
-
-        skillset.add_low_level_skill("is_visible", vision_skills[0], "Check if object is visible", args=[SkillArg("obj", str)])
-        skillset.add_low_level_skill("object_x", vision_skills[1], "Get object's x position (0-1)", args=[SkillArg("obj", str)])
-        skillset.add_low_level_skill("object_y", vision_skills[2], "Get object's y position (0-1)", args=[SkillArg("obj", str)])
-        skillset.add_low_level_skill("object_width", vision_skills[3], "Get object's width (0-1)", args=[SkillArg("obj", str)])
-        skillset.add_low_level_skill("object_height", vision_skills[4], "Get object's height (0-1)", args=[SkillArg("obj", str)])
-        skillset.add_low_level_skill("take_picture", vision_skills[5], "Take a picture")
-        skillset.add_low_level_skill("object_dist", vision_skills[6], "Get object's dist (m)", args=[SkillArg("obj", str)])
-
-        skillset.add_low_level_skill("log", other_skills[0], "Print text to user", args=[SkillArg("text", str)])
-        skillset.add_low_level_skill("delay", other_skills[1], "Wait for seconds", args=[SkillArg("sec", float)])
-        skillset.add_low_level_skill("re_plan", other_skills[2], "Trigger replanning")
-        skillset.add_low_level_skill("probe", other_skills[3], "Query LLM for reasoning", args=[SkillArg("query", str)])
-
+    def get_common_skillset(skills: list[callable]) -> 'SkillSet':
+        skillset = SkillSet()
+        for skill in skills:
+            skillset.add_skill(skill[0], skill[1])
         return skillset
     

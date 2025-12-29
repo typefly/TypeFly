@@ -1,9 +1,9 @@
-import io, time, json, os
+import io, time, json, os, queue
 from flask import Flask, Response, render_template, request, jsonify
 
 from typefly.robot_info import RobotInfo
 from typefly.utils import print_t, CURRENT_PROJ_DIR
-from typefly.llm_controller import LLMController
+from typefly.llm_controller import LLMController, _USER_LOG_QUEUE
 
 class TypeFly:
     def __init__(self, robot_info: RobotInfo):
@@ -33,8 +33,8 @@ class TypeFly:
                 self.running = False
                 return jsonify({'type': 'text', 'content': 'Shutting down...'})
             
-            # Send instruction to LLM
-            task_id = self.llm_controller.put_instruction(user_message)
+            # Send instruction to LLM Controller
+            self.llm_controller.put_instruction(user_message)
             
             def generate():
                 # Send initial acknowledgment
@@ -42,13 +42,16 @@ class TypeFly:
                 
                 # Stream messages from the queue as they arrive
                 while True:
-                    msg = try_get(timeout=3.0, task_id=task_id)
-                    if msg is None:
-                        break
-                    elif msg == "":
-                        continue
+                    try:
+                        msg = _USER_LOG_QUEUE.get(timeout=3.0)
+                        if msg == '#end':
+                            print_t("[UI] End of plan")
+                            return "data: [DONE]\n\n"
                     
-                    # print_t(f"[UI] New message: {msg}")
+                    except queue.Empty:
+                        continue
+
+                    print_t(f"[UI] New message: {msg}")
                     msg_str = str(msg)
                     
                     # Check if message contains an image (base64 encoded)
@@ -58,9 +61,6 @@ class TypeFly:
                         yield f"data: {response_data}\n\n"
                     else:
                         yield f"data: {json.dumps({'type': 'text', 'content': msg_str})}\n\n"
-                
-                # Send end signal
-                yield "data: [DONE]\n\n"
             
             return Response(generate(), mimetype='text/event-stream')
         

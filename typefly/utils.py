@@ -2,7 +2,7 @@ import datetime, cv2
 import numpy as np
 from numpy import ndarray
 import os
-from .skill_item import SKILL_RET_TYPE
+from .skill_item import PROBE_RET_TYPE
 
 CURRENT_PROJ_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -20,7 +20,7 @@ def input_t(literal):
     # Use built-in print to display the timestamp followed by the message
     return input(f"[{current_time}] {literal}")
 
-def evaluate_value(s: str) -> SKILL_RET_TYPE:
+def evaluate_value(s: str) -> PROBE_RET_TYPE:
     if s.lstrip('-').isdigit():  # Check for negative integers
         return int(s)
     elif s.lstrip('-').replace('.', '', 1).isdigit():  # Check for negative floats
