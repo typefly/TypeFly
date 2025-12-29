@@ -30,6 +30,6 @@ serving_build:
 	@make serving_stop
 	@make serving_remove
 	@echo -n "=>"
-	docker build -t $(CONTAINER_NAME):0.1 -f ./docker/edge/Dockerfile .
+	docker build -t $(CONTAINER_NAME):0.1 -f ./docker/Dockerfile .
 	@echo -n "=>"
 	@make serving_start
