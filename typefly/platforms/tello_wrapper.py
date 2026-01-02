@@ -95,7 +95,7 @@ class TelloWrapper(RobotWrapper):
         else:
             self.drone.takeoff()
         # self.move_up(25)
-        self.observation.start()
+        self.obs.start()
         self.keep_alive_thread.start()
         self.running = True
         return True
@@ -103,7 +103,7 @@ class TelloWrapper(RobotWrapper):
     @overrides
     def stop(self) -> bool:
         self.drone.land()
-        self.observation.stop()
+        self.obs.stop()
         self.running = False
         self.keep_alive_thread.join()
         return True

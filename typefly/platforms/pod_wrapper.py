@@ -110,7 +110,7 @@ class PodWrapper(RobotWrapper):
             print("Failed to connect to the drone")
             return False
         self.podtp.start_stream()
-        self.observation.start()
+        self.obs.start()
         return True
     
     def _take_off(self):
@@ -135,7 +135,7 @@ class PodWrapper(RobotWrapper):
 
     @overrides
     def stop(self):
-        self.observation.stop()
+        self.obs.stop()
         if self.flying:
             self.podtp.command_land()
         self.podtp.disconnect()

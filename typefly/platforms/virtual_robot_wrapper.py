@@ -84,7 +84,7 @@ class VirtualRobotWrapper(RobotWrapper):
         """
         Start the robot
         """
-        self.observation.start()
+        self.obs.start()
         return True
 
     @overrides
@@ -92,7 +92,7 @@ class VirtualRobotWrapper(RobotWrapper):
         """
         Stop the robot
         """
-        self.observation.stop()
+        self.obs.stop()
         return True
 
     @overrides

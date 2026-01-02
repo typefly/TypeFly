@@ -55,8 +55,8 @@ class LLMController():
         self.robot.stop()
 
     def fetch_robot_pov(self, overlay: bool=True) -> Optional[Image.Image]:
-        image = self.robot.observation.image
-        yolo_results = self.robot.observation.image_process_result.get("yolo", [])
+        image = self.robot.obs.image
+        yolo_results = self.robot.obs.image_process_result.get("yolo", [])
         if overlay:
             YoloClient.plot_results_ps(image, yolo_results)
         return image

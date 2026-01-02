@@ -18,6 +18,7 @@ from ..robot_wrapper import RobotWrapper, RobotObservation
 from ..robot_info import RobotInfo
 from ..yolo_client import YoloClient
 from ..utils import quaternion_to_rpy, print_t, undistort_image
+from ..pid import PID
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -54,8 +55,14 @@ class Go2Observation(RobotObservation):
             ori = odom.pose.pose.orientation
             self._orientation = quaternion_to_rpy(ori.x, ori.y, ori.z, ori.w)
         
+        # Initialize the transformation matrices
+        self.odom2robot_translation = [0.0, 0.0, 0.0]
+        self.odom2robot_rotation = [0.0, 0.0, 0.0, 1.0]
+        self.map2odom_translation = [0.0, 0.0, 0.0]
+        self.map2odom_rotation = [0.0, 0.0, 0.0, 1.0]
         def _tf_callback(msg: TFMessage):
             _eye4 = np.eye(4)
+            
             # Extract position and orientation from the TF message
             for tf in msg.transforms:
                 t = tf.transform.translation
@@ -84,6 +91,8 @@ class Go2Observation(RobotObservation):
 
             RR = R.from_matrix(T_map_robot[:3, :3])
             self._orientation[:] = RR.as_euler('xyz')
+
+            # print_t(f"-> Position: {self._position}, Orientation: {self._orientation}")
         
         qos_profile = QoSProfile(
             reliability=QoSReliabilityPolicy.BEST_EFFORT,  # Match camera publisher
@@ -99,13 +108,13 @@ class Go2Observation(RobotObservation):
         self.node = rclpy.create_node('typefly_go2_observation')
         self.node.create_subscription(
             msg.Image, 
-            '/camera/image_raw',  # Change this to your actual topic
+            '/camera/image_raw',
             _ros_image_callback, 
             qos_profile
         )
         self.node.create_subscription(
-            Odometry, 
-            '/tf',  # Change this to your actual topic
+            TFMessage,
+            '/tf',
             _tf_callback, 
             10
         )
@@ -134,24 +143,25 @@ class Go2Observation(RobotObservation):
         }
 
 class Go2Wrapper(RobotWrapper):
-    def __init__(self, robot_info: RobotInfo, system_skill_func: list[callable]):
-        super().__init__(robot_info, Go2Observation(robot_info), system_skill_func)
+    def __init__(self, robot_info: RobotInfo):
+        super().__init__(robot_info, Go2Observation(robot_info))
 
         self.node = rclpy.create_node('typefly_go2_control')
         self.control_publisher = self.node.create_publisher(Twist, '/cmd_vel', 10)
-        self.move_speed = 0.8
-        self.rotate_speed = 1.0
-        self.control_dt = 0.1
-        self.action_wait_time = 1.0
+        self.control_dt = 0.2
+
+        self.pid_yaw = PID(10.0, 0.0, 0.0, 10.0, 10.0, 0.5, 1.0)
+        self.pid_x = PID(1.5, 1.0, 0.1, 10.0, 10.0, 0.5, 1.0)
+        self.pid_y = PID(1.5, 1.0, 0.1, 10.0, 10.0, 0.5, 1.0)
 
     @overrides
     def start(self) -> bool:
-        self.observation.start()
+        self.obs.start()
         return True
 
     @overrides
     def stop(self) -> bool:
-        self.observation.stop()
+        self.obs.stop()
         return True
 
     def _stop_moving(self, wait_time: float = 0.0):
@@ -159,38 +169,56 @@ class Go2Wrapper(RobotWrapper):
         self.control_publisher.publish(twist)
         time.sleep(wait_time)
 
-    # def _move(self, linear_x: float=0.0, linear_y: float=0.0, angular_z: float=0.0, duration: float=3.0):
-    #     """
-    #     Helper function to publish Twist messages for a specified duration.
-    #     """
-    #     twist = Twist()
-    #     twist.linear.x = linear_x
-    #     twist.linear.y = linear_y
-    #     twist.angular.z = angular_z
-
-    #     start_time = time.time()
-    #     while time.time() - start_time < duration:
-    #         self.control_publisher.publish(twist)
-    #         time.sleep(self.ros_control_dt)
-        
-    #     self._stop_moving(self.action_wait_time)
+    def _send_twist(self, linear_x: float=0.0, linear_y: float=0.0, angular_z: float=0.0):
+        """
+        Helper function to publish Twist messages for a specified duration.
+        """
+        twist = Twist()
+        twist.linear.x = linear_x
+        twist.linear.y = linear_y
+        twist.angular.z = angular_z
+        self.control_publisher.publish(twist)
 
     @overrides
     def _move(self, dx: float, dy: float):
         """
         Moves the robot by the specified distance in the x (forward/backward) and y (left/right) directions.
         """
-        print(f"-> Move by ({dx}, {dy}) cm")
-        
-        # Convert distances from cm to meters
-        dx_m = dx / 100.0
-        dy_m = dy / 100.0
+        print(f"-> Move by ({dx}, {dy}) m")
+        init_x = self.obs._position[0]
+        init_y = self.obs._position[1]
+        init_yaw = self.obs._orientation[2]
+        target_x = init_x + dx * math.cos(init_yaw) - dy * math.sin(init_yaw)
+        target_y = init_y + dx * math.sin(init_yaw) + dy * math.cos(init_yaw)
 
-        # Calculate duration based on speed
-        duration = max(abs(dx_m), abs(dy_m)) / self.ros_move_speed if self.ros else max(abs(dx_m), abs(dy_m))
+        timeout = 2.0
+        action_start_time = time.time()
+        while time.time() - action_start_time < timeout:
+            loop_start_time = time.time()
+            current_x = self.obs._position[0]
+            current_y = self.obs._position[1]
+            current_yaw = self.obs._orientation[2]
 
-        # Perform the movement
-        # self._move(linear_x=dx_m, linear_y=dy_m, duration=duration)
+            # Compute error in world frame
+            error_world_x = target_x - current_x
+            error_world_y = target_y - current_y
+
+            # Convert error into body frame
+            error_body_x = error_world_x * math.cos(current_yaw) + error_world_y * math.sin(current_yaw)
+            error_body_y = -error_world_x * math.sin(current_yaw) + error_world_y * math.cos(current_yaw)
+
+            print_t(f"-> Error: error_body_x={error_body_x}, error_body_y={error_body_y}")
+
+            if math.hypot(error_body_x, error_body_y) < 0.08:
+                break
+
+            vx = self.pid_x.update(error_body_x)
+            vy = self.pid_y.update(error_body_y)
+
+            print_t(f"-> Move: vx={vx}, vy={vy}, current=(x={current_x}, y={current_y}), yaw={current_yaw}")
+            self._send_twist(vx, vy, 0.0)
+            time.sleep(max(0, self.control_dt - (time.time() - loop_start_time)))
+        self._send_twist(0.0, 0.0, 0.0)
 
     @overrides
     def _rotate(self, deg: float):
@@ -198,17 +226,37 @@ class Go2Wrapper(RobotWrapper):
         Rotates the robot by the specified angle in degrees.
         """
         print(f"-> Rotate by {deg} degrees")
-        
-        # Convert degrees to radians
-        rad = math.radians(deg)
+        init_yaw = self.obs._orientation[2]
+        delta_rad = math.radians(deg)
+        accumulated_angle = 0.0
+        previous_yaw = init_yaw
 
-        # Calculate duration based on rotation speed
-        if self.ros:
-            duration = abs(rad) / self.ros_rotate_speed if self.ros else abs(rad)
-            angular_z = self.ros_rotate_speed if deg > 0 else -self.ros_rotate_speed
-        else:
-            duration = 3.0
-            angular_z = rad
+        timeout = 5.0
+        action_start_time = time.time()
+        while time.time() - action_start_time < timeout:
+            cycle_start_time = time.time()
+            current_yaw = self.obs._orientation[2]
+            yaw_diff = current_yaw - previous_yaw
 
-        # Perform the rotation
-        
+            # Normalize yaw difference to the range [-pi, pi]
+            if yaw_diff > math.pi:
+                yaw_diff -= 2 * math.pi
+            elif yaw_diff < -math.pi:
+                yaw_diff += 2 * math.pi
+
+            accumulated_angle += yaw_diff
+            previous_yaw = current_yaw
+
+            remaining_angle = delta_rad - accumulated_angle
+
+            # print_t(f"-> Remaining angle: {math.degrees(remaining_angle):.2f} degrees, accumulated: {math.degrees(accumulated_angle):.2f} degrees")
+            if abs(remaining_angle) < 0.01 or delta_rad * remaining_angle < 0:
+                # If the remaining angle is small enough or we have overshot the target
+                break
+
+            vyaw = self.pid_yaw.update(remaining_angle)
+            # print_t(f"-> vyaw: {vyaw:.2f} rad/s")
+            print_t(f"-> Rotate: vyaw={vyaw:.2f} rad/s")
+            self._send_twist(0.0, 0.0, vyaw)
+            time.sleep(max(0, self.control_dt - (time.time() - cycle_start_time)))
+        self._send_twist(0.0, 0.0, 0.0)

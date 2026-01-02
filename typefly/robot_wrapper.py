@@ -5,6 +5,7 @@ import time, threading
 from PIL import Image
 import asyncio
 import re
+import numpy as np
 
 from .skillset import SkillSet
 from .robot_info import RobotInfo
@@ -35,8 +36,8 @@ class RobotObservation(ABC):
 
         self._image: Optional[Image.Image] = None
         self._depth: Optional[ndarray] = None
-        self._orientation: Optional[ndarray] = None
-        self._position: Optional[ndarray] = None
+        self._orientation: ndarray = np.zeros(3)
+        self._position: ndarray = np.zeros(3)
 
         self._image_process_lock = threading.Lock()
         self._image_process_result: tuple[Image.Image, list[ObjectInfo]] = (Image.new("RGB", (640, 480)), [])
@@ -137,9 +138,9 @@ class RobotObservation(ABC):
 
 class RobotWrapper(ABC):
     controller_func: list[callable] = []
-    def __init__(self, robot_info: RobotInfo, observation: RobotObservation):
+    def __init__(self, robot_info: RobotInfo, obs: RobotObservation):
         self.robot_info = robot_info
-        self.observation = observation
+        self.obs = obs
         common_movement_skill_func = [
             (self.move_forward, "Move forward by a dist (m)"),
             (self.move_backward, "Move backward by a dist (m)"),
@@ -238,7 +239,7 @@ class RobotWrapper(ABC):
         Returns the list of detected objects.
         You should override this method if your robot has a different way to get the object list.
         """
-        return self.observation.image_process_result.get("yolo", [])
+        return self.obs.image_process_result.get("yolo", [])
     
     def get_obj_list_str(self) -> str:
         """Returns a formatted string of detected objects."""
@@ -294,7 +295,7 @@ class RobotWrapper(ABC):
     
     # other skills
     def take_picture(self):
-        self.controller_func[0](self.observation.image)
+        self.controller_func[0](self.obs.image)
     
     def log(self, message: str):
         self.controller_func[0](message)
