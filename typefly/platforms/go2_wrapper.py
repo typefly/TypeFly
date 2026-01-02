@@ -150,7 +150,7 @@ class Go2Wrapper(RobotWrapper):
         self.control_publisher = self.node.create_publisher(Twist, '/cmd_vel', 10)
         self.control_dt = 0.1
 
-        self.speed_xy = 0.8
+        self.speed_xy = 0.4
         self.speed_yaw = 1.0
 
         # self.pid_yaw = PID(10.0, 0.0, 0.0, 10.0, 10.0, 0.5, 1.0)
@@ -191,7 +191,7 @@ class Go2Wrapper(RobotWrapper):
 
         duration = max(abs(dx), abs(dy)) / self.speed_xy / 1.5
 
-        if dx > dy:
+        if abs(dx) > abs(dy):
             vx = self.speed_xy if dx > 0 else -self.speed_xy
             vy = dy / duration
         else:
