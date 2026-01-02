@@ -27,7 +27,9 @@ class LLMController():
         elif robot_info.robot_type == "tello":
             from .platforms.tello_wrapper import TelloWrapper
             self.robot = TelloWrapper(robot_info)
-        
+        elif robot_info.robot_type == "go2":
+            from .platforms.go2_wrapper import Go2Wrapper
+            self.robot = Go2Wrapper(robot_info)
         self.planner = LLMPlanner(self.robot)
         self.current_plan_loop_thread = None
 
