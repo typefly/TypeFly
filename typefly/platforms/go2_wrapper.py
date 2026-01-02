@@ -1,10 +1,9 @@
 import time, os, math
 from typing import Any
 import numpy as np
-import threading, requests
+import threading
 from overrides import overrides
 from PIL import Image
-import cv2
 from scipy.spatial.transform import Rotation as R
 
 import rclpy
@@ -153,6 +152,9 @@ class Go2Wrapper(RobotWrapper):
         self.speed_xy = 0.4
         self.speed_yaw = 1.0
 
+        """
+        The go2_ros2_sdk has a huge latency in TF update. So we use simple velocity control instead of PID control.
+        """
         # self.pid_yaw = PID(10.0, 0.0, 0.0, 10.0, 10.0, 0.5, 1.0)
         # self.pid_x = PID(1.5, 1.0, 0.1, 10.0, 10.0, 0.5, 1.0)
         # self.pid_y = PID(1.5, 1.0, 0.1, 10.0, 10.0, 0.5, 1.0)
@@ -186,6 +188,7 @@ class Go2Wrapper(RobotWrapper):
     def _move(self, dx: float, dy: float):
         """
         Moves the robot by the specified distance in the x (forward/backward) and y (left/right) directions.
+        This is a simple velocity control.
         """
         print(f"-> Move by ({dx}, {dy}) m")
 
@@ -209,6 +212,7 @@ class Go2Wrapper(RobotWrapper):
     def _rotate(self, deg: float):
         """
         Rotates the robot by the specified angle in degrees.
+        This is a simple velocity control.
         """
         print(f"-> Rotate by {deg} degrees")
         duration = abs(math.radians(deg)) / self.speed_yaw
@@ -219,6 +223,9 @@ class Go2Wrapper(RobotWrapper):
             time.sleep(self.control_dt)
         self._send_twist(0.0, 0.0, 0.0)
 
+    """
+    The go2_ros2_sdk has a huge latency in TF update. So we use simple velocity control instead of PID control.
+    """
     # @overrides
     # def _move(self, dx: float, dy: float):
     #     """
