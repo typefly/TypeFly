@@ -27,7 +27,7 @@ By default, typefly will try to access your camera with `cv2.VideoCapture(0)` an
 TypeFly works with the DJI Tello drone. However, since Tello drone requires your device to connect to its WiFi network and TypeFly requires an Internet connection for LLM access, you need to have both WiFi adapter and ethernet adapter to run TypeFly for tello. To use this option, change the `robot_type` from `virtual` to `tello`.
 
 ### Go2 Dog
-TODO.
+To control a Unitree Go2 robot dog with TypeFly, you need to install ROS2 and run the [go2_ros2_sdk](https://github.com/abizovnuralem/go2_ros2_sdk).
 
 ### Other Robots
 To support other robots, you need to implement the robot control interface based on the `RobotWrapper`, see examples in `typefly/platforms/*`.
