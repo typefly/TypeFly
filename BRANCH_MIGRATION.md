@@ -25,7 +25,6 @@ git checkout archive/TypeFly-1.0
 ## TypeFly-2.0 Branch
 
 TypeFly-2.0 is the next major version with significant updates:
-- Latest commit: `d885c86` (update readme)
 - Contains new features and improvements over TypeFly-1.0
 - Full implementation of the TypeFly system with:
   - LLM controller and planner

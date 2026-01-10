@@ -43,10 +43,13 @@ If you have protected branch rules:
 
 ### Step 4: Update CI/CD Workflows (if applicable)
 
-Check if any workflows in `.github/workflows/` reference the old default branch name:
+If you have GitHub Actions workflows in `.github/workflows/`, check if any reference the old default branch name:
 
 ```bash
-grep -r "TypeFly-1.0" .github/workflows/
+# Only run this if .github/workflows/ directory exists
+if [ -d ".github/workflows" ]; then
+  grep -r "TypeFly-1.0" .github/workflows/
+fi
 ```
 
 Update any references to use `TypeFly-2.0` or the dynamic `${{ github.event.repository.default_branch }}` variable.
@@ -90,11 +93,10 @@ If you need to revert the change:
 
 **TypeFly-1.0**:
 - Basic structure with LICENSE.md
-- Commit: `6f40a91`
+- Earlier version of the project
 
 **TypeFly-2.0**:
 - Full implementation with LLM controller, vision skills, web UI
-- Latest commit: `d885c86` (update readme)
 - Contains all the major features and improvements
 
 ## ❓ Troubleshooting
