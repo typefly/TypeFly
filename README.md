@@ -3,6 +3,8 @@ TypeFly aims to generate robot task plan using large language model (LLM) and ou
 
 Also, check out the demo video here: [Demo 1: Find edible or drinkable items](http://www.youtube.com/watch?v=HEJYaTLWKfY), [Demo 2: Find a specific chair](http://www.youtube.com/watch?v=QwnBniFaINE).
 
+> **Note**: This repository is now using `TypeFly-2.0` as the default branch. The previous `TypeFly-1.0` branch has been archived. See [BRANCH_MIGRATION.md](BRANCH_MIGRATION.md) for details.
+
 ## Hardware Requirement
 TypeFly works with DJI Tello drone by default. Since Tello drone requires your device to connect to its wifi and TypeFly requires Internet connection, you need to have both wifi adapter and ethernet adapter to run TypeFly.
 To support other drones, you need to implement the `RobotWrapper` interface in `controller/abs/drone_wrapper.py`.
