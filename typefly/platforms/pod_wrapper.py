@@ -1,4 +1,5 @@
 import time, cv2
+from typing import Any
 import numpy as np
 from PIL import Image
 import threading
@@ -7,7 +8,6 @@ from overrides import overrides
 from podtp import Podtp, sensor
 
 from ..robot_wrapper import RobotWrapper, RobotObservation
-from ..skillset import SkillSet, SkillArg, SkillSetLevel
 from ..yolo_client import YoloClient
 from ..robot_info import RobotInfo
 from ..utils import undistort_image
@@ -54,48 +54,24 @@ class PodObservation(RobotObservation):
         await self.yolo_client.detect(image)
     
     @overrides
-    def fetch_processed_result(self) -> tuple[Image.Image, list]:
-        return self.yolo_client.latest_result
+    def fetch_processed_result(self) -> dict[str, Any]:
+        _, object_list = self.yolo_client.latest_result
+        return {
+            "yolo": object_list
+        }
 
 class PodWrapper(RobotWrapper):
-    def __init__(self, robot_info: RobotInfo, system_skill_func: list[callable]):
+    def __init__(self, robot_info: RobotInfo):
         self.podtp = Podtp(robot_info.extra)
-        super().__init__(robot_info, PodObservation(self.podtp.sensor_data, robot_info), system_skill_func)
+        super().__init__(robot_info, PodObservation(self.podtp.sensor_data, robot_info))
 
         self.height = 0.7
         self.xy_speed = 0.3
         self.flying = False
 
         # extra movement skills
-        self.ll_skillset.add_low_level_skill("lift", self.lift, "Move up/down by a distance", args=[SkillArg("dist", float)])
-        self.ll_skillset.add_low_level_skill("land", self.land, "Land the drone")
-        
-        high_level_skills = [
-            {
-                "name": "scan",
-                "definition": "{8{?is_visible($1){->True}rotate(-45)}->False}",
-                "description": "Rotate to find a specific object $1 when it's *not* in current view",
-            },
-            {
-                "name": "scan_description",
-                "definition": "{8{_1=probe($1);?_1!=False{->_1}rotate(-45)}->False}",
-                "description": "Rotate to find an abstract object $1 when it's *not* in current view",
-            },
-            {
-                "name": "orienting",
-                "definition": "{_1=ox($1);rotate((0.5-_1)*80)}",
-                "description": "Rotate to align with object $1",
-            },
-            {
-                "name": "goto",
-                "definition": "2{orienting($1);_1=object_dist($1)/2;move(_1, 0)}",
-                "description": "Move to object $1 in the view (orienting then go forward)"
-            }
-        ]
-
-        self.hl_skillset = SkillSet(SkillSetLevel.HIGH, self.ll_skillset)
-        for skill in high_level_skills:
-            self.hl_skillset.add_high_level_skill(skill['name'], skill['definition'], skill['description'])
+        self.skillset.add_skill(self.lift, "Move up/down by a distance")
+        self.skillset.add_skill(self.land, "Land the drone")
 
     def _cap_dist(self, dist):
         if abs(dist) < MOVEMENT_MIN:
@@ -111,6 +87,7 @@ class PodWrapper(RobotWrapper):
             return False
         self.podtp.start_stream()
         self.obs.start()
+        self._take_off()
         return True
     
     def _take_off(self):
@@ -131,24 +108,25 @@ class PodWrapper(RobotWrapper):
             time.sleep(0.2)
             count += 1
         # self.podtp.command_position(0.6, 0, 0, 0)
-        self.move(60, 0)
+        self._move(0.6, 0.0)
 
     @overrides
-    def stop(self):
+    def stop(self) -> bool:
         self.obs.stop()
         if self.flying:
             self.podtp.command_land()
         self.podtp.disconnect()
+        return True
 
     @overrides
-    def move(self, dx: float, dy: float) -> tuple[bool, bool]:
+    def _move(self, dx: float, dy: float):
         if not self.flying:
             self._take_off()
 
-        print(f"-> Move by ({dx}, {dy}) cm")
+        print(f"-> Move by ({dx}, {dy}) m")
         if dx != 0:
             # self.podtp.command_position(self._cap_dist(dx) / 100.0, 0, 0, 0)
-            for i in range(int(abs(dx) / 20 / self.xy_speed)):
+            for i in range(int(abs(dx) * 5 / self.xy_speed)):
                 speed = self.xy_speed if dx > 0 else -self.xy_speed
                 self.podtp.command_hover(speed, 0, 0, self.height)
                 time.sleep(0.2)
@@ -157,25 +135,23 @@ class PodWrapper(RobotWrapper):
 
         if dy != 0:
             # self.podtp.command_position(0, self._cap_dist(dy) / 100.0, 0, 0)
-            for i in range(int(abs(dy) / 20 / self.xy_speed)):
+            for i in range(int(abs(dy) * 5 / self.xy_speed)):
                 speed = self.xy_speed if dy > 0 else -self.xy_speed
                 self.podtp.command_hover(0, speed, 0, self.height)
                 time.sleep(0.2)
             self.podtp.command_hover(0, 0, 0, self.height)
         time.sleep(EXECUTION_DELAY)
-        return True, False
 
     @overrides
-    def rotate(self, deg: float) -> tuple[bool, bool]:
+    def _rotate(self, deg: float):
         if not self.flying:
             self._take_off()
         print(f"-> Rotate by {deg} degrees")
         self.podtp.command_position(0, 0, 0, deg)
         time.sleep(abs(deg) / 360.0 * 4)
         self.podtp.command_hover(0, 0, 0, self.height)
-        return True, False
     
-    def lift(self, dist: float) -> tuple[bool, bool]:
+    def lift(self, dist: float):
         if not self.flying:
             self._take_off()
         print(f"-> Lift for {dist} cm")
@@ -183,14 +159,12 @@ class PodWrapper(RobotWrapper):
         self.podtp.command_position(0, 0, self._cap_dist(dist) / 100.0, 0)
         time.sleep(EXECUTION_DELAY)
         self.podtp.command_hover(0, 0, 0, self.height)
-        return True, False
     
-    def land(self) -> tuple[bool, bool]:
+    def land(self):
         if not self.flying:
-            return True, False
+            return
         
         self.flying = False
         print("-> Land")
         self.podtp.command_land()
         time.sleep(EXECUTION_DELAY)
-        return True, False

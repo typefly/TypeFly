@@ -30,6 +30,9 @@ class LLMController():
         elif robot_info.robot_type == "go2":
             from .platforms.go2_wrapper import Go2Wrapper
             self.robot = Go2Wrapper(robot_info)
+        elif robot_info.robot_type == "pod":
+            from .platforms.pod_wrapper import PodWrapper
+            self.robot = PodWrapper(robot_info)
         self.planner = LLMPlanner(self.robot)
         self.current_plan_loop_thread = None
 
