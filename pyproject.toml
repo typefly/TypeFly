@@ -23,6 +23,6 @@ dependencies = [
     "opencv-python",
     "numpy",
     "pillow",
-    "djitellopy"
+    "djitellopy",
     "filterpy",
 ]
