@@ -5,8 +5,8 @@ from typefly.serving.service_manager import ServiceManager
 from typefly.serving.config import SERVICE_INFO, PROJ_DIR
 
 sys.path.append(os.path.join(PROJ_DIR, "./proto"))
-import hyrch_serving_pb2
-import hyrch_serving_pb2_grpc
+from typefly.serving import hyrch_serving_pb2
+from typefly.serving import hyrch_serving_pb2_grpc
 
 app = Quart(__name__)
 grpcServiceManager = ServiceManager()

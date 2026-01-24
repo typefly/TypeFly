@@ -75,7 +75,7 @@ class YoloClient():
     Access the YOLO service through http POST request.
     You can enable tracking mode to track the objects across frames.
     """
-    def __init__(self, robot_info: RobotInfo, enable_tracking: bool = True):
+    def __init__(self, robot_info: RobotInfo, enable_tracking: bool = False):
         self.robot_info = robot_info
         self.service_url = 'http://{}:{}/process'.format(EDGE_SERVICE_IP, EDGE_SERVICE_PORT)
         self.target_image_width = 640

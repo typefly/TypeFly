@@ -1,0 +1,21 @@
+Metadata-Version: 2.4
+Name: typefly
+Version: 0.1.0
+Summary: An low-response latency LLM-based robot control framework.
+Author-email: Guojun Chen <guojun.chen@yale.edu>
+Requires-Python: >=3.10
+License-File: LICENSE.md
+Requires-Dist: overrides
+Requires-Dist: flask
+Requires-Dist: uvicorn
+Requires-Dist: quart
+Requires-Dist: gradio
+Requires-Dist: grpcio-tools
+Requires-Dist: aiohttp
+Requires-Dist: openai
+Requires-Dist: opencv-python
+Requires-Dist: numpy
+Requires-Dist: pillow
+Requires-Dist: djitellopy
+Requires-Dist: filterpy
+Dynamic: license-file

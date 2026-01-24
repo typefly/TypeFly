@@ -9,8 +9,8 @@ from ultralytics import YOLO
 
 from typefly.serving.config import PROJ_DIR
 sys.path.append(os.path.join(PROJ_DIR, "./proto"))
-import hyrch_serving_pb2
-import hyrch_serving_pb2_grpc
+from typefly.serving import hyrch_serving_pb2
+from typefly.serving import hyrch_serving_pb2_grpc
 
 MODEL_PATH = os.path.join(PROJ_DIR, "./serving/models/")
 MODEL_TYPE = "yolov8m.pt"
@@ -129,3 +129,4 @@ def serve(port, stop_event):
 if __name__ == "__main__":
     # test the service
     serve(50050)
+
