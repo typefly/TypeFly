@@ -35,6 +35,15 @@ class LLMController():
             self.robot = PodWrapper(robot_info)
         self.planner = LLMPlanner(self.robot)
         self.current_plan_loop_thread = None
+        # Missing child information for SAR operations
+        self.missing_child_info = {
+            'name': '',
+            'age': '',
+            'clothing_color': '',
+            'last_location': '',
+            'description': '',
+            'photo_path': ''
+        }
 
     def _user_log(self, msg: str | Image.Image) -> bool:
         if isinstance(msg, Image.Image):
@@ -66,7 +75,7 @@ class LLMController():
 
     def plan_loop(self, user_instruction: str):
         while True:
-            plan = self.planner.plan(user_instruction)
+            plan = self.planner.plan(user_instruction, missing_child_info=self.missing_child_info)
             print_t(f"[P] Plan: {plan}")
 
             if plan.startswith('```json'):
@@ -124,3 +133,8 @@ class LLMController():
     def put_instruction(self, user_instruction: str):
         self.current_plan_loop_thread = threading.Thread(target=self.plan_loop, args=(user_instruction,), daemon=True)
         self.current_plan_loop_thread.start()
+
+    def set_missing_child_info(self, info: dict):
+        """Set missing child information for SAR mission"""
+        self.missing_child_info.update(info)
+        print_t(f"[SAR] Child: {info.get('name')}, Age: {info.get('age')}, Clothing: {info.get('clothing_color')}")

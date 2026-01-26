@@ -23,18 +23,26 @@ class LLMPlanner():
         with open(os.path.join(assets_path, "example_plans.txt"), "r") as f:
             self.example_plans = f.read()
 
-    def plan(self, user_instruction: str, error_message: Optional[list[str]]=None, execution_history: Optional[list[str]]=None):
+    def plan(self, user_instruction: str, error_message: Optional[list[str]]=None, execution_history: Optional[list[str]]=None, missing_child_info: Optional[dict]=None):
         """
         Plan the user instruction using the LLM
         """
-        prompt = self.prompt_plan.format(guidelines=self.guidelines,
-                                         robot_skills=str(self.robot.skillset),
-                                         example_plans=self.example_plans,
-                                         scene_description=self.robot.get_obj_list_str(),
-                                         user_instruction=user_instruction)
+        # Format missing child info
+        if missing_child_info:
+            child_info_str = f"Name: {missing_child_info.get('name', 'N/A')}, Age: {missing_child_info.get('age', 'N/A')}, Clothing: {missing_child_info.get('clothing_color', 'N/A')}, Last seen: {missing_child_info.get('last_location', 'N/A')}"
+        else:
+            child_info_str = "No child information provided"
+        prompt = self.prompt_plan.format(
+            missing_child_info=child_info_str,
+            guidelines=self.guidelines,
+            robot_skills=str(self.robot.skillset),
+            example_plans=self.example_plans,
+            scene_description=self.robot.get_obj_list_str(),
+            user_instruction=user_instruction
+        )
 
         return self.llm.request(prompt, self.model_type)
-    
+
     def probe(self, query: str, robot_info: RobotInfo) -> str:
         """
         Probe the LLM for question $query based on the scene description

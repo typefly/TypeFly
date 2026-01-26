@@ -1,162 +1,153 @@
-Example 1
+﻿
+Example 1: No person detected - continue search
 =========
+## Missing Child: Sara, Age: 5, Clothing: Pink dress, Last seen: Playground
 ## Scene Description
-- person: (x:0.54, y:0.63), size: (0.41x0.74)
-
+[]
 ## USER INSTRUCTION
-Find a bottle, tell me it's height and take a picture of it.
-
+ابحث في المنطقة المحيطة
 ## OUTPUT
 ```json
 {
-    "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
-    "plan": "if scan('bottle'):\n    goto('bottle')\n    height = object_height('bottle')\n    log(height)\n    take_picture()\nelse:\n    log('No bottle in the view')"
+    "thoughts": "لا يوجد أشخاص في المشهد الحالي. يجب الانتقال للمنطقة التالية والاستمرار في البحث المنهجي.",
+    "plan": "log('لا يوجد أشخاص - الانتقال للمنطقة التالية')\nif not scan('person'):\n    move_forward(10.0)\n    log('استمرار البحث...')"
 }
 ```
-
 ---
-Example 2
+Example 2: High confidence match - pink clothing detected
 =========
+## Missing Child: Sara, Age: 5, Clothing: Pink dress, Last seen: Playground
 ## Scene Description
-- apple: (x:0.28, y:0.52), size: (0.13x0.2)
-- chair: (x:0.72, y:0.68), size: (0.19x0.47)
-- tv: (x:0.26, y:0.49), size: (0.10x0.20)
-
+- person: (x:0.45, y:0.60), size: (0.25x0.50), clothing_color: pink, face_match: 88%
 ## USER INSTRUCTION
-Find an apple.
-
+ابحث عن الطفلة
 ## OUTPUT
 ```json
 {
-    "thoughts": "There is an apple in the view, just tell the user and go to the apple.",
-    "plan": "log('I can already see an apple near the tv.')\ngoto('apple')"
+    "thoughts": "اكتشاف طفلة بملابس وردية! الحجم يدل على عمر 4-6 سنوات. تطابق الوجه 88%. مستوى ثقة عالي جداً 92%.",
+    "plan": "log('🚨 اكتشاف محتمل جداً: طفلة بملابس وردية')\nlog('الموقع: x:0.45, y:0.60')\nlog('تطابق الملابس: وردي - مطابق تام')\nlog('تطابق الوجه: 88%')\nlog('مستوى الثقة الإجمالي: 92%')\ngoto('person')\ntake_picture()\nlog('تم التقاط صورة - يرجى المراجعة الفورية')"
 }
 ```
-
 ---
-Example 3
+Example 3: Medium confidence - different clothing but face match
 =========
+## Missing Child: Ahmed, Age: 7, Clothing: Blue shirt, Last seen: Food court
 ## Scene Description
-- chair: (x:0.89, y:0.76), size: (0.22x0.49)
-- chair: (x:0.72, y:0.68), size: (0.19x0.47)
-- tv: (x:0.44, y:0.39), size: (0.10x0.20)
-
+- person: (x:0.62, y:0.55), size: (0.30x0.60), clothing_color: green, face_match: 65%
 ## USER INSTRUCTION
-Turn around and let me know if you can see an apple behind you.
-
+تحقق من هذا الشخص
 ## OUTPUT
+```json
 {
-    "thoughts": "Turn 180 degrees and check if there is an apple behind you.",
-    "plan": "rotate_right(180)\nif is_visible('apple'):\n    log('I can see an apple behind me.')\nelse:\n    log('I cannot see an apple behind me.')"
+    "thoughts": "طفل بحجم مناسب لعمر 6-8 سنوات. الملابس خضراء وليست زرقاء - قد يكون غيّر ملابسه. تطابق الوجه 65%. مستوى ثقة متوسط 58%.",
+    "plan": "log('تنبيه: طفل بمواصفات جزئية مطابقة')\nlog('الموقع: x:0.62, y:0.55')\nlog('العمر المقدر: 6-8 سنوات - ضمن النطاق')\nlog('الملابس: خضراء - مختلفة عن الوصف')\nlog('تطابق الوجه: 65%')\nlog('مستوى الثقة: 58%')\ngoto('person')\ntake_picture()\nlog('يحتاج تحقق بصري من الفريق')"
 }
-
-
+```
 ---
-Example 4
+Example 4: Multiple persons - systematic evaluation
 =========
+## Missing Child: Layla, Age: 4, Clothing: White dress, Last seen: Mall entrance
 ## Scene Description
-- remote: (x:0.23, y:0.49), size: (0.09x0.07)
-
+- person: (x:0.30, y:0.50), size: (0.20x0.40), clothing_color: yellow, face_match: 25%
+- person: (x:0.70, y:0.60), size: (0.22x0.45), clothing_color: white, face_match: 82%
 ## USER INSTRUCTION
-Find and go any edible object.
-
+تحقق من جميع الأشخاص في المشهد
 ## OUTPUT
+```json
 {
-    "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
-    "plan": "obj = scan_description('Any edible object here?')\nif obj:\n    goto(obj)\nelse:\n    log('No edible object in the view')"
+    "thoughts": "يوجد شخصان. الشخص الأول: ملابس صفراء، تطابق وجه ضعيف 25% - مستبعد. الشخص الثاني: ملابس بيضاء، تطابق وجه قوي 82%، الحجم يناسب عمر 3-5 سنوات - مطابقة قوية جداً 85%!",
+    "plan": "log('فحص متعدد للأشخاص المكتشفين...')\nlog('الشخص 1 (x:0.30): ملابس صفراء - مستبعد')\nlog('الشخص 2 (x:0.70): ملابس بيضاء + تطابق وجه 82%')\nlog('🚨 مطابقة قوية! مستوى الثقة: 85%')\ngoto('person[0.70]')\ntake_picture()\nlog('تم التوجه للهدف - يرجى التحقق العاجل')"
 }
-
-
+```
 ---
-Example 5
+Example 5: Systematic rotation search - no persons visible
 =========
+## Missing Child: Khaled, Age: 6, Clothing: Red shirt, Last seen: Sports section
 ## Scene Description
-- remote: (x:0.23, y:0.49), size: (0.09x0.07)
-
+- chair: (x:0.70, y:0.65), size: (0.20x0.40)
+- table: (x:0.30, y:0.50), size: (0.40x0.30)
 ## USER INSTRUCTION
-Turn with 30 degrees step clockwise until you can see a person.
-
+ابحث بشكل دائري في المنطقة
 ## OUTPUT
+```json
 {
-    "thoughts": "Use loop and is_visible to find a person.",
-    "plan": "for _ in range(12):\n    if is_visible('person'):\n        break\n    rotate_right(30)\nif not is_visible('person'):\n    log('No person in the view')\nelse:\n    log('I can see a person in the view')"
+    "thoughts": "لا يوجد أشخاص في المشهد الحالي. تنفيذ بحث دوراني منهجي 360 درجة بخطوات 30 درجة للتغطية الكاملة.",
+    "plan": "log('بدء المسح الدوراني 360 درجة...')\nfor _ in range(12):\n    rotate_right(30)\n    if scan('person'):\n        log('تم اكتشاف شخص - إيقاف الدوران')\n        break\nelse:\n    log('المسح الدوراني مكتمل - لم يتم العثور على أشخاص')\n    log('الانتقال لمنطقة البحث التالية')"
 }
-
-
+```
 ---
-Example 6
+Example 6: Ambiguous command - request clarification
 =========
+## Missing Child: Nora, Age: 3, Clothing: Yellow shirt, Last seen: Main entrance
 ## Scene Description
-- apple: (x:0.28, y:0.52), size: (0.13x0.2)
-- apple: (x:0.52, y:0.39), size: (0.17x0.22)
-
+- person: (x:0.50, y:0.50), size: (0.30x0.60), clothing_color: blue
 ## USER INSTRUCTION
-Go to the biggest apple.
-
+اذهب هناك
 ## OUTPUT
+```json
 {
-    "thoughts": "From the scene, we tell directly that the right apple is the biggest apple.",
-    "plan": "goto('apple[0.52]')"
+    "thoughts": "الأمر غامض - 'هناك' لا يحدد موقعاً واضحاً. يوجد شخص في المشهد لكن الأمر قد يقصد موقعاً آخر. أحتاج توضيح.",
+    "plan": "log('تنبيه: الأمر يحتاج توضيح')\nlog('يوجد شخص مرئي في الموقع x:0.50, y:0.50')\nlog('هل المقصود:')\nlog('  • الذهاب لهذا الشخص؟')\nlog('  • أم التوجه لمنطقة محددة من المدخل الرئيسي؟')\nlog('يرجى تحديد الأمر بدقة')"
 }
-
-
+```
 ---
-Example 7
+Example 7: Using scan_description for contextual search
 =========
+## Missing Child: Fatima, Age: 8, Clothing: Colorful jacket, Last seen: Toy store
+## Scene Description
+- toy: (x:0.23, y:0.49), size: (0.09x0.07)
+- shelf: (x:0.65, y:0.55), size: (0.30x0.60)
+## USER INSTRUCTION
+ابحث عن أي طفل قرب منطقة الألعاب
+## OUTPUT
+```json
+{
+    "thoughts": "لا يوجد أشخاص مرئيون حالياً في المشهد. استخدام scan_description للبحث عن أطفال في سياق منطقة الألعاب.",
+    "plan": "log('البحث عن أطفال قرب منطقة الألعاب...')\nobj = scan_description('Any child near toys or playing?')\nif obj:\n    log(f'تم اكتشاف طفل قرب الألعاب: {obj}')\n    goto(obj)\n    take_picture()\n    log('يرجى التحقق من التطابق')\nelse:\n    log('لا يوجد أطفال مرئيون قرب الألعاب')\n    log('توسيع نطاق البحث')"
+}
+```
+---
+Example 8: Go to specific person by coordinate
+=========
+## Missing Child: Omar, Age: 5, Clothing: Green shirt, Last seen: Park
+## Scene Description
+- person: (x:0.28, y:0.52), size: (0.22x0.48), clothing_color: green, face_match: 55%
+- person: (x:0.72, y:0.68), size: (0.24x0.50), clothing_color: blue, face_match: 30%
+## USER INSTRUCTION
+اذهب للشخص الذي يرتدي الأخضر
+## OUTPUT
+```json
+{
+    "thoughts": "يوجد شخص بملابس خضراء في x:0.28. الحجم يناسب طفل 4-6 سنوات. تطابق الوجه متوسط 55%. يجب التحقق.",
+    "plan": "log('التوجه للشخص بالملابس الخضراء')\nlog('الموقع: x:0.28, y:0.52')\nlog('تطابق اللون: أخضر - مطابق')\nlog('تطابق الوجه: 55%')\ngoto('person[0.28]')\ntake_picture()\nlog('يرجى التحقق البصري من الفريق')"
+}
+```
+---
+Example 9: Move and search pattern
+=========
+## Missing Child: Huda, Age: 6, Clothing: Purple dress, Last seen: Restaurant area
 ## Scene Description
 - chair: (x:0.72, y:0.60), size: (0.19x0.30)
-
 ## USER INSTRUCTION
-Go to
-
+تحرك يميناً ثم ابحث
 ## OUTPUT
+```json
 {
-    "thoughts": "The task is too vague, so we use log to output the advice.",
-    "plan": "log('Please give me more information about the task.')"
+    "thoughts": "لا يوجد أشخاص حالياً. تنفيذ الحركة اليمينية أولاً ثم البحث في الموقع الجديد.",
+    "plan": "log('التحرك يميناً 5 أمتار...')\nmove_right(5.0)\nlog('البحث في الموقع الجديد...')\nif scan('person'):\n    log('تم اكتشاف شخص بعد الحركة')\nelse:\n    log('لا يوجد أشخاص - الاستمرار في البحث')"
 }
-
+```
 ---
-
-Example 8
+Example 10: Low confidence - requires rescue team decision
 =========
+## Missing Child: Yousef, Age: 4, Clothing: Red shirt, Last seen: Entrance
 ## Scene Description
-- chair: (x:0.72, y:0.60), size: (0.19x0.30)
-
+- person: (x:0.50, y:0.55), size: (0.20x0.42), clothing_color: orange, face_match: 40%
 ## USER INSTRUCTION
-Go to a chair with a laptop on it.
-
+تحقق من هذا الطفل
 ## OUTPUT
+```json
 {
-    "thoughts": "Using scan_description to find the chair with a laptop on it.",
-    "plan": "obj = scan_description('Any chair with a laptop on it?')\nif obj:\n    goto(obj)\nelse:\n    log('No chair with a laptop on it in the view')"
-}
-
----
-Example 9
-=========
-## Scene Description
-- chair: (x:0.72, y:0.60), size: (0.19x0.30)
-
-## USER INSTRUCTION
-Go right by 0.5 meters and then go to the chair.
-
-## OUTPUT
-{
-    "thoughts": "Move right by 0.5 meters and then go to the chair.",
-    "plan": "move_right(0.5)\ngoto('chair')"
-}
-
----
-Example 10
-=========
-## Scene Description
-- chair: (x:0.72, y:0.60), size: (0.19x0.30)
-
-## USER INSTRUCTION
-What is 1231239+1231239?
-
-## OUTPUT
-{
-    "thoughts": "This is a math problem, so we use log to output the answer.",
-    "plan": "result = 1231239 + 1231239\nlog(result)"
+    "thoughts": "طفل بحجم مناسب لعمر 3-5 سنوات. الملابس برتقالية - قريبة من الأحمر لكن ليست مطابقة تماماً. تطابق الوجه منخفض 40%. مستوى ثقة منخفض 42% - يحتاج قرار من الفريق.",
+    "plan": "log('ملاحظة: طفل بمواصفات محتملة')\nlog('الموقع: x:0.50, y:0.55')\nlog('العمر المقدر: 3-5 سنوات - مطابق')\nlog('الملابس: برتقالي - قريب من الأحمر')\nlog('تطابق الوجه: 40% - منخفض')\nlog('مستوى الثقة: 42% - يحتاج قرار الفريق')\ngoto('person')\ntake_picture()\nlog('صورة ملتقطة - هل نستمر في التحقق؟')"
 }
