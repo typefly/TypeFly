@@ -6,6 +6,8 @@ import asyncio, aiohttp
 
 from .utils import print_t
 from .robot_info import RobotInfo
+from .janah_cv import janah_cv  
+
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -13,6 +15,7 @@ EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
 EDGE_SERVICE_PORT = os.environ.get("EDGE_SERVICE_PORT", "50049")
 
 class ObjectInfo:
+
     def __init__(self, name: str, x, y, w, h, depth=None):
         self.name: str = name
         self.x: float = float(x)
@@ -20,13 +23,21 @@ class ObjectInfo:
         self.w: float = float(w)
         self.h: float = float(h)
         self.depth: float = float(depth) if depth is not None else None
+        
+        # Janah SAR attributes
+        self.clothing_color: str = 'unknown'
+        self.face_match: int = 0
+        self.age_estimate: str = 'unknown'
 
     def from_json(json_data: dict):
         return ObjectInfo(json_data['name'], json_data['x'], json_data['y'], json_data['w'], json_data['h'], json_data['depth'])
 
     def __str__(self) -> str:
-        return f"- {self.name}: (x:{self.x:.2f}, y:{self.y:.2f}), size: ({self.w:.2f}x{self.h:.2f})"
-
+        base = f"- {self.name}: (x:{self.x:.2f}, y:{self.y:.2f}), size: ({self.w:.2f}x{self.h:.2f})"
+        if self.name == 'person':
+            base += f", clothing: {self.clothing_color}, face_match: {self.face_match}%"
+        return base
+    
 from filterpy.kalman import KalmanFilter
 from typing import Optional
 import time
@@ -198,7 +209,7 @@ class YoloClient():
                     yield response
         except aiohttp.ServerTimeoutError:
             print_t(f"[Y] Timeout error when connecting to {service_url}")
-
+    
     async def detect(self, image: Image.Image, conf=0.2):
         """
         Detect the objects in the image asynchronously using the YOLO service.
@@ -232,5 +243,23 @@ class YoloClient():
             return
         
         list_obj = self.cc_to_ps(json_results.get("result", []))
+        
+        # Add Janah CV attributes
+        import numpy as np
+        image_np = np.array(image)
+        
+        for obj in list_obj:
+            if obj.name == 'person':
+                bbox = {
+                    'x': obj.x,
+                    'y': obj.y,
+                    'width': obj.w,
+                    'height': obj.h
+                }
+                
+                obj.clothing_color = janah_cv.detect_clothing_color(image_np, bbox)
+                obj.face_match = janah_cv.face_match(image_np, bbox)
+                obj.age_estimate = janah_cv.estimate_age_from_size(bbox)
+        
         async with self._latest_result_lock:
             self._latest_result = (image, list_obj)
