@@ -1,0 +1,2173 @@
+# BASIC INSTRUCTIONS
+You are a planner for systems with one or multiple robots. Generate a Python script that fulfills the user's task by considering all provided information.
+
+# INPUT INFORMATION
+- Robot Skills: Available robot capabilities. Include both physical (movement, rotation) and logical (vision, reasoning) capabilities.
+- Scene Description: List of objects detected in the robot's current view, including names, locations, and sizes (0-1 range).
+- User Instruction: The task to accomplish. Create detailed steps if not explicitly provided.
+- Previous Plan & Execution Status: (If provided) History of previous attempts for replanning or error handling.
+- Respond with a json object containing the following fields:
+  - "thoughts": Explanation of the reasoning behind the generated plan. Please keep it concise.
+  - "plan": Python script for the robot to execute.
+
+# GUIDELINES
+1. Resolve Ambiguities: Correct obvious typos and interpret vague language based on context. If clarification is needed, prompt the user with a specific question.
+
+2. Critical Analysis: Evaluate scenes and tasks analytically. Generate direct actions when conditions can be clearly deduced from the scene description.
+
+3. Scene Relevance: Disregard current scene details when planning tasks that involve different locations or contexts.
+
+4. Information Extraction: Source 'obj' arguments and answers primarily from the scene description. Use probe skill 'p(query)' when information is unavailable in the current scene.
+
+5. Replanning: When previous plans and execution status are provided, focus on completing remaining tasks based on current conditions.
+
+6. Safety Priority: Never plan actions that could cause harm to robots or others. Refuse unsafe tasks with a brief explanation.
+
+# AVAILABLE ROBOT SKILLS
+name: move_forward, description: Move forward by a dist (m), args: [dist:float]
+name: move_backward, description: Move backward by a dist (m), args: [dist:float]
+name: move_left, description: Move left by a dist (m), args: [dist:float]
+name: move_right, description: Move right by a dist (m), args: [dist:float]
+name: rotate_left, description: Rotate left by a deg (deg), args: [deg:float]
+name: rotate_right, description: Rotate right by a deg (deg), args: [deg:float]
+name: is_visible, description: Check if object is visible, args: [object_name:str]
+name: object_x, description: Get object's x position (0-1), args: [object_name:str]
+name: object_y, description: Get object's y position (0-1), args: [object_name:str]
+name: object_width, description: Get object's width (0-1), args: [object_name:str]
+name: object_height, description: Get object's height (0-1), args: [object_name:str]
+name: object_dist, description: Get object's dist (m), args: [object_name:str]
+name: take_picture, description: Take a picture, args: []
+name: log, description: Print text to user, args: [message:str]
+name: delay, description: Wait for seconds, args: [sec:float]
+name: re_plan, description: Trigger replanning, args: []
+name: probe, description: Query LLM for reasoning, args: [query:str]
+name: scan, description: Scan for a specific object, args: [object_name:str]
+name: scan_description, description: Scan for an abstract object, return the object name if found, args: [description:str]
+name: orienting, description: Orient to a specific object, args: [object_name:str]
+name: goto, description: Go to a specific object in the view, args: [object_name:str]
+name: lift, description: Lift the robot by a certain distance, args: [dist:float]
+
+
+# REFERENCED EXAMPLES
+Example 1
+=========
+## Scene Description
+- person: (x:0.54, y:0.63), size: (0.41x0.74)
+
+## USER INSTRUCTION
+Find a bottle, tell me it's height and take a picture of it.
+
+## OUTPUT
+```json
+{
+    "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
+    "plan": "if scan('bottle'):\n    goto('bottle')\n    height = object_height('bottle')\n    log(height)\n    take_picture()\nelse:\n    log('No bottle in the view')"
+}
+```
+
+---
+Example 2
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.26, y:0.49), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Find an apple.
+
+## OUTPUT
+```json
+{
+    "thoughts": "There is an apple in the view, just tell the user and go to the apple.",
+    "plan": "log('I can already see an apple near the tv.')\ngoto('apple')"
+}
+```
+
+---
+Example 3
+=========
+## Scene Description
+- chair: (x:0.89, y:0.76), size: (0.22x0.49)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.44, y:0.39), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Turn around and let me know if you can see an apple behind you.
+
+## OUTPUT
+{
+    "thoughts": "Turn 180 degrees and check if there is an apple behind you.",
+    "plan": "rotate_right(180)\nif is_visible('apple'):\n    log('I can see an apple behind me.')\nelse:\n    log('I cannot see an apple behind me.')"
+}
+
+
+---
+Example 4
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Find and go any edible object.
+
+## OUTPUT
+{
+    "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
+    "plan": "obj = scan_description('Any edible object here?')\nif obj:\n    goto(obj)\nelse:\n    log('No edible object in the view')"
+}
+
+
+---
+Example 5
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Turn with 30 degrees step clockwise until you can see a person.
+
+## OUTPUT
+{
+    "thoughts": "Use loop and is_visible to find a person.",
+    "plan": "for _ in range(12):\n    if is_visible('person'):\n        break\n    rotate_right(30)\nif not is_visible('person'):\n    log('No person in the view')\nelse:\n    log('I can see a person in the view')"
+}
+
+
+---
+Example 6
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- apple: (x:0.52, y:0.39), size: (0.17x0.22)
+
+## USER INSTRUCTION
+Go to the biggest apple.
+
+## OUTPUT
+{
+    "thoughts": "From the scene, we tell directly that the right apple is the biggest apple.",
+    "plan": "goto('apple[0.52]')"
+}
+
+
+---
+Example 7
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to
+
+## OUTPUT
+{
+    "thoughts": "The task is too vague, so we use log to output the advice.",
+    "plan": "log('Please give me more information about the task.')"
+}
+
+---
+
+Example 8
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to a chair with a laptop on it.
+
+## OUTPUT
+{
+    "thoughts": "Using scan_description to find the chair with a laptop on it.",
+    "plan": "obj = scan_description('Any chair with a laptop on it?')\nif obj:\n    goto(obj)\nelse:\n    log('No chair with a laptop on it in the view')"
+}
+
+---
+Example 9
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go right by 0.5 meters and then go to the chair.
+
+## OUTPUT
+{
+    "thoughts": "Move right by 0.5 meters and then go to the chair.",
+    "plan": "move_right(0.5)\ngoto('chair')"
+}
+
+---
+Example 10
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+What is 1231239+1231239?
+
+## OUTPUT
+{
+    "thoughts": "This is a math problem, so we use log to output the answer.",
+    "plan": "result = 1231239 + 1231239\nlog(result)"
+}
+
+# CURRENT TASK
+## Scene Description
+
+
+## USER INSTRUCTION
+What you can see?
+
+## OUTPUT
+
+---
+```json
+{
+    "thoughts": "Since no scene description is provided, use the probe skill to vaguely determine what is visible.",
+    "plan": "visible_objects = probe('What objects are currently visible?')\nlog(f'Visible objects: {visible_objects}')"
+}
+```
+--------------------------------
+# BASIC INSTRUCTIONS
+You are a perception and reasoning system and your task is to analyze the scene description and answer the query precisely based on the objects and their attributes.
+
+# INPUT FORMAT
+Scene Description:[List of Objects with Attributes including x, y coordinates, width, height]
+Query:[Query about the scene]
+
+# OUTPUT RULES
+- Yes/No query: Answer ONLY with 'True' or 'False'
+- Object identification: Return the object's name. For multiple identical objects, include x-coordinate in format "object[x-value]"
+- Counting query: Return ONLY the number of target objects
+- General query: Provide a brief, single-sentence answer
+- If asked about an object not in the scene: Return 'False'
+
+# REFERENCED EXAMPLES
+## Example 1
+Scene Description: [person x:0.59 y:0.55 width:0.81 height:0.91, bottle x:0.85 y:0.54 width:0.21 height:0.93]
+Query: 'Any drinkable target here?'
+bottle
+
+## Example 2
+Scene Description:[]
+Query: 'Any table in the room?'
+False
+
+## Example 3
+Scene Description: [chair x:0.1 y:0.35 width:0.56 height:0.41, chair x:0.49 y:0.59 width:0.61 height:0.35]
+Query:'How many chairs you can see?'
+2
+
+## Example 4
+Scene Description: [bottle x:0.1 y:0.35 width:0.56 height:0.41, chair x:0.49 y:0.59 width:0.61 height:0.35]
+Query: 'Any edible target here?'
+False
+
+## Example 5
+Scene Description: [chair x:0.18 y:0.5 width:0.43 height:0.7, chair x:0.6 y:0.3 width:0.08 height:0.09, book x:0.62 y:0.26 width:0.23 height:0.17]
+Query: 'Any chair with a laptop on it?'
+chair[0.6]
+
+# CURRENT TASK
+Scene Description: 
+Query: What objects are currently visible?
+Output:
+---
+False
+--------------------------------
+# BASIC INSTRUCTIONS
+You are a planner for systems with one or multiple robots. Generate a Python script that fulfills the user's task by considering all provided information.
+
+# INPUT INFORMATION
+- Robot Skills: Available robot capabilities. Include both physical (movement, rotation) and logical (vision, reasoning) capabilities.
+- Scene Description: List of objects detected in the robot's current view, including names, locations, and sizes (0-1 range).
+- User Instruction: The task to accomplish. Create detailed steps if not explicitly provided.
+- Previous Plan & Execution Status: (If provided) History of previous attempts for replanning or error handling.
+- Respond with a json object containing the following fields:
+  - "thoughts": Explanation of the reasoning behind the generated plan. Please keep it concise.
+  - "plan": Python script for the robot to execute.
+
+# GUIDELINES
+1. Resolve Ambiguities: Correct obvious typos and interpret vague language based on context. If clarification is needed, prompt the user with a specific question.
+
+2. Critical Analysis: Evaluate scenes and tasks analytically. Generate direct actions when conditions can be clearly deduced from the scene description.
+
+3. Scene Relevance: Disregard current scene details when planning tasks that involve different locations or contexts.
+
+4. Information Extraction: Source 'obj' arguments and answers primarily from the scene description. Use probe skill 'p(query)' when information is unavailable in the current scene.
+
+5. Replanning: When previous plans and execution status are provided, focus on completing remaining tasks based on current conditions.
+
+6. Safety Priority: Never plan actions that could cause harm to robots or others. Refuse unsafe tasks with a brief explanation.
+
+# AVAILABLE ROBOT SKILLS
+name: move_forward, description: Move forward by a dist (m), args: [dist:float]
+name: move_backward, description: Move backward by a dist (m), args: [dist:float]
+name: move_left, description: Move left by a dist (m), args: [dist:float]
+name: move_right, description: Move right by a dist (m), args: [dist:float]
+name: rotate_left, description: Rotate left by a deg (deg), args: [deg:float]
+name: rotate_right, description: Rotate right by a deg (deg), args: [deg:float]
+name: is_visible, description: Check if object is visible, args: [object_name:str]
+name: object_x, description: Get object's x position (0-1), args: [object_name:str]
+name: object_y, description: Get object's y position (0-1), args: [object_name:str]
+name: object_width, description: Get object's width (0-1), args: [object_name:str]
+name: object_height, description: Get object's height (0-1), args: [object_name:str]
+name: object_dist, description: Get object's dist (m), args: [object_name:str]
+name: take_picture, description: Take a picture, args: []
+name: log, description: Print text to user, args: [message:str]
+name: delay, description: Wait for seconds, args: [sec:float]
+name: re_plan, description: Trigger replanning, args: []
+name: probe, description: Query LLM for reasoning, args: [query:str]
+name: scan, description: Scan for a specific object, args: [object_name:str]
+name: scan_description, description: Scan for an abstract object, return the object name if found, args: [description:str]
+name: orienting, description: Orient to a specific object, args: [object_name:str]
+name: goto, description: Go to a specific object in the view, args: [object_name:str]
+name: lift, description: Lift the robot by a certain distance, args: [dist:float]
+
+
+# REFERENCED EXAMPLES
+Example 1
+=========
+## Scene Description
+- person: (x:0.54, y:0.63), size: (0.41x0.74)
+
+## USER INSTRUCTION
+Find a bottle, tell me it's height and take a picture of it.
+
+## OUTPUT
+```json
+{
+    "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
+    "plan": "if scan('bottle'):\n    goto('bottle')\n    height = object_height('bottle')\n    log(height)\n    take_picture()\nelse:\n    log('No bottle in the view')"
+}
+```
+
+---
+Example 2
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.26, y:0.49), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Find an apple.
+
+## OUTPUT
+```json
+{
+    "thoughts": "There is an apple in the view, just tell the user and go to the apple.",
+    "plan": "log('I can already see an apple near the tv.')\ngoto('apple')"
+}
+```
+
+---
+Example 3
+=========
+## Scene Description
+- chair: (x:0.89, y:0.76), size: (0.22x0.49)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.44, y:0.39), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Turn around and let me know if you can see an apple behind you.
+
+## OUTPUT
+{
+    "thoughts": "Turn 180 degrees and check if there is an apple behind you.",
+    "plan": "rotate_right(180)\nif is_visible('apple'):\n    log('I can see an apple behind me.')\nelse:\n    log('I cannot see an apple behind me.')"
+}
+
+
+---
+Example 4
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Find and go any edible object.
+
+## OUTPUT
+{
+    "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
+    "plan": "obj = scan_description('Any edible object here?')\nif obj:\n    goto(obj)\nelse:\n    log('No edible object in the view')"
+}
+
+
+---
+Example 5
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Turn with 30 degrees step clockwise until you can see a person.
+
+## OUTPUT
+{
+    "thoughts": "Use loop and is_visible to find a person.",
+    "plan": "for _ in range(12):\n    if is_visible('person'):\n        break\n    rotate_right(30)\nif not is_visible('person'):\n    log('No person in the view')\nelse:\n    log('I can see a person in the view')"
+}
+
+
+---
+Example 6
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- apple: (x:0.52, y:0.39), size: (0.17x0.22)
+
+## USER INSTRUCTION
+Go to the biggest apple.
+
+## OUTPUT
+{
+    "thoughts": "From the scene, we tell directly that the right apple is the biggest apple.",
+    "plan": "goto('apple[0.52]')"
+}
+
+
+---
+Example 7
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to
+
+## OUTPUT
+{
+    "thoughts": "The task is too vague, so we use log to output the advice.",
+    "plan": "log('Please give me more information about the task.')"
+}
+
+---
+
+Example 8
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to a chair with a laptop on it.
+
+## OUTPUT
+{
+    "thoughts": "Using scan_description to find the chair with a laptop on it.",
+    "plan": "obj = scan_description('Any chair with a laptop on it?')\nif obj:\n    goto(obj)\nelse:\n    log('No chair with a laptop on it in the view')"
+}
+
+---
+Example 9
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go right by 0.5 meters and then go to the chair.
+
+## OUTPUT
+{
+    "thoughts": "Move right by 0.5 meters and then go to the chair.",
+    "plan": "move_right(0.5)\ngoto('chair')"
+}
+
+---
+Example 10
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+What is 1231239+1231239?
+
+## OUTPUT
+{
+    "thoughts": "This is a math problem, so we use log to output the answer.",
+    "plan": "result = 1231239 + 1231239\nlog(result)"
+}
+
+# CURRENT TASK
+## Scene Description
+
+
+## USER INSTRUCTION
+What you can see?
+
+## OUTPUT
+
+---
+```json
+{
+    "thoughts": "The user wants to know the current objects in the robot's view, however, the scene description is empty. Therefore, we use the 'scan' skill to identify and list the objects in the current surroundings.",
+    "plan": "objects = []\n# Assuming there are possible common objects that might appear in the scene\nfor object_name in ['person', 'bottle', 'apple', 'chair', 'tv', 'remote']:\n    if is_visible(object_name):\n        objects.append(object_name)\nif objects:\n    log(f'I can see: {', '.join(objects)}')\nelse:\n    log('I cannot see any objects clearly.')"
+}
+```
+--------------------------------
+# BASIC INSTRUCTIONS
+You are a planner for systems with one or multiple robots. Generate a Python script that fulfills the user's task by considering all provided information.
+
+# INPUT INFORMATION
+- Robot Skills: Available robot capabilities. Include both physical (movement, rotation) and logical (vision, reasoning) capabilities.
+- Scene Description: List of objects detected in the robot's current view, including names, locations, and sizes (0-1 range).
+- User Instruction: The task to accomplish. Create detailed steps if not explicitly provided.
+- Previous Plan & Execution Status: (If provided) History of previous attempts for replanning or error handling.
+- Respond with a json object containing the following fields:
+  - "thoughts": Explanation of the reasoning behind the generated plan. Please keep it concise.
+  - "plan": Python script for the robot to execute.
+
+# GUIDELINES
+1. Resolve Ambiguities: Correct obvious typos and interpret vague language based on context. If clarification is needed, prompt the user with a specific question.
+
+2. Critical Analysis: Evaluate scenes and tasks analytically. Generate direct actions when conditions can be clearly deduced from the scene description.
+
+3. Scene Relevance: Disregard current scene details when planning tasks that involve different locations or contexts.
+
+4. Information Extraction: Source 'obj' arguments and answers primarily from the scene description. Use probe skill 'p(query)' when information is unavailable in the current scene.
+
+5. Replanning: When previous plans and execution status are provided, focus on completing remaining tasks based on current conditions.
+
+6. Safety Priority: Never plan actions that could cause harm to robots or others. Refuse unsafe tasks with a brief explanation.
+
+# AVAILABLE ROBOT SKILLS
+name: move_forward, description: Move forward by a dist (m), args: [dist:float]
+name: move_backward, description: Move backward by a dist (m), args: [dist:float]
+name: move_left, description: Move left by a dist (m), args: [dist:float]
+name: move_right, description: Move right by a dist (m), args: [dist:float]
+name: rotate_left, description: Rotate left by a deg (deg), args: [deg:float]
+name: rotate_right, description: Rotate right by a deg (deg), args: [deg:float]
+name: is_visible, description: Check if object is visible, args: [object_name:str]
+name: object_x, description: Get object's x position (0-1), args: [object_name:str]
+name: object_y, description: Get object's y position (0-1), args: [object_name:str]
+name: object_width, description: Get object's width (0-1), args: [object_name:str]
+name: object_height, description: Get object's height (0-1), args: [object_name:str]
+name: object_dist, description: Get object's dist (m), args: [object_name:str]
+name: take_picture, description: Take a picture, args: []
+name: log, description: Print text to user, args: [message:str]
+name: delay, description: Wait for seconds, args: [sec:float]
+name: re_plan, description: Trigger replanning, args: []
+name: probe, description: Query LLM for reasoning, args: [query:str]
+name: scan, description: Scan for a specific object, args: [object_name:str]
+name: scan_description, description: Scan for an abstract object, return the object name if found, args: [description:str]
+name: orienting, description: Orient to a specific object, args: [object_name:str]
+name: goto, description: Go to a specific object in the view, args: [object_name:str]
+name: lift, description: Lift the robot by a certain distance, args: [dist:float]
+
+
+# REFERENCED EXAMPLES
+Example 1
+=========
+## Scene Description
+- person: (x:0.54, y:0.63), size: (0.41x0.74)
+
+## USER INSTRUCTION
+Find a bottle, tell me it's height and take a picture of it.
+
+## OUTPUT
+```json
+{
+    "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
+    "plan": "if scan('bottle'):\n    goto('bottle')\n    height = object_height('bottle')\n    log(height)\n    take_picture()\nelse:\n    log('No bottle in the view')"
+}
+```
+
+---
+Example 2
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.26, y:0.49), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Find an apple.
+
+## OUTPUT
+```json
+{
+    "thoughts": "There is an apple in the view, just tell the user and go to the apple.",
+    "plan": "log('I can already see an apple near the tv.')\ngoto('apple')"
+}
+```
+
+---
+Example 3
+=========
+## Scene Description
+- chair: (x:0.89, y:0.76), size: (0.22x0.49)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.44, y:0.39), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Turn around and let me know if you can see an apple behind you.
+
+## OUTPUT
+{
+    "thoughts": "Turn 180 degrees and check if there is an apple behind you.",
+    "plan": "rotate_right(180)\nif is_visible('apple'):\n    log('I can see an apple behind me.')\nelse:\n    log('I cannot see an apple behind me.')"
+}
+
+
+---
+Example 4
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Find and go any edible object.
+
+## OUTPUT
+{
+    "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
+    "plan": "obj = scan_description('Any edible object here?')\nif obj:\n    goto(obj)\nelse:\n    log('No edible object in the view')"
+}
+
+
+---
+Example 5
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Turn with 30 degrees step clockwise until you can see a person.
+
+## OUTPUT
+{
+    "thoughts": "Use loop and is_visible to find a person.",
+    "plan": "for _ in range(12):\n    if is_visible('person'):\n        break\n    rotate_right(30)\nif not is_visible('person'):\n    log('No person in the view')\nelse:\n    log('I can see a person in the view')"
+}
+
+
+---
+Example 6
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- apple: (x:0.52, y:0.39), size: (0.17x0.22)
+
+## USER INSTRUCTION
+Go to the biggest apple.
+
+## OUTPUT
+{
+    "thoughts": "From the scene, we tell directly that the right apple is the biggest apple.",
+    "plan": "goto('apple[0.52]')"
+}
+
+
+---
+Example 7
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to
+
+## OUTPUT
+{
+    "thoughts": "The task is too vague, so we use log to output the advice.",
+    "plan": "log('Please give me more information about the task.')"
+}
+
+---
+
+Example 8
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to a chair with a laptop on it.
+
+## OUTPUT
+{
+    "thoughts": "Using scan_description to find the chair with a laptop on it.",
+    "plan": "obj = scan_description('Any chair with a laptop on it?')\nif obj:\n    goto(obj)\nelse:\n    log('No chair with a laptop on it in the view')"
+}
+
+---
+Example 9
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go right by 0.5 meters and then go to the chair.
+
+## OUTPUT
+{
+    "thoughts": "Move right by 0.5 meters and then go to the chair.",
+    "plan": "move_right(0.5)\ngoto('chair')"
+}
+
+---
+Example 10
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+What is 1231239+1231239?
+
+## OUTPUT
+{
+    "thoughts": "This is a math problem, so we use log to output the answer.",
+    "plan": "result = 1231239 + 1231239\nlog(result)"
+}
+
+# CURRENT TASK
+## Scene Description
+
+
+## USER INSTRUCTION
+What you can see?
+
+## OUTPUT
+
+---
+```json
+{
+    "thoughts": "Since no specific objects are listed in the scene, the robot cannot determine what is visible. Use a scan or log to request more information.",
+    "plan": "log('No objects are currently described or visible in the scene. Please provide more information or detail the objects you would like information about.')"
+}
+```
+--------------------------------
+# BASIC INSTRUCTIONS
+You are a planner for systems with one or multiple robots. Generate a Python script that fulfills the user's task by considering all provided information.
+
+# INPUT INFORMATION
+- Robot Skills: Available robot capabilities. Include both physical (movement, rotation) and logical (vision, reasoning) capabilities.
+- Scene Description: List of objects detected in the robot's current view, including names, locations, and sizes (0-1 range).
+- User Instruction: The task to accomplish. Create detailed steps if not explicitly provided.
+- Previous Plan & Execution Status: (If provided) History of previous attempts for replanning or error handling.
+- Respond with a json object containing the following fields:
+  - "thoughts": Explanation of the reasoning behind the generated plan. Please keep it concise.
+  - "plan": Python script for the robot to execute.
+
+# GUIDELINES
+1. Resolve Ambiguities: Correct obvious typos and interpret vague language based on context. If clarification is needed, prompt the user with a specific question.
+
+2. Critical Analysis: Evaluate scenes and tasks analytically. Generate direct actions when conditions can be clearly deduced from the scene description.
+
+3. Scene Relevance: Disregard current scene details when planning tasks that involve different locations or contexts.
+
+4. Information Extraction: Source 'obj' arguments and answers primarily from the scene description. Use probe skill 'p(query)' when information is unavailable in the current scene.
+
+5. Replanning: When previous plans and execution status are provided, focus on completing remaining tasks based on current conditions.
+
+6. Safety Priority: Never plan actions that could cause harm to robots or others. Refuse unsafe tasks with a brief explanation.
+
+# AVAILABLE ROBOT SKILLS
+name: move_forward, description: Move forward by a dist (m), args: [dist:float]
+name: move_backward, description: Move backward by a dist (m), args: [dist:float]
+name: move_left, description: Move left by a dist (m), args: [dist:float]
+name: move_right, description: Move right by a dist (m), args: [dist:float]
+name: rotate_left, description: Rotate left by a deg (deg), args: [deg:float]
+name: rotate_right, description: Rotate right by a deg (deg), args: [deg:float]
+name: is_visible, description: Check if object is visible, args: [object_name:str]
+name: object_x, description: Get object's x position (0-1), args: [object_name:str]
+name: object_y, description: Get object's y position (0-1), args: [object_name:str]
+name: object_width, description: Get object's width (0-1), args: [object_name:str]
+name: object_height, description: Get object's height (0-1), args: [object_name:str]
+name: object_dist, description: Get object's dist (m), args: [object_name:str]
+name: take_picture, description: Take a picture, args: []
+name: log, description: Print text to user, args: [message:str]
+name: delay, description: Wait for seconds, args: [sec:float]
+name: re_plan, description: Trigger replanning, args: []
+name: probe, description: Query LLM for reasoning, args: [query:str]
+name: scan, description: Scan for a specific object, args: [object_name:str]
+name: scan_description, description: Scan for an abstract object, return the object name if found, args: [description:str]
+name: orienting, description: Orient to a specific object, args: [object_name:str]
+name: goto, description: Go to a specific object in the view, args: [object_name:str]
+name: lift, description: Lift the robot by a certain distance, args: [dist:float]
+
+
+# REFERENCED EXAMPLES
+Example 1
+=========
+## Scene Description
+- person: (x:0.54, y:0.63), size: (0.41x0.74)
+
+## USER INSTRUCTION
+Find a bottle, tell me it's height and take a picture of it.
+
+## OUTPUT
+```json
+{
+    "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
+    "plan": "if scan('bottle'):\n    goto('bottle')\n    height = object_height('bottle')\n    log(height)\n    take_picture()\nelse:\n    log('No bottle in the view')"
+}
+```
+
+---
+Example 2
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.26, y:0.49), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Find an apple.
+
+## OUTPUT
+```json
+{
+    "thoughts": "There is an apple in the view, just tell the user and go to the apple.",
+    "plan": "log('I can already see an apple near the tv.')\ngoto('apple')"
+}
+```
+
+---
+Example 3
+=========
+## Scene Description
+- chair: (x:0.89, y:0.76), size: (0.22x0.49)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.44, y:0.39), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Turn around and let me know if you can see an apple behind you.
+
+## OUTPUT
+{
+    "thoughts": "Turn 180 degrees and check if there is an apple behind you.",
+    "plan": "rotate_right(180)\nif is_visible('apple'):\n    log('I can see an apple behind me.')\nelse:\n    log('I cannot see an apple behind me.')"
+}
+
+
+---
+Example 4
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Find and go any edible object.
+
+## OUTPUT
+{
+    "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
+    "plan": "obj = scan_description('Any edible object here?')\nif obj:\n    goto(obj)\nelse:\n    log('No edible object in the view')"
+}
+
+
+---
+Example 5
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Turn with 30 degrees step clockwise until you can see a person.
+
+## OUTPUT
+{
+    "thoughts": "Use loop and is_visible to find a person.",
+    "plan": "for _ in range(12):\n    if is_visible('person'):\n        break\n    rotate_right(30)\nif not is_visible('person'):\n    log('No person in the view')\nelse:\n    log('I can see a person in the view')"
+}
+
+
+---
+Example 6
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- apple: (x:0.52, y:0.39), size: (0.17x0.22)
+
+## USER INSTRUCTION
+Go to the biggest apple.
+
+## OUTPUT
+{
+    "thoughts": "From the scene, we tell directly that the right apple is the biggest apple.",
+    "plan": "goto('apple[0.52]')"
+}
+
+
+---
+Example 7
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to
+
+## OUTPUT
+{
+    "thoughts": "The task is too vague, so we use log to output the advice.",
+    "plan": "log('Please give me more information about the task.')"
+}
+
+---
+
+Example 8
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to a chair with a laptop on it.
+
+## OUTPUT
+{
+    "thoughts": "Using scan_description to find the chair with a laptop on it.",
+    "plan": "obj = scan_description('Any chair with a laptop on it?')\nif obj:\n    goto(obj)\nelse:\n    log('No chair with a laptop on it in the view')"
+}
+
+---
+Example 9
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go right by 0.5 meters and then go to the chair.
+
+## OUTPUT
+{
+    "thoughts": "Move right by 0.5 meters and then go to the chair.",
+    "plan": "move_right(0.5)\ngoto('chair')"
+}
+
+---
+Example 10
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+What is 1231239+1231239?
+
+## OUTPUT
+{
+    "thoughts": "This is a math problem, so we use log to output the answer.",
+    "plan": "result = 1231239 + 1231239\nlog(result)"
+}
+
+# CURRENT TASK
+## Scene Description
+
+
+## USER INSTRUCTION
+What you can see?
+
+## OUTPUT
+
+---
+```json
+{
+    "thoughts": "Currently, there is no scene description provided, so we cannot determine what objects are visible. We should output that we have no visual information.",
+    "plan": "log('I have no visual information about the current scene.')"
+}
+```
+--------------------------------
+# BASIC INSTRUCTIONS
+You are a planner for systems with one or multiple robots. Generate a Python script that fulfills the user's task by considering all provided information.
+
+# INPUT INFORMATION
+- Robot Skills: Available robot capabilities. Include both physical (movement, rotation) and logical (vision, reasoning) capabilities.
+- Scene Description: List of objects detected in the robot's current view, including names, locations, and sizes (0-1 range).
+- User Instruction: The task to accomplish. Create detailed steps if not explicitly provided.
+- Previous Plan & Execution Status: (If provided) History of previous attempts for replanning or error handling.
+- Respond with a json object containing the following fields:
+  - "thoughts": Explanation of the reasoning behind the generated plan. Please keep it concise.
+  - "plan": Python script for the robot to execute.
+
+# GUIDELINES
+1. Resolve Ambiguities: Correct obvious typos and interpret vague language based on context. If clarification is needed, prompt the user with a specific question.
+
+2. Critical Analysis: Evaluate scenes and tasks analytically. Generate direct actions when conditions can be clearly deduced from the scene description.
+
+3. Scene Relevance: Disregard current scene details when planning tasks that involve different locations or contexts.
+
+4. Information Extraction: Source 'obj' arguments and answers primarily from the scene description. Use probe skill 'p(query)' when information is unavailable in the current scene.
+
+5. Replanning: When previous plans and execution status are provided, focus on completing remaining tasks based on current conditions.
+
+6. Safety Priority: Never plan actions that could cause harm to robots or others. Refuse unsafe tasks with a brief explanation.
+
+# AVAILABLE ROBOT SKILLS
+name: move_forward, description: Move forward by a dist (m), args: [dist:float]
+name: move_backward, description: Move backward by a dist (m), args: [dist:float]
+name: move_left, description: Move left by a dist (m), args: [dist:float]
+name: move_right, description: Move right by a dist (m), args: [dist:float]
+name: rotate_left, description: Rotate left by a deg (deg), args: [deg:float]
+name: rotate_right, description: Rotate right by a deg (deg), args: [deg:float]
+name: is_visible, description: Check if object is visible, args: [object_name:str]
+name: object_x, description: Get object's x position (0-1), args: [object_name:str]
+name: object_y, description: Get object's y position (0-1), args: [object_name:str]
+name: object_width, description: Get object's width (0-1), args: [object_name:str]
+name: object_height, description: Get object's height (0-1), args: [object_name:str]
+name: object_dist, description: Get object's dist (m), args: [object_name:str]
+name: take_picture, description: Take a picture, args: []
+name: log, description: Print text to user, args: [message:str]
+name: delay, description: Wait for seconds, args: [sec:float]
+name: re_plan, description: Trigger replanning, args: []
+name: probe, description: Query LLM for reasoning, args: [query:str]
+name: scan, description: Scan for a specific object, args: [object_name:str]
+name: scan_description, description: Scan for an abstract object, return the object name if found, args: [description:str]
+name: orienting, description: Orient to a specific object, args: [object_name:str]
+name: goto, description: Go to a specific object in the view, args: [object_name:str]
+name: lift, description: Lift the robot by a certain distance, args: [dist:float]
+
+
+# REFERENCED EXAMPLES
+Example 1
+=========
+## Scene Description
+- person: (x:0.54, y:0.63), size: (0.41x0.74)
+
+## USER INSTRUCTION
+Find a bottle, tell me it's height and take a picture of it.
+
+## OUTPUT
+```json
+{
+    "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
+    "plan": "if scan('bottle'):\n    goto('bottle')\n    height = object_height('bottle')\n    log(height)\n    take_picture()\nelse:\n    log('No bottle in the view')"
+}
+```
+
+---
+Example 2
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.26, y:0.49), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Find an apple.
+
+## OUTPUT
+```json
+{
+    "thoughts": "There is an apple in the view, just tell the user and go to the apple.",
+    "plan": "log('I can already see an apple near the tv.')\ngoto('apple')"
+}
+```
+
+---
+Example 3
+=========
+## Scene Description
+- chair: (x:0.89, y:0.76), size: (0.22x0.49)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.44, y:0.39), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Turn around and let me know if you can see an apple behind you.
+
+## OUTPUT
+{
+    "thoughts": "Turn 180 degrees and check if there is an apple behind you.",
+    "plan": "rotate_right(180)\nif is_visible('apple'):\n    log('I can see an apple behind me.')\nelse:\n    log('I cannot see an apple behind me.')"
+}
+
+
+---
+Example 4
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Find and go any edible object.
+
+## OUTPUT
+{
+    "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
+    "plan": "obj = scan_description('Any edible object here?')\nif obj:\n    goto(obj)\nelse:\n    log('No edible object in the view')"
+}
+
+
+---
+Example 5
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Turn with 30 degrees step clockwise until you can see a person.
+
+## OUTPUT
+{
+    "thoughts": "Use loop and is_visible to find a person.",
+    "plan": "for _ in range(12):\n    if is_visible('person'):\n        break\n    rotate_right(30)\nif not is_visible('person'):\n    log('No person in the view')\nelse:\n    log('I can see a person in the view')"
+}
+
+
+---
+Example 6
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- apple: (x:0.52, y:0.39), size: (0.17x0.22)
+
+## USER INSTRUCTION
+Go to the biggest apple.
+
+## OUTPUT
+{
+    "thoughts": "From the scene, we tell directly that the right apple is the biggest apple.",
+    "plan": "goto('apple[0.52]')"
+}
+
+
+---
+Example 7
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to
+
+## OUTPUT
+{
+    "thoughts": "The task is too vague, so we use log to output the advice.",
+    "plan": "log('Please give me more information about the task.')"
+}
+
+---
+
+Example 8
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to a chair with a laptop on it.
+
+## OUTPUT
+{
+    "thoughts": "Using scan_description to find the chair with a laptop on it.",
+    "plan": "obj = scan_description('Any chair with a laptop on it?')\nif obj:\n    goto(obj)\nelse:\n    log('No chair with a laptop on it in the view')"
+}
+
+---
+Example 9
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go right by 0.5 meters and then go to the chair.
+
+## OUTPUT
+{
+    "thoughts": "Move right by 0.5 meters and then go to the chair.",
+    "plan": "move_right(0.5)\ngoto('chair')"
+}
+
+---
+Example 10
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+What is 1231239+1231239?
+
+## OUTPUT
+{
+    "thoughts": "This is a math problem, so we use log to output the answer.",
+    "plan": "result = 1231239 + 1231239\nlog(result)"
+}
+
+# CURRENT TASK
+## Scene Description
+
+
+## USER INSTRUCTION
+What you can see?
+
+## OUTPUT
+
+---
+```json
+{
+    "thoughts": "No scene description is provided, using the probe function to determine what visible objects the robot can detect.",
+    "plan": "visible_objects = probe('What can you currently see?')\nlog(f'I can currently see: {visible_objects}')"
+}
+```
+--------------------------------
+# BASIC INSTRUCTIONS
+You are a perception and reasoning system and your task is to analyze the scene description and answer the query precisely based on the objects and their attributes.
+
+# INPUT FORMAT
+Scene Description:[List of Objects with Attributes including x, y coordinates, width, height]
+Query:[Query about the scene]
+
+# OUTPUT RULES
+- Yes/No query: Answer ONLY with 'True' or 'False'
+- Object identification: Return the object's name. For multiple identical objects, include x-coordinate in format "object[x-value]"
+- Counting query: Return ONLY the number of target objects
+- General query: Provide a brief, single-sentence answer
+- If asked about an object not in the scene: Return 'False'
+
+# REFERENCED EXAMPLES
+## Example 1
+Scene Description: [person x:0.59 y:0.55 width:0.81 height:0.91, bottle x:0.85 y:0.54 width:0.21 height:0.93]
+Query: 'Any drinkable target here?'
+bottle
+
+## Example 2
+Scene Description:[]
+Query: 'Any table in the room?'
+False
+
+## Example 3
+Scene Description: [chair x:0.1 y:0.35 width:0.56 height:0.41, chair x:0.49 y:0.59 width:0.61 height:0.35]
+Query:'How many chairs you can see?'
+2
+
+## Example 4
+Scene Description: [bottle x:0.1 y:0.35 width:0.56 height:0.41, chair x:0.49 y:0.59 width:0.61 height:0.35]
+Query: 'Any edible target here?'
+False
+
+## Example 5
+Scene Description: [chair x:0.18 y:0.5 width:0.43 height:0.7, chair x:0.6 y:0.3 width:0.08 height:0.09, book x:0.62 y:0.26 width:0.23 height:0.17]
+Query: 'Any chair with a laptop on it?'
+chair[0.6]
+
+# CURRENT TASK
+Scene Description: 
+Query: What can you currently see?
+Output:
+---
+False
+--------------------------------
+# BASIC INSTRUCTIONS
+You are a planner for systems with one or multiple robots. Generate a Python script that fulfills the user's task by considering all provided information.
+
+# INPUT INFORMATION
+- Robot Skills: Available robot capabilities. Include both physical (movement, rotation) and logical (vision, reasoning) capabilities.
+- Scene Description: List of objects detected in the robot's current view, including names, locations, and sizes (0-1 range).
+- User Instruction: The task to accomplish. Create detailed steps if not explicitly provided.
+- Previous Plan & Execution Status: (If provided) History of previous attempts for replanning or error handling.
+- Respond with a json object containing the following fields:
+  - "thoughts": Explanation of the reasoning behind the generated plan. Please keep it concise.
+  - "plan": Python script for the robot to execute.
+
+# GUIDELINES
+1. Resolve Ambiguities: Correct obvious typos and interpret vague language based on context. If clarification is needed, prompt the user with a specific question.
+
+2. Critical Analysis: Evaluate scenes and tasks analytically. Generate direct actions when conditions can be clearly deduced from the scene description.
+
+3. Scene Relevance: Disregard current scene details when planning tasks that involve different locations or contexts.
+
+4. Information Extraction: Source 'obj' arguments and answers primarily from the scene description. Use probe skill 'p(query)' when information is unavailable in the current scene.
+
+5. Replanning: When previous plans and execution status are provided, focus on completing remaining tasks based on current conditions.
+
+6. Safety Priority: Never plan actions that could cause harm to robots or others. Refuse unsafe tasks with a brief explanation.
+
+# AVAILABLE ROBOT SKILLS
+name: move_forward, description: Move forward by a dist (m), args: [dist:float]
+name: move_backward, description: Move backward by a dist (m), args: [dist:float]
+name: move_left, description: Move left by a dist (m), args: [dist:float]
+name: move_right, description: Move right by a dist (m), args: [dist:float]
+name: rotate_left, description: Rotate left by a deg (deg), args: [deg:float]
+name: rotate_right, description: Rotate right by a deg (deg), args: [deg:float]
+name: is_visible, description: Check if object is visible, args: [object_name:str]
+name: object_x, description: Get object's x position (0-1), args: [object_name:str]
+name: object_y, description: Get object's y position (0-1), args: [object_name:str]
+name: object_width, description: Get object's width (0-1), args: [object_name:str]
+name: object_height, description: Get object's height (0-1), args: [object_name:str]
+name: object_dist, description: Get object's dist (m), args: [object_name:str]
+name: take_picture, description: Take a picture, args: []
+name: log, description: Print text to user, args: [message:str]
+name: delay, description: Wait for seconds, args: [sec:float]
+name: re_plan, description: Trigger replanning, args: []
+name: probe, description: Query LLM for reasoning, args: [query:str]
+name: scan, description: Scan for a specific object, args: [object_name:str]
+name: scan_description, description: Scan for an abstract object, return the object name if found, args: [description:str]
+name: orienting, description: Orient to a specific object, args: [object_name:str]
+name: goto, description: Go to a specific object in the view, args: [object_name:str]
+name: lift, description: Lift the robot by a certain distance, args: [dist:float]
+
+
+# REFERENCED EXAMPLES
+Example 1
+=========
+## Scene Description
+- person: (x:0.54, y:0.63), size: (0.41x0.74)
+
+## USER INSTRUCTION
+Find a bottle, tell me it's height and take a picture of it.
+
+## OUTPUT
+```json
+{
+    "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
+    "plan": "if scan('bottle'):\n    goto('bottle')\n    height = object_height('bottle')\n    log(height)\n    take_picture()\nelse:\n    log('No bottle in the view')"
+}
+```
+
+---
+Example 2
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.26, y:0.49), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Find an apple.
+
+## OUTPUT
+```json
+{
+    "thoughts": "There is an apple in the view, just tell the user and go to the apple.",
+    "plan": "log('I can already see an apple near the tv.')\ngoto('apple')"
+}
+```
+
+---
+Example 3
+=========
+## Scene Description
+- chair: (x:0.89, y:0.76), size: (0.22x0.49)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.44, y:0.39), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Turn around and let me know if you can see an apple behind you.
+
+## OUTPUT
+{
+    "thoughts": "Turn 180 degrees and check if there is an apple behind you.",
+    "plan": "rotate_right(180)\nif is_visible('apple'):\n    log('I can see an apple behind me.')\nelse:\n    log('I cannot see an apple behind me.')"
+}
+
+
+---
+Example 4
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Find and go any edible object.
+
+## OUTPUT
+{
+    "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
+    "plan": "obj = scan_description('Any edible object here?')\nif obj:\n    goto(obj)\nelse:\n    log('No edible object in the view')"
+}
+
+
+---
+Example 5
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Turn with 30 degrees step clockwise until you can see a person.
+
+## OUTPUT
+{
+    "thoughts": "Use loop and is_visible to find a person.",
+    "plan": "for _ in range(12):\n    if is_visible('person'):\n        break\n    rotate_right(30)\nif not is_visible('person'):\n    log('No person in the view')\nelse:\n    log('I can see a person in the view')"
+}
+
+
+---
+Example 6
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- apple: (x:0.52, y:0.39), size: (0.17x0.22)
+
+## USER INSTRUCTION
+Go to the biggest apple.
+
+## OUTPUT
+{
+    "thoughts": "From the scene, we tell directly that the right apple is the biggest apple.",
+    "plan": "goto('apple[0.52]')"
+}
+
+
+---
+Example 7
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to
+
+## OUTPUT
+{
+    "thoughts": "The task is too vague, so we use log to output the advice.",
+    "plan": "log('Please give me more information about the task.')"
+}
+
+---
+
+Example 8
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to a chair with a laptop on it.
+
+## OUTPUT
+{
+    "thoughts": "Using scan_description to find the chair with a laptop on it.",
+    "plan": "obj = scan_description('Any chair with a laptop on it?')\nif obj:\n    goto(obj)\nelse:\n    log('No chair with a laptop on it in the view')"
+}
+
+---
+Example 9
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go right by 0.5 meters and then go to the chair.
+
+## OUTPUT
+{
+    "thoughts": "Move right by 0.5 meters and then go to the chair.",
+    "plan": "move_right(0.5)\ngoto('chair')"
+}
+
+---
+Example 10
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+What is 1231239+1231239?
+
+## OUTPUT
+{
+    "thoughts": "This is a math problem, so we use log to output the answer.",
+    "plan": "result = 1231239 + 1231239\nlog(result)"
+}
+
+# CURRENT TASK
+## Scene Description
+
+
+## USER INSTRUCTION
+What you can see?
+
+## OUTPUT
+
+---
+```json
+{
+    "thoughts": "The scene description is empty, indicating the robot cannot see anything. We inform the user about the lack of visible objects.",
+    "plan": "log('I cannot see anything in the scene.')"
+}
+```
+--------------------------------
+# BASIC INSTRUCTIONS
+You are a planner for systems with one or multiple robots. Generate a Python script that fulfills the user's task by considering all provided information.
+
+# INPUT INFORMATION
+- Robot Skills: Available robot capabilities. Include both physical (movement, rotation) and logical (vision, reasoning) capabilities.
+- Scene Description: List of objects detected in the robot's current view, including names, locations, and sizes (0-1 range).
+- User Instruction: The task to accomplish. Create detailed steps if not explicitly provided.
+- Previous Plan & Execution Status: (If provided) History of previous attempts for replanning or error handling.
+- Respond with a json object containing the following fields:
+  - "thoughts": Explanation of the reasoning behind the generated plan. Please keep it concise.
+  - "plan": Python script for the robot to execute.
+
+# GUIDELINES
+1. Resolve Ambiguities: Correct obvious typos and interpret vague language based on context. If clarification is needed, prompt the user with a specific question.
+
+2. Critical Analysis: Evaluate scenes and tasks analytically. Generate direct actions when conditions can be clearly deduced from the scene description.
+
+3. Scene Relevance: Disregard current scene details when planning tasks that involve different locations or contexts.
+
+4. Information Extraction: Source 'obj' arguments and answers primarily from the scene description. Use probe skill 'p(query)' when information is unavailable in the current scene.
+
+5. Replanning: When previous plans and execution status are provided, focus on completing remaining tasks based on current conditions.
+
+6. Safety Priority: Never plan actions that could cause harm to robots or others. Refuse unsafe tasks with a brief explanation.
+
+# AVAILABLE ROBOT SKILLS
+name: move_forward, description: Move forward by a dist (m), args: [dist:float]
+name: move_backward, description: Move backward by a dist (m), args: [dist:float]
+name: move_left, description: Move left by a dist (m), args: [dist:float]
+name: move_right, description: Move right by a dist (m), args: [dist:float]
+name: rotate_left, description: Rotate left by a deg (deg), args: [deg:float]
+name: rotate_right, description: Rotate right by a deg (deg), args: [deg:float]
+name: is_visible, description: Check if object is visible, args: [object_name:str]
+name: object_x, description: Get object's x position (0-1), args: [object_name:str]
+name: object_y, description: Get object's y position (0-1), args: [object_name:str]
+name: object_width, description: Get object's width (0-1), args: [object_name:str]
+name: object_height, description: Get object's height (0-1), args: [object_name:str]
+name: object_dist, description: Get object's dist (m), args: [object_name:str]
+name: take_picture, description: Take a picture, args: []
+name: log, description: Print text to user, args: [message:str]
+name: delay, description: Wait for seconds, args: [sec:float]
+name: re_plan, description: Trigger replanning, args: []
+name: probe, description: Query LLM for reasoning, args: [query:str]
+name: scan, description: Scan for a specific object, args: [object_name:str]
+name: scan_description, description: Scan for an abstract object, return the object name if found, args: [description:str]
+name: orienting, description: Orient to a specific object, args: [object_name:str]
+name: goto, description: Go to a specific object in the view, args: [object_name:str]
+name: lift, description: Lift the robot by a certain distance, args: [dist:float]
+
+
+# REFERENCED EXAMPLES
+Example 1
+=========
+## Scene Description
+- person: (x:0.54, y:0.63), size: (0.41x0.74)
+
+## USER INSTRUCTION
+Find a bottle, tell me it's height and take a picture of it.
+
+## OUTPUT
+```json
+{
+    "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
+    "plan": "if scan('bottle'):\n    goto('bottle')\n    height = object_height('bottle')\n    log(height)\n    take_picture()\nelse:\n    log('No bottle in the view')"
+}
+```
+
+---
+Example 2
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.26, y:0.49), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Find an apple.
+
+## OUTPUT
+```json
+{
+    "thoughts": "There is an apple in the view, just tell the user and go to the apple.",
+    "plan": "log('I can already see an apple near the tv.')\ngoto('apple')"
+}
+```
+
+---
+Example 3
+=========
+## Scene Description
+- chair: (x:0.89, y:0.76), size: (0.22x0.49)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.44, y:0.39), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Turn around and let me know if you can see an apple behind you.
+
+## OUTPUT
+{
+    "thoughts": "Turn 180 degrees and check if there is an apple behind you.",
+    "plan": "rotate_right(180)\nif is_visible('apple'):\n    log('I can see an apple behind me.')\nelse:\n    log('I cannot see an apple behind me.')"
+}
+
+
+---
+Example 4
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Find and go any edible object.
+
+## OUTPUT
+{
+    "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
+    "plan": "obj = scan_description('Any edible object here?')\nif obj:\n    goto(obj)\nelse:\n    log('No edible object in the view')"
+}
+
+
+---
+Example 5
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Turn with 30 degrees step clockwise until you can see a person.
+
+## OUTPUT
+{
+    "thoughts": "Use loop and is_visible to find a person.",
+    "plan": "for _ in range(12):\n    if is_visible('person'):\n        break\n    rotate_right(30)\nif not is_visible('person'):\n    log('No person in the view')\nelse:\n    log('I can see a person in the view')"
+}
+
+
+---
+Example 6
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- apple: (x:0.52, y:0.39), size: (0.17x0.22)
+
+## USER INSTRUCTION
+Go to the biggest apple.
+
+## OUTPUT
+{
+    "thoughts": "From the scene, we tell directly that the right apple is the biggest apple.",
+    "plan": "goto('apple[0.52]')"
+}
+
+
+---
+Example 7
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to
+
+## OUTPUT
+{
+    "thoughts": "The task is too vague, so we use log to output the advice.",
+    "plan": "log('Please give me more information about the task.')"
+}
+
+---
+
+Example 8
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to a chair with a laptop on it.
+
+## OUTPUT
+{
+    "thoughts": "Using scan_description to find the chair with a laptop on it.",
+    "plan": "obj = scan_description('Any chair with a laptop on it?')\nif obj:\n    goto(obj)\nelse:\n    log('No chair with a laptop on it in the view')"
+}
+
+---
+Example 9
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go right by 0.5 meters and then go to the chair.
+
+## OUTPUT
+{
+    "thoughts": "Move right by 0.5 meters and then go to the chair.",
+    "plan": "move_right(0.5)\ngoto('chair')"
+}
+
+---
+Example 10
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+What is 1231239+1231239?
+
+## OUTPUT
+{
+    "thoughts": "This is a math problem, so we use log to output the answer.",
+    "plan": "result = 1231239 + 1231239\nlog(result)"
+}
+
+# CURRENT TASK
+## Scene Description
+- person: (x:0.62, y:0.67), size: (0.76x0.67)
+
+## USER INSTRUCTION
+What you can see?
+
+## OUTPUT
+
+---
+```json
+{
+    "thoughts": "Based on the scene description, a person is visible in the view. The response should log this information.",
+    "plan": "log('I can see a person located at x:0.62, y:0.67, with a size of 0.76x0.67.')"
+}
+```
+--------------------------------
+# BASIC INSTRUCTIONS
+You are a planner for systems with one or multiple robots. Generate a Python script that fulfills the user's task by considering all provided information.
+
+# INPUT INFORMATION
+- Robot Skills: Available robot capabilities. Include both physical (movement, rotation) and logical (vision, reasoning) capabilities.
+- Scene Description: List of objects detected in the robot's current view, including names, locations, and sizes (0-1 range).
+- User Instruction: The task to accomplish. Create detailed steps if not explicitly provided.
+- Previous Plan & Execution Status: (If provided) History of previous attempts for replanning or error handling.
+- Respond with a json object containing the following fields:
+  - "thoughts": Explanation of the reasoning behind the generated plan. Please keep it concise.
+  - "plan": Python script for the robot to execute.
+
+# GUIDELINES
+1. Resolve Ambiguities: Correct obvious typos and interpret vague language based on context. If clarification is needed, prompt the user with a specific question.
+
+2. Critical Analysis: Evaluate scenes and tasks analytically. Generate direct actions when conditions can be clearly deduced from the scene description.
+
+3. Scene Relevance: Disregard current scene details when planning tasks that involve different locations or contexts.
+
+4. Information Extraction: Source 'obj' arguments and answers primarily from the scene description. Use probe skill 'p(query)' when information is unavailable in the current scene.
+
+5. Replanning: When previous plans and execution status are provided, focus on completing remaining tasks based on current conditions.
+
+6. Safety Priority: Never plan actions that could cause harm to robots or others. Refuse unsafe tasks with a brief explanation.
+
+# AVAILABLE ROBOT SKILLS
+name: move_forward, description: Move forward by a dist (m), args: [dist:float]
+name: move_backward, description: Move backward by a dist (m), args: [dist:float]
+name: move_left, description: Move left by a dist (m), args: [dist:float]
+name: move_right, description: Move right by a dist (m), args: [dist:float]
+name: rotate_left, description: Rotate left by a deg (deg), args: [deg:float]
+name: rotate_right, description: Rotate right by a deg (deg), args: [deg:float]
+name: is_visible, description: Check if object is visible, args: [object_name:str]
+name: object_x, description: Get object's x position (0-1), args: [object_name:str]
+name: object_y, description: Get object's y position (0-1), args: [object_name:str]
+name: object_width, description: Get object's width (0-1), args: [object_name:str]
+name: object_height, description: Get object's height (0-1), args: [object_name:str]
+name: object_dist, description: Get object's dist (m), args: [object_name:str]
+name: take_picture, description: Take a picture, args: []
+name: log, description: Print text to user, args: [message:str]
+name: delay, description: Wait for seconds, args: [sec:float]
+name: re_plan, description: Trigger replanning, args: []
+name: probe, description: Query LLM for reasoning, args: [query:str]
+name: scan, description: Scan for a specific object, args: [object_name:str]
+name: scan_description, description: Scan for an abstract object, return the object name if found, args: [description:str]
+name: orienting, description: Orient to a specific object, args: [object_name:str]
+name: goto, description: Go to a specific object in the view, args: [object_name:str]
+name: lift, description: Lift the robot by a certain distance, args: [dist:float]
+
+
+# REFERENCED EXAMPLES
+Example 1
+=========
+## Scene Description
+- person: (x:0.54, y:0.63), size: (0.41x0.74)
+
+## USER INSTRUCTION
+Find a bottle, tell me it's height and take a picture of it.
+
+## OUTPUT
+```json
+{
+    "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
+    "plan": "if scan('bottle'):\n    goto('bottle')\n    height = object_height('bottle')\n    log(height)\n    take_picture()\nelse:\n    log('No bottle in the view')"
+}
+```
+
+---
+Example 2
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.26, y:0.49), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Find an apple.
+
+## OUTPUT
+```json
+{
+    "thoughts": "There is an apple in the view, just tell the user and go to the apple.",
+    "plan": "log('I can already see an apple near the tv.')\ngoto('apple')"
+}
+```
+
+---
+Example 3
+=========
+## Scene Description
+- chair: (x:0.89, y:0.76), size: (0.22x0.49)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.44, y:0.39), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Turn around and let me know if you can see an apple behind you.
+
+## OUTPUT
+{
+    "thoughts": "Turn 180 degrees and check if there is an apple behind you.",
+    "plan": "rotate_right(180)\nif is_visible('apple'):\n    log('I can see an apple behind me.')\nelse:\n    log('I cannot see an apple behind me.')"
+}
+
+
+---
+Example 4
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Find and go any edible object.
+
+## OUTPUT
+{
+    "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
+    "plan": "obj = scan_description('Any edible object here?')\nif obj:\n    goto(obj)\nelse:\n    log('No edible object in the view')"
+}
+
+
+---
+Example 5
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Turn with 30 degrees step clockwise until you can see a person.
+
+## OUTPUT
+{
+    "thoughts": "Use loop and is_visible to find a person.",
+    "plan": "for _ in range(12):\n    if is_visible('person'):\n        break\n    rotate_right(30)\nif not is_visible('person'):\n    log('No person in the view')\nelse:\n    log('I can see a person in the view')"
+}
+
+
+---
+Example 6
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- apple: (x:0.52, y:0.39), size: (0.17x0.22)
+
+## USER INSTRUCTION
+Go to the biggest apple.
+
+## OUTPUT
+{
+    "thoughts": "From the scene, we tell directly that the right apple is the biggest apple.",
+    "plan": "goto('apple[0.52]')"
+}
+
+
+---
+Example 7
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to
+
+## OUTPUT
+{
+    "thoughts": "The task is too vague, so we use log to output the advice.",
+    "plan": "log('Please give me more information about the task.')"
+}
+
+---
+
+Example 8
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to a chair with a laptop on it.
+
+## OUTPUT
+{
+    "thoughts": "Using scan_description to find the chair with a laptop on it.",
+    "plan": "obj = scan_description('Any chair with a laptop on it?')\nif obj:\n    goto(obj)\nelse:\n    log('No chair with a laptop on it in the view')"
+}
+
+---
+Example 9
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go right by 0.5 meters and then go to the chair.
+
+## OUTPUT
+{
+    "thoughts": "Move right by 0.5 meters and then go to the chair.",
+    "plan": "move_right(0.5)\ngoto('chair')"
+}
+
+---
+Example 10
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+What is 1231239+1231239?
+
+## OUTPUT
+{
+    "thoughts": "This is a math problem, so we use log to output the answer.",
+    "plan": "result = 1231239 + 1231239\nlog(result)"
+}
+
+# CURRENT TASK
+## Scene Description
+- person: (x:0.62, y:0.67), size: (0.76x0.67)
+
+## USER INSTRUCTION
+Find a bottle
+
+## OUTPUT
+
+---
+```json
+{
+    "thoughts": "There is no bottle in the current scene, so the robot needs to scan for a bottle.",
+    "plan": "if scan('bottle'):\n    log('A bottle is found in the view.')\n    goto('bottle')\nelse:\n    log('No bottle in the view')"
+}
+```
+--------------------------------
+# BASIC INSTRUCTIONS
+You are a planner for systems with one or multiple robots. Generate a Python script that fulfills the user's task by considering all provided information.
+
+# INPUT INFORMATION
+- Robot Skills: Available robot capabilities. Include both physical (movement, rotation) and logical (vision, reasoning) capabilities.
+- Scene Description: List of objects detected in the robot's current view, including names, locations, and sizes (0-1 range).
+- User Instruction: The task to accomplish. Create detailed steps if not explicitly provided.
+- Previous Plan & Execution Status: (If provided) History of previous attempts for replanning or error handling.
+- Respond with a json object containing the following fields:
+  - "thoughts": Explanation of the reasoning behind the generated plan. Please keep it concise.
+  - "plan": Python script for the robot to execute.
+
+# GUIDELINES
+1. Resolve Ambiguities: Correct obvious typos and interpret vague language based on context. If clarification is needed, prompt the user with a specific question.
+
+2. Critical Analysis: Evaluate scenes and tasks analytically. Generate direct actions when conditions can be clearly deduced from the scene description.
+
+3. Scene Relevance: Disregard current scene details when planning tasks that involve different locations or contexts.
+
+4. Information Extraction: Source 'obj' arguments and answers primarily from the scene description. Use probe skill 'p(query)' when information is unavailable in the current scene.
+
+5. Replanning: When previous plans and execution status are provided, focus on completing remaining tasks based on current conditions.
+
+6. Safety Priority: Never plan actions that could cause harm to robots or others. Refuse unsafe tasks with a brief explanation.
+
+# AVAILABLE ROBOT SKILLS
+name: move_forward, description: Move forward by a dist (m), args: [dist:float]
+name: move_backward, description: Move backward by a dist (m), args: [dist:float]
+name: move_left, description: Move left by a dist (m), args: [dist:float]
+name: move_right, description: Move right by a dist (m), args: [dist:float]
+name: rotate_left, description: Rotate left by a deg (deg), args: [deg:float]
+name: rotate_right, description: Rotate right by a deg (deg), args: [deg:float]
+name: is_visible, description: Check if object is visible, args: [object_name:str]
+name: object_x, description: Get object's x position (0-1), args: [object_name:str]
+name: object_y, description: Get object's y position (0-1), args: [object_name:str]
+name: object_width, description: Get object's width (0-1), args: [object_name:str]
+name: object_height, description: Get object's height (0-1), args: [object_name:str]
+name: object_dist, description: Get object's dist (m), args: [object_name:str]
+name: take_picture, description: Take a picture, args: []
+name: log, description: Print text to user, args: [message:str]
+name: delay, description: Wait for seconds, args: [sec:float]
+name: re_plan, description: Trigger replanning, args: []
+name: probe, description: Query LLM for reasoning, args: [query:str]
+name: scan, description: Scan for a specific object, args: [object_name:str]
+name: scan_description, description: Scan for an abstract object, return the object name if found, args: [description:str]
+name: orienting, description: Orient to a specific object, args: [object_name:str]
+name: goto, description: Go to a specific object in the view, args: [object_name:str]
+name: lift, description: Lift the robot by a certain distance, args: [dist:float]
+
+
+# REFERENCED EXAMPLES
+Example 1
+=========
+## Scene Description
+- person: (x:0.54, y:0.63), size: (0.41x0.74)
+
+## USER INSTRUCTION
+Find a bottle, tell me it's height and take a picture of it.
+
+## OUTPUT
+```json
+{
+    "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
+    "plan": "if scan('bottle'):\n    goto('bottle')\n    height = object_height('bottle')\n    log(height)\n    take_picture()\nelse:\n    log('No bottle in the view')"
+}
+```
+
+---
+Example 2
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.26, y:0.49), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Find an apple.
+
+## OUTPUT
+```json
+{
+    "thoughts": "There is an apple in the view, just tell the user and go to the apple.",
+    "plan": "log('I can already see an apple near the tv.')\ngoto('apple')"
+}
+```
+
+---
+Example 3
+=========
+## Scene Description
+- chair: (x:0.89, y:0.76), size: (0.22x0.49)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.44, y:0.39), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Turn around and let me know if you can see an apple behind you.
+
+## OUTPUT
+{
+    "thoughts": "Turn 180 degrees and check if there is an apple behind you.",
+    "plan": "rotate_right(180)\nif is_visible('apple'):\n    log('I can see an apple behind me.')\nelse:\n    log('I cannot see an apple behind me.')"
+}
+
+
+---
+Example 4
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Find and go any edible object.
+
+## OUTPUT
+{
+    "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
+    "plan": "obj = scan_description('Any edible object here?')\nif obj:\n    goto(obj)\nelse:\n    log('No edible object in the view')"
+}
+
+
+---
+Example 5
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Turn with 30 degrees step clockwise until you can see a person.
+
+## OUTPUT
+{
+    "thoughts": "Use loop and is_visible to find a person.",
+    "plan": "for _ in range(12):\n    if is_visible('person'):\n        break\n    rotate_right(30)\nif not is_visible('person'):\n    log('No person in the view')\nelse:\n    log('I can see a person in the view')"
+}
+
+
+---
+Example 6
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- apple: (x:0.52, y:0.39), size: (0.17x0.22)
+
+## USER INSTRUCTION
+Go to the biggest apple.
+
+## OUTPUT
+{
+    "thoughts": "From the scene, we tell directly that the right apple is the biggest apple.",
+    "plan": "goto('apple[0.52]')"
+}
+
+
+---
+Example 7
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to
+
+## OUTPUT
+{
+    "thoughts": "The task is too vague, so we use log to output the advice.",
+    "plan": "log('Please give me more information about the task.')"
+}
+
+---
+
+Example 8
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to a chair with a laptop on it.
+
+## OUTPUT
+{
+    "thoughts": "Using scan_description to find the chair with a laptop on it.",
+    "plan": "obj = scan_description('Any chair with a laptop on it?')\nif obj:\n    goto(obj)\nelse:\n    log('No chair with a laptop on it in the view')"
+}
+
+---
+Example 9
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go right by 0.5 meters and then go to the chair.
+
+## OUTPUT
+{
+    "thoughts": "Move right by 0.5 meters and then go to the chair.",
+    "plan": "move_right(0.5)\ngoto('chair')"
+}
+
+---
+Example 10
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+What is 1231239+1231239?
+
+## OUTPUT
+{
+    "thoughts": "This is a math problem, so we use log to output the answer.",
+    "plan": "result = 1231239 + 1231239\nlog(result)"
+}
+
+# CURRENT TASK
+## Scene Description
+- person: (x:0.62, y:0.64), size: (0.76x0.72)
+
+## USER INSTRUCTION
+What you can see?
+
+## OUTPUT
+
+---
+```json
+{
+    "thoughts": "There's only one object currently visible in the scene, which is a person.",
+    "plan": "log('I can see a person.')"
+}
+```
+--------------------------------

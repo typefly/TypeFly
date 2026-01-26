@@ -1,0 +1,162 @@
+Example 1
+=========
+## Scene Description
+- person: (x:0.54, y:0.63), size: (0.41x0.74)
+
+## USER INSTRUCTION
+Find a bottle, tell me it's height and take a picture of it.
+
+## OUTPUT
+```json
+{
+    "thoughts": "No bottle in the view, call scan to find one and do the rest of the tasks.",
+    "plan": "if scan('bottle'):\n    goto('bottle')\n    height = object_height('bottle')\n    log(height)\n    take_picture()\nelse:\n    log('No bottle in the view')"
+}
+```
+
+---
+Example 2
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.26, y:0.49), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Find an apple.
+
+## OUTPUT
+```json
+{
+    "thoughts": "There is an apple in the view, just tell the user and go to the apple.",
+    "plan": "log('I can already see an apple near the tv.')\ngoto('apple')"
+}
+```
+
+---
+Example 3
+=========
+## Scene Description
+- chair: (x:0.89, y:0.76), size: (0.22x0.49)
+- chair: (x:0.72, y:0.68), size: (0.19x0.47)
+- tv: (x:0.44, y:0.39), size: (0.10x0.20)
+
+## USER INSTRUCTION
+Turn around and let me know if you can see an apple behind you.
+
+## OUTPUT
+{
+    "thoughts": "Turn 180 degrees and check if there is an apple behind you.",
+    "plan": "rotate_right(180)\nif is_visible('apple'):\n    log('I can see an apple behind me.')\nelse:\n    log('I cannot see an apple behind me.')"
+}
+
+
+---
+Example 4
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Find and go any edible object.
+
+## OUTPUT
+{
+    "thoughts": "Edible object is abstract and there is no edible object in the scene, so we use scan_description to find the edible object.",
+    "plan": "obj = scan_description('Any edible object here?')\nif obj:\n    goto(obj)\nelse:\n    log('No edible object in the view')"
+}
+
+
+---
+Example 5
+=========
+## Scene Description
+- remote: (x:0.23, y:0.49), size: (0.09x0.07)
+
+## USER INSTRUCTION
+Turn with 30 degrees step clockwise until you can see a person.
+
+## OUTPUT
+{
+    "thoughts": "Use loop and is_visible to find a person.",
+    "plan": "for _ in range(12):\n    if is_visible('person'):\n        break\n    rotate_right(30)\nif not is_visible('person'):\n    log('No person in the view')\nelse:\n    log('I can see a person in the view')"
+}
+
+
+---
+Example 6
+=========
+## Scene Description
+- apple: (x:0.28, y:0.52), size: (0.13x0.2)
+- apple: (x:0.52, y:0.39), size: (0.17x0.22)
+
+## USER INSTRUCTION
+Go to the biggest apple.
+
+## OUTPUT
+{
+    "thoughts": "From the scene, we tell directly that the right apple is the biggest apple.",
+    "plan": "goto('apple[0.52]')"
+}
+
+
+---
+Example 7
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to
+
+## OUTPUT
+{
+    "thoughts": "The task is too vague, so we use log to output the advice.",
+    "plan": "log('Please give me more information about the task.')"
+}
+
+---
+
+Example 8
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go to a chair with a laptop on it.
+
+## OUTPUT
+{
+    "thoughts": "Using scan_description to find the chair with a laptop on it.",
+    "plan": "obj = scan_description('Any chair with a laptop on it?')\nif obj:\n    goto(obj)\nelse:\n    log('No chair with a laptop on it in the view')"
+}
+
+---
+Example 9
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+Go right by 0.5 meters and then go to the chair.
+
+## OUTPUT
+{
+    "thoughts": "Move right by 0.5 meters and then go to the chair.",
+    "plan": "move_right(0.5)\ngoto('chair')"
+}
+
+---
+Example 10
+=========
+## Scene Description
+- chair: (x:0.72, y:0.60), size: (0.19x0.30)
+
+## USER INSTRUCTION
+What is 1231239+1231239?
+
+## OUTPUT
+{
+    "thoughts": "This is a math problem, so we use log to output the answer.",
+    "plan": "result = 1231239 + 1231239\nlog(result)"
+}
