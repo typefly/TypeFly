@@ -1,8 +1,28 @@
-﻿__pycache__/
+﻿# Python cache
+__pycache__/
 *.pyc
 *.pyo
+
+# Virtual environments
 typefly_env/
+.venv/
+env/
+venv/
+
+# Environment variables
 .env
+
+# ML / CV artifacts
 *.pt
 *.jpg
 *.png
+
+# Janah SAR artifacts
+typefly/assets.backup/
+typefly/assets/chat_log.txt
+typefly.egg-info/
+*.egg-info/
+
+# Misc
+.DS_Store
+.vscode/
