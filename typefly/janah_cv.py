@@ -15,7 +15,7 @@ class JanahCV:
     # Color ranges in HSV for detection
     COLOR_RANGES = {
         'red': [(0, 100, 100), (10, 255, 255), (170, 100, 100), (180, 255, 255)],  # Red wraps around
-        'pink': [(140, 50, 50), (170, 255, 255)],
+        'pink': [(145, 30, 100), (175, 255, 255)],  # Wider range + lower saturation threshold
         'blue': [(100, 100, 100), (130, 255, 255)],
         'green': [(40, 50, 50), (80, 255, 255)],
         'yellow': [(20, 100, 100), (30, 255, 255)],
