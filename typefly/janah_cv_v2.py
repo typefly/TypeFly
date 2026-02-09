@@ -44,7 +44,7 @@ class JanahCVv2:
         
         # Generate variations
         print("[Janah CV v2] 🔄 Generating 50 variations...")
-        variations = self._generate_variations(img, 50)
+        variations = self._generate_variations(img, 80)
         
         # Extract embeddings
         print("[Janah CV v2] 🧠 Extracting face embeddings...")
@@ -65,41 +65,68 @@ class JanahCVv2:
         return self.is_trained
     
     def _generate_variations(self, image, count=50):
-        """Generate image variations using OpenCV"""
+        """Generate image variations with MORE occlusion focus"""
         variations = [image.copy()]
         h, w = image.shape[:2]
-        
+    
+        # خصص 40% للـ occlusions (محاكاة نظارات/إكسسوارات)
+        occlusion_count = int(count * 0.4)  # 20 من 50
+    
         for i in range(count - 1):
             var = image.copy()
-            
-            # Brightness adjustment
-            if i % 5 == 0:
-                factor = np.random.uniform(0.7, 1.3)
-                var = np.clip(var * factor, 0, 255).astype(np.uint8)
-            
-            # Rotation
-            elif i % 5 == 1:
-                angle = np.random.uniform(-15, 15)
-                M = cv2.getRotationMatrix2D((w/2, h/2), angle, 1.0)
-                var = cv2.warpAffine(var, M, (w, h))
-            
-            # Horizontal flip
-            elif i % 5 == 2:
-                var = cv2.flip(var, 1)
-            
-            # Add noise
-            elif i % 5 == 3:
-                noise = np.random.normal(0, 10, var.shape).astype(np.int16)
-                var = np.clip(var.astype(np.int16) + noise, 0, 255).astype(np.uint8)
-            
-            # Occlusion (simulate glasses)
-            else:
-                y1 = h // 4 + np.random.randint(-h//10, h//10)
-                y2 = y1 + h // 8
-                var[y1:y2, :] = (var[y1:y2, :] * 0.6).astype(np.uint8)
-            
-            variations.append(var)
         
+        # زيادة نسبة الـ occlusions
+            if i < occlusion_count:
+                # Simulate glasses - multiple variations
+                if i % 4 == 0:
+                    # نظارة أفقية (عادية)
+                    y1 = h // 4 + np.random.randint(-h//15, h//15)
+                    y2 = y1 + h // 8
+                    var[y1:y2, :] = (var[y1:y2, :] * 0.6).astype(np.uint8)
+            
+                elif i % 4 == 1:
+                    # نظارة شمسية (أغمق)
+                    y1 = h // 4
+                    y2 = y1 + h // 7
+                    var[y1:y2, :] = (var[y1:y2, :] * 0.4).astype(np.uint8)
+            
+                elif i % 4 == 2:
+                    # نظارة عريضة
+                    y1 = h // 4 - h // 20
+                    y2 = y1 + h // 6
+                    var[y1:y2, :] = (var[y1:y2, :] * 0.5).astype(np.uint8)
+            
+                else:
+                    # عدة occlusions عشوائية
+                    for _ in range(2):
+                        x1 = np.random.randint(0, w//3)
+                        x2 = x1 + w//4
+                        y1 = np.random.randint(h//5, h//2)
+                        y2 = y1 + h//10
+                        var[y1:y2, x1:x2] = (var[y1:y2, x1:x2] * 0.65).astype(np.uint8)
+        
+            # الباقي تنويعات عادية
+            else:
+                variation_type = i % 4
+            
+                if variation_type == 0:  # Brightness
+                    factor = np.random.uniform(0.6, 1.4)
+                    var = np.clip(var * factor, 0, 255).astype(np.uint8)
+            
+                elif variation_type == 1:  # Rotation
+                    angle = np.random.uniform(-20, 20)
+                    M = cv2.getRotationMatrix2D((w/2, h/2), angle, 1.0)
+                    var = cv2.warpAffine(var, M, (w, h))
+            
+                elif variation_type == 2:  # Flip
+                    var = cv2.flip(var, 1)
+            
+                else:  # Noise
+                    noise = np.random.normal(0, 15, var.shape).astype(np.int16)
+                    var = np.clip(var.astype(np.int16) + noise, 0, 255).astype(np.uint8)
+        
+            variations.append(var)
+    
         return variations
     
     def _extract_embedding(self, image):
