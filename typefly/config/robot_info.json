@@ -1,9 +1,9 @@
 {
-    "robot_id": "robot1",
-    "robot_type": "virtual",
+    "robot_id": "janah_sim",
+    "robot_type": "tello_sim",
     "extra": {
         "capture": 0,
-        "ip": "192.168.8.103",
-        "tracking": false
+        "tracking": false,
+        "port": 50049
     }
 }

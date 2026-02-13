@@ -1,4 +1,5 @@
-﻿import io, time, json, os, queue, sys
+﻿# -*- coding: utf-8 -*-
+import io, time, json, os, queue, sys
 from flask import Flask, Response, render_template, request, jsonify
 from pathlib import Path
 import cv2
@@ -18,10 +19,10 @@ try:
     from typefly.janah_cv_integrated import janah_cv_integrated
     from typefly.reference_manager import reference_manager
     FACE_RECOGNITION_ENABLED = True
-    print_t("[ط¬ظ†ط§ط­ | Janah] âœ… Face Recognition enabled - ظ…ط§ ط¯ط§ظ… ط§ظ„ط¬ظ†ط§ط­ ظ…ظ…ط¯ظˆط¯ط§ظ‹ ظپط§ظ„ط£ظ…ظ„ ظ‚ط±ظٹط¨")
+    print_t("[Janah] ✅ Face Recognition enabled - ما دام الجناح ممدوداً فالأمل قريب")
 except Exception as e:
     FACE_RECOGNITION_ENABLED = False
-    print_t(f"[ط¬ظ†ط§ط­ | Janah] âڑ ï¸ڈ Face Recognition disabled: {e}")
+    print_t(f"[Janah] ⚠️ Face Recognition disabled: {e}")
 
 class TypeFly:
     def __init__(self, robot_info: RobotInfo):
@@ -30,10 +31,14 @@ class TypeFly:
         self.app = Flask(__name__, 
                         template_folder=os.path.join(CURRENT_PROJ_DIR, 'assets'))
         
+        # ضبط الـ encoding للعربي
+        self.app.config['JSON_AS_ASCII'] = False
+        self.app.config['JSON_SORT_KEYS'] = False
+        
         # Janah SAR specific
         self.missing_person_info = None
         self.last_detection_time = 0
-        self.detection_cooldown = 2.0  # seconds between alerts
+        self.detection_cooldown = 2.0
         
         self.setup_routes()
 
@@ -51,18 +56,25 @@ class TypeFly:
             user_message = data.get('message', '')
             
             if not user_message:
-                return jsonify({'type': 'text', 'content': '[WARNING] Empty command!'})
+                return Response(
+                    json.dumps({'type': 'text', 'content': '[WARNING] Empty command!'}, ensure_ascii=False),
+                    mimetype='application/json'
+                )
             
             if user_message == "exit":
                 self.running = False
-                return jsonify({'type': 'text', 'content': 'Shutting down...'})
+                return Response(
+                    json.dumps({'type': 'text', 'content': 'Shutting down...'}, ensure_ascii=False),
+                    mimetype='application/json'
+                )
             
             # Send instruction to LLM Controller
             self.llm_controller.put_instruction(user_message)
             
             def generate():
                 # Send initial acknowledgment
-                yield f"data: {json.dumps({'type': 'text', 'content': 'Okay! Working on it...'})}\n\n"
+                ack = json.dumps({'type': 'text', 'content': 'Okay! Working on it...'}, ensure_ascii=False)
+                yield f"data: {ack}\n\n"
                 
                 # Stream messages from the queue as they arrive
                 while True:
@@ -70,7 +82,8 @@ class TypeFly:
                         msg = _USER_LOG_QUEUE.get(timeout=3.0)
                         if msg == '#end':
                             print_t("[UI] End of plan")
-                            return "data: [DONE]\n\n"
+                            yield "data: [DONE]\n\n"
+                            return
                     
                     except queue.Empty:
                         continue
@@ -78,54 +91,74 @@ class TypeFly:
                     print_t(f"[UI] New message: {msg}")
                     msg_str = str(msg)
                     
-                    # Check if message contains an image (base64 encoded)
-                    if '<img src="data:image/' in msg_str:
-                        response_data = json.dumps({'type': 'image', 'content': msg_str}, ensure_ascii=False)
+                    # ─── صورة base64 ───
+                    if 'data:image/' in msg_str and 'base64,' in msg_str:
+                        # استخراج الـ base64 بشكل نظيف
+                        import re
+                        match = re.search(r'src="(data:image/[^"]+)"', msg_str)
+                        if match:
+                            img_src = match.group(1)
+                            response_data = json.dumps(
+                                {'type': 'image', 'content': img_src},
+                                ensure_ascii=False
+                            )
+                        else:
+                            response_data = json.dumps(
+                                {'type': 'image', 'content': msg_str},
+                                ensure_ascii=False
+                            )
                         yield f"data: {response_data}\n\n"
                     else:
-                        yield f"data: {json.dumps({'type': 'text', 'content': msg_str})}\n\n"
+                        # نص عادي — ensure_ascii=False لدعم العربي
+                        response_data = json.dumps(
+                            {'type': 'text', 'content': msg_str},
+                            ensure_ascii=False
+                        )
+                        yield f"data: {response_data}\n\n"
             
-            return Response(generate(), mimetype='text/event-stream')
+            return Response(
+                generate(),
+                mimetype='text/event-stream',
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'X-Accel-Buffering': 'no',
+                    'Content-Type': 'text/event-stream; charset=utf-8'
+                }
+            )
         
-        # â•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گ
+        # ══════════════════════════════════════════════════════════════
         # JANAH SAR: Upload Missing Person Photo
-        # â•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گâ•گ
+        # ══════════════════════════════════════════════════════════════
         @self.app.route('/upload-reference', methods=['POST'])
         def upload_reference():
             """Upload reference photo of missing person."""
             if not FACE_RECOGNITION_ENABLED:
-                return jsonify({
-                    'success': False,
-                    'message': 'Face Recognition not available'
-                })
+                return Response(
+                    json.dumps({'success': False, 'message': 'Face Recognition not available'}, ensure_ascii=False),
+                    mimetype='application/json'
+                )
             
             try:
-                # Get uploaded file
                 if 'photo' not in request.files:
-                    return jsonify({
-                        'success': False,
-                        'message': 'No photo uploaded'
-                    })
+                    return Response(
+                        json.dumps({'success': False, 'message': 'No photo uploaded'}, ensure_ascii=False),
+                        mimetype='application/json'
+                    )
                 
                 file = request.files['photo']
-                
-                # Get person info
                 name = request.form.get('name', 'Unknown')
                 age = request.form.get('age', '0')
                 clothing_color = request.form.get('clothing_color', 'unknown')
                 description = request.form.get('description', '')
                 
-                # Save uploaded photo
                 upload_dir = Path('data/references')
                 upload_dir.mkdir(parents=True, exist_ok=True)
                 photo_path = upload_dir / 'current_missing_person.jpg'
                 
-                # Read and save image
                 file_bytes = np.frombuffer(file.read(), np.uint8)
                 img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
                 cv2.imwrite(str(photo_path), img)
                 
-                # Setup person info
                 person_info = {
                     'name': name,
                     'age': int(age),
@@ -133,43 +166,49 @@ class TypeFly:
                     'description': description
                 }
                 
-                # Train face recognition
                 success = janah_cv_integrated.setup_reference(str(photo_path), person_info)
                 
                 if success:
                     self.missing_person_info = person_info
-                    print_t(f"[ط¬ظ†ط§ط­ | Janah] âœ… Reference setup for: {name} - ط§ظ„ط¨ط­ط« ط¨ط¯ط£ ط§ظ„ط¢ظ†")
+                    print_t(f"[Janah] ✅ Reference setup for: {name}")
                     
-                    return jsonify({
-                        'success': True,
-                        'message': f'âœ… طھظ… ط¥ط¹ط¯ط§ط¯ ط§ظ„ط¨ط­ط« ط¹ظ†: {name}\nâœ… Reference setup for: {name}',
-                        'person_info': person_info
-                    })
+                    return Response(
+                        json.dumps({
+                            'success': True,
+                            'message': f'✅ تم إعداد البحث عن: {name}\n✅ Reference setup for: {name}',
+                            'person_info': person_info
+                        }, ensure_ascii=False),
+                        mimetype='application/json'
+                    )
                 else:
-                    return jsonify({
-                        'success': False,
-                        'message': 'â‌Œ Failed to process photo - no face detected'
-                    })
+                    return Response(
+                        json.dumps({
+                            'success': False,
+                            'message': '❌ Failed to process photo - no face detected'
+                        }, ensure_ascii=False),
+                        mimetype='application/json'
+                    )
                     
             except Exception as e:
-                print_t(f"[ط¬ظ†ط§ط­ | Janah] â‌Œ Upload error: {e}")
-                return jsonify({
-                    'success': False,
-                    'message': f'Error: {str(e)}'
-                })
+                print_t(f"[Janah] ❌ Upload error: {e}")
+                return Response(
+                    json.dumps({'success': False, 'message': f'Error: {str(e)}'}, ensure_ascii=False),
+                    mimetype='application/json'
+                )
         
         @self.app.route('/get-reference-status', methods=['GET'])
         def get_reference_status():
             """Get current reference photo status."""
             if FACE_RECOGNITION_ENABLED and janah_cv_integrated.is_face_trained:
-                return jsonify({
-                    'setup': True,
-                    'person_info': self.missing_person_info
-                })
+                return Response(
+                    json.dumps({'setup': True, 'person_info': self.missing_person_info}, ensure_ascii=False),
+                    mimetype='application/json'
+                )
             else:
-                return jsonify({
-                    'setup': False
-                })
+                return Response(
+                    json.dumps({'setup': False}, ensure_ascii=False),
+                    mimetype='application/json'
+                )
         
         @self.app.route('/robot-pov/')
         def video_feed_pov():
@@ -181,40 +220,34 @@ class TypeFly:
         
         @self.app.route('/health')
         def health():
-            """Health check endpoint."""
-            return jsonify({
-                'status': 'running',
-                'robot': self.running,
-                'face_recognition': FACE_RECOGNITION_ENABLED,
-                'reference_setup': FACE_RECOGNITION_ENABLED and janah_cv_integrated.is_face_trained
-            })
+            return Response(
+                json.dumps({
+                    'status': 'running',
+                    'robot': self.running,
+                    'face_recognition': FACE_RECOGNITION_ENABLED,
+                    'reference_setup': FACE_RECOGNITION_ENABLED and janah_cv_integrated.is_face_trained
+                }, ensure_ascii=False),
+                mimetype='application/json'
+            )
 
     def process_frame_with_face_recognition(self, frame_pil):
-        """
-        Process frame with face recognition
-        Returns: annotated frame, alert message (if target found)
-        """
+        """Process frame with face recognition."""
         if not FACE_RECOGNITION_ENABLED or not janah_cv_integrated.is_face_trained:
             return frame_pil, None
         
         try:
-            # Convert PIL to OpenCV
             frame_cv = cv2.cvtColor(np.array(frame_pil), cv2.COLOR_RGB2BGR)
             h, w = frame_cv.shape[:2]
             
-            # Simple detection: assume whole frame contains a person
             yolo_detections = [{
                 'class': 'person',
                 'confidence': 1.0,
                 'bbox': {'x': 0.5, 'y': 0.5, 'width': 0.8, 'height': 0.8}
             }]
             
-            # Face recognition
             enriched = janah_cv_integrated.process_frame(frame_cv, yolo_detections)
-            
             alert_message = None
             
-            # Draw results
             for det in enriched:
                 if det.get('class') != 'person':
                     continue
@@ -228,12 +261,9 @@ class TypeFly:
                 is_target = det.get('is_target', False)
                 match_score = det.get('face_match_score', 0)
                 
-                # Color and label
                 if is_target:
-                    color = (0, 255, 0)  # Green
+                    color = (0, 255, 0)
                     label = f"TARGET FOUND! {match_score}%"
-                    
-                    # Create alert (with cooldown)
                     current_time = time.time()
                     if current_time - self.last_detection_time > self.detection_cooldown:
                         alert_message = {
@@ -243,31 +273,24 @@ class TypeFly:
                             'info': self.missing_person_info
                         }
                         self.last_detection_time = current_time
-                        print_t(f"[ط¬ظ†ط§ط­ | Janah] ًںژ¯ TARGET FOUND! {self.missing_person_info['name']} ({match_score}%)")
+                        print_t(f"[Janah] 🎯 TARGET FOUND! {self.missing_person_info['name']} ({match_score}%)")
                 else:
-                    color = (128, 128, 128)  # Gray
+                    color = (128, 128, 128)
                     label = f"Person ({match_score}%)"
                 
-                # Draw bounding box
                 cv2.rectangle(frame_cv, (x1, y1), (x2, y2), color, 3)
-                
-                # Draw label background
                 label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
                 cv2.rectangle(frame_cv, (x1, y1 - label_size[1] - 10), 
                             (x1 + label_size[0], y1), color, -1)
-                
-                # Draw label text
                 cv2.putText(frame_cv, label, (x1, y1 - 5),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             
-            # Convert back to PIL
             frame_rgb = cv2.cvtColor(frame_cv, cv2.COLOR_BGR2RGB)
             annotated_pil = Image.fromarray(frame_rgb)
-            
             return annotated_pil, alert_message
             
         except Exception as e:
-            print_t(f"[ط¬ظ†ط§ط­ | Janah] âڑ ï¸ڈ Frame processing error: {e}")
+            print_t(f"[Janah] ⚠️ Frame processing error: {e}")
             return frame_pil, None
 
     def generate_mjpeg_stream(self, source: str):
@@ -282,26 +305,21 @@ class TypeFly:
                 time.sleep(1.0 / 30.0)
                 continue
             
-            # Process with face recognition
             frame, alert = self.process_frame_with_face_recognition(frame)
             
-            # Send alert to chat if target found
             if alert:
-                alert_msg = f"""
-ًںڑ¨ طھظ†ط¨ظٹظ‡! | ALERT!
-â”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پâ”پ
-ًںژ¯ طھظ… ط§ظ„ط¹ط«ظˆط± ط¹ظ„ظ‰: {alert['name']}
-ًںژ¯ Target Found: {alert['name']}
-
-ًں“ٹ ظ†ط³ط¨ط© ط§ظ„ظ…ط·ط§ط¨ظ‚ط© | Match: {alert['match_score']}%
-ًں‘¤ ط§ظ„ط¹ظ…ط± | Age: {alert['info']['age']}
-ًں‘• ط§ظ„ظ„ظˆظ† | Color: {alert['info']['clothing_color']}
-
-ًں•ٹï¸ڈ "ظ„ظ† ظٹط±طھط§ط­ ط§ظ„ط¬ظ†ط§ط­ ط­طھظ‰ طھطھط­ظ‚ظ‚ ظ„ط­ط¸ط© ط§ظ„ط¹ظˆط¯ط©"
-"""
+                alert_msg = (
+                    f"🚨 تنبيه! | ALERT!\n"
+                    f"{'─' * 28}\n"
+                    f"🎯 تم العثور على: {alert['name']}\n"
+                    f"🎯 Target Found: {alert['name']}\n\n"
+                    f"📊 نسبة المطابقة | Match: {alert['match_score']}%\n"
+                    f"👤 العمر | Age: {alert['info']['age']}\n"
+                    f"👕 اللون | Color: {alert['info']['clothing_color']}\n\n"
+                    f"🕊️ \"لن يرتاح الجناح حتى تتحقق لحظة العودة\""
+                )
                 _USER_LOG_QUEUE.put(alert_msg)
             
-            # Convert to JPEG
             buf = io.BytesIO()
             frame.save(buf, format='JPEG')
             buf.seek(0)
@@ -312,17 +330,14 @@ class TypeFly:
 
     def run(self):
         """Start the TypeFly system with Flask server."""
-        # Start the LLM controller
         self.llm_controller.start_controller()
 
-        # Start the Flask server
-        print_t("[ط¬ظ†ط§ط­ | Janah] Starting Flask server on http://0.0.0.0:50000")
-        print_t(f"[ط¬ظ†ط§ط­ | Janah] Face Recognition: {'âœ… Enabled' if FACE_RECOGNITION_ENABLED else 'â‌Œ Disabled'}")
-        print_t("[ط¬ظ†ط§ط­ | Janah] ًں•ٹï¸ڈ ظ…ط§ ط¯ط§ظ… ط§ظ„ط¬ظ†ط§ط­ ظ…ظ…ط¯ظˆط¯ط§ظ‹ ظپط§ظ„ط£ظ…ظ„ ظ‚ط±ظٹط¨")
+        print_t("[Janah] Starting Flask server on http://0.0.0.0:50000")
+        print_t(f"[Janah] Face Recognition: {'✅ Enabled' if FACE_RECOGNITION_ENABLED else '❌ Disabled'}")
+        print_t("[Janah] 🕊️ ما دام الجناح ممدوداً فالأمل قريب")
         
         self.app.run(host='127.0.0.1', port=50000, debug=False, threaded=True)
         
-        # When Flask stops, stop the LLM controller
         self.llm_controller.stop_controller()
 
 def main():
@@ -332,5 +347,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-

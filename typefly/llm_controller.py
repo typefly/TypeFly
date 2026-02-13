@@ -1,4 +1,4 @@
-from PIL import Image
+﻿from PIL import Image
 import queue, io, base64
 from typing import Optional
 import threading
@@ -33,6 +33,9 @@ class LLMController():
         elif robot_info.robot_type == "pod":
             from .platforms.pod_wrapper import PodWrapper
             self.robot = PodWrapper(robot_info)
+        elif robot_info.robot_type == "tello_sim":
+            from .platforms.tello_wrapper_janah import TelloSimWrapper
+            self.robot = TelloSimWrapper(robot_info)
         self.planner = LLMPlanner(self.robot)
         self.current_plan_loop_thread = None
         # Missing child information for SAR operations
@@ -78,7 +81,7 @@ class LLMController():
             plan = self.planner.plan(user_instruction, missing_child_info=self.missing_child_info)
             print_t(f"[P] Plan: {plan}")
 
-            if plan.startswith('```json'):
+            if '```json' in plan:
                 plan = plan.split('```json')[1].split('```')[0]
             
             # parse the plan json

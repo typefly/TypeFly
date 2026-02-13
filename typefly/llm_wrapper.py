@@ -39,7 +39,7 @@ class LLMWrapper:
             raise ValueError(f"Model type {model_type} not supported.")
 
         # log the prompt and response
-        with open(CHAT_LOG_FILE, "a") as f:
+        with open(CHAT_LOG_FILE, "a", encoding="utf-8") as f:
             f.write(prompt + "\n---\n")
             f.write(ret + "\n--------------------------------\n")
 
