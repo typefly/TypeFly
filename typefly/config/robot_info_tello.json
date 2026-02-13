@@ -1,0 +1,9 @@
+{
+    "robot_id": "janah_tello",
+    "robot_type": "tello",
+    "extra": {
+        "capture": 0,
+        "ip": "192.168.10.1",
+        "tracking": false
+    }
+}

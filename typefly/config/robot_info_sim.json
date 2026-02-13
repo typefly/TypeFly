@@ -1,0 +1,13 @@
+{
+    "robot_id": "janah_sim",
+    "robot_type": "tello_sim",
+    "extra": {
+        "capture": 0,
+        "tracking": false,
+        "sim_bounds": {
+            "x": 500,
+            "y": 500,
+            "z_max": 300
+        }
+    }
+}
