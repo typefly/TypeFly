@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Janah SAR - Search and Rescue System</title>
+    <title>🕊️ جناح - نظام البحث والإنقاذ | Janah SAR System</title>
     <style>
         * {
             margin: 0;
@@ -12,7 +12,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
@@ -30,20 +30,27 @@
         }
 
         .header h1 {
-            font-size: 32px;
+            font-size: 36px;
             font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header .motto {
+            font-size: 18px;
+            font-style: italic;
+            opacity: 0.95;
             margin-bottom: 5px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
 
         .header .subtitle {
-            font-size: 18px;
-            opacity: 0.9;
-            direction: rtl;
+            font-size: 14px;
+            opacity: 0.85;
         }
 
         /* ═══════════════════════════════════════════════════════════ */
-        /* JANAH: Missing Person Upload Section */
+        /* Upload Section */
         /* ═══════════════════════════════════════════════════════════ */
         .upload-section {
             background: white;
@@ -55,16 +62,20 @@
 
         .upload-section h2 {
             font-size: 20px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             color: #333;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            text-align: center;
         }
 
-        .upload-section h2::before {
-            content: "📸";
-            font-size: 24px;
+        .inspiration {
+            text-align: center;
+            color: #667eea;
+            font-style: italic;
+            font-size: 14px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f0f4ff;
+            border-radius: 8px;
         }
 
         .upload-grid {
@@ -87,8 +98,10 @@
             cursor: pointer;
             transition: all 0.3s;
             background: #f8f9fa;
-            position: relative;
-            overflow: hidden;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .upload-area:hover {
@@ -115,18 +128,19 @@
         .upload-placeholder {
             color: #667eea;
             font-weight: 500;
+            text-align: center;
         }
 
         .person-info {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
         }
 
         .info-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 12px;
         }
 
         .form-group {
@@ -136,23 +150,21 @@
         }
 
         .form-group label {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: #555;
-            display: flex;
-            align-items: center;
-            gap: 5px;
         }
 
         .form-group input,
         .form-group select,
         .form-group textarea {
-            padding: 10px 12px;
+            padding: 10px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             font-size: 14px;
             outline: none;
             transition: border-color 0.3s;
+            font-family: inherit;
         }
 
         .form-group input:focus,
@@ -163,20 +175,20 @@
 
         .form-group textarea {
             resize: vertical;
-            min-height: 60px;
+            min-height: 50px;
         }
 
         .upload-button {
-            padding: 12px 24px;
+            padding: 14px 24px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
-            margin-top: 10px;
+            margin-top: 5px;
         }
 
         .upload-button:hover:not(:disabled) {
@@ -191,11 +203,12 @@
 
         .status-badge {
             display: inline-block;
-            padding: 6px 12px;
-            border-radius: 15px;
+            padding: 8px 16px;
+            border-radius: 20px;
             font-size: 13px;
             font-weight: 600;
             margin-top: 10px;
+            text-align: center;
         }
 
         .status-badge.ready {
@@ -209,13 +222,12 @@
         }
 
         /* ═══════════════════════════════════════════════════════════ */
-        /* Original TypeFly Styles (Modified) */
+        /* Video and Chat */
         /* ═══════════════════════════════════════════════════════════ */
         .content-wrapper {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
-            margin-bottom: 20px;
         }
 
         .video-section {
@@ -229,6 +241,7 @@
             font-size: 20px;
             margin-bottom: 15px;
             color: #333;
+            text-align: center;
         }
 
         .video-container {
@@ -248,24 +261,30 @@
             width: auto;
             height: auto;
             object-fit: contain;
-            display: block;
         }
 
         .detection-overlay {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.8);
             color: white;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 13px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            text-align: center;
             display: none;
         }
 
         .detection-overlay.active {
             display: block;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
 
         .chat-section {
@@ -286,12 +305,14 @@
             font-size: 20px;
             color: #333;
             margin-bottom: 10px;
+            text-align: center;
         }
 
         .example-commands {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
+            justify-content: center;
         }
 
         .example-btn {
@@ -343,7 +364,7 @@
             border-radius: 15px;
             word-wrap: break-word;
             font-size: 14px;
-            line-height: 1.5;
+            line-height: 1.6;
             white-space: pre-wrap;
         }
 
@@ -359,7 +380,7 @@
         }
 
         .message.bot .message-content.alert {
-            background: #fff3cd;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe6a7 100%);
             border-left: 4px solid #ffc107;
             font-weight: 500;
         }
@@ -398,7 +419,7 @@
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.2s;
         }
 
         #sendButton:hover:not(:disabled) {
@@ -436,47 +457,47 @@
 </head>
 <body>
     <div class="main-container">
+        <!-- Header -->
         <div class="header">
-            <h1>🚁 Janah SAR - Search and Rescue System</h1>
-            <div class="subtitle">نظام جناح للبحث والإنقاذ</div>
+            <h1>🕊️ جناح - نظام البحث والإنقاذ</h1>
+            <div class="motto">"ما دام الجناح ممدوداً فالأمل قريب"</div>
+            <div class="subtitle">Janah SAR - As long as the wing is extended, hope is near</div>
         </div>
 
-        <!-- ═══════════════════════════════════════════════════════════ -->
-        <!-- JANAH: Missing Person Upload Section -->
-        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- Upload Section -->
         <div class="upload-section">
-            <h2>صورة الطفل المفقود | Missing Child Photo</h2>
+            <h2>📸 صورة الطفل المفقود | Missing Child Photo</h2>
+            <div class="inspiration">
+                🕊️ "تطمّن وثق بالله - لن يرتاح الجناح حتى تتحقق لحظة العودة"
+            </div>
             
             <div class="upload-grid">
                 <div class="photo-upload">
                     <div class="upload-area" id="uploadArea" onclick="document.getElementById('photoInput').click()">
                         <img id="uploadPreview" class="upload-preview">
                         <div class="upload-placeholder" id="uploadPlaceholder">
-                            📷 اضغط لرفع صورة<br>
-                            Click to upload photo
+                            📷 اضغط لرفع صورة<br>Click to upload photo
                         </div>
                     </div>
-                    <input type="file" id="photoInput" accept="image/*" style="display: none;" onchange="previewPhoto(this)">
-                    
+                    <input type="file" id="photoInput" accept="image/*" style="display: none;">
                     <div id="uploadStatus"></div>
                 </div>
 
                 <div class="person-info">
                     <div class="info-row">
                         <div class="form-group">
-                            <label>👤 الاسم | Name:</label>
+                            <label>👤 الاسم | Name</label>
                             <input type="text" id="personName" placeholder="أحمد محمد" value="أحمد">
                         </div>
-                        
                         <div class="form-group">
-                            <label>🎂 العمر | Age:</label>
+                            <label>🎂 العمر | Age</label>
                             <input type="number" id="personAge" placeholder="8" value="8" min="1" max="18">
                         </div>
                     </div>
 
                     <div class="info-row">
                         <div class="form-group">
-                            <label>👕 لون الملابس | Clothing Color:</label>
+                            <label>👕 لون الملابس | Clothing</label>
                             <select id="clothingColor">
                                 <option value="red">أحمر | Red</option>
                                 <option value="blue" selected>أزرق | Blue</option>
@@ -484,34 +505,29 @@
                                 <option value="yellow">أصفر | Yellow</option>
                                 <option value="white">أبيض | White</option>
                                 <option value="black">أسود | Black</option>
-                                <option value="gray">رمادي | Gray</option>
-                                <option value="pink">وردي | Pink</option>
                             </select>
                         </div>
-
                         <div class="form-group">
-                            <label>📝 وصف إضافي | Additional Description:</label>
-                            <textarea id="description" placeholder="مثال: يرتدي قبعة حمراء..."></textarea>
+                            <label>📝 وصف إضافي | Description</label>
+                            <textarea id="description" placeholder="مثال: يرتدي قبعة..."></textarea>
                         </div>
                     </div>
 
-                    <button class="upload-button" id="setupButton" onclick="setupMissingPerson()" disabled>
+                    <button class="upload-button" id="setupButton" disabled>
                         🚀 بدء البحث | Start Search
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- ═══════════════════════════════════════════════════════════ -->
-        <!-- Video and Chat Sections -->
-        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- Video and Chat -->
         <div class="content-wrapper">
             <div class="video-section">
                 <h2>📹 كاميرا الدرون | Drone Camera</h2>
                 <div class="video-container">
                     <img src="/robot-pov/" alt="Drone POV" id="robotPov">
                     <div class="detection-overlay" id="detectionOverlay">
-                        🎯 يتم البحث... | Searching...
+                        🕊️ يتم البحث... | Searching...
                     </div>
                 </div>
             </div>
@@ -520,32 +536,35 @@
                 <div class="chat-header">
                     <h2>💬 الأوامر | Commands</h2>
                     <div class="example-commands">
-                        <button class="example-btn" onclick="useExample(this)">ابحث عن الطفل | Find the child</button>
-                        <button class="example-btn" onclick="useExample(this)">ماذا ترى؟ | What do you see?</button>
-                        <button class="example-btn" onclick="useExample(this)">تحرك للأمام | Move forward</button>
+                        <button class="example-btn" onclick="useExample(this)">ابحث عن الطفل</button>
+                        <button class="example-btn" onclick="useExample(this)">ماذا ترى؟</button>
+                        <button class="example-btn" onclick="useExample(this)">تحرك للأمام</button>
                     </div>
                 </div>
                 
                 <div class="chat-container" id="chatContainer">
                     <div class="message bot">
                         <div class="message-content">
-                            مادام الجناح ممدودا فالامل قريب.. نظام جناح للبحث والإنقاذ الذكي.<br><br>
-                            Hello! I'm Janah, your AI-powered search and rescue system.<br><br>
-                            📸 ابدأ برفع صورة الطفل المفقود أعلاه<br>
-                            Start by uploading a photo of the missing child above
+🕊️ مرحباً! أنا جناح، نظام البحث والإنقاذ الذكي
+
+"لن يرتاح الجناح حتى تتحقق لحظة العودة"
+
+Hello! I'm Janah, your AI-powered search and rescue system
+
+📸 ابدأ برفع صورة الطفل المفقود أعلاه
+💪 تطمّن وثق بالله
+
+Start by uploading the missing child's photo above
                         </div>
                     </div>
                 </div>
                 
                 <div class="input-container">
                     <div class="input-wrapper">
-                        <input 
-                            type="text" 
-                            id="messageInput" 
-                            placeholder="اكتب أمراً للدرون... | Type a command for the drone..."
-                            autocomplete="off"
-                        >
-                        <button id="sendButton">إرسال | Send</button>
+                        <input type="text" id="messageInput" 
+                               placeholder="اكتب أمراً... | Type a command..." 
+                               autocomplete="off">
+                        <button id="sendButton">إرسال</button>
                     </div>
                 </div>
             </div>
@@ -554,41 +573,36 @@
 
     <script>
         let currentPhoto = null;
-        let isReferenceSetup = false;
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
 
-        // ═══════════════════════════════════════════════════════════
-        // Photo Upload Functions
-        // ═══════════════════════════════════════════════════════════
-        function previewPhoto(input) {
-            if (input.files && input.files[0]) {
+        // Photo upload
+        document.getElementById('photoInput').onchange = function(e) {
+            if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    const preview = document.getElementById('uploadPreview');
-                    const placeholder = document.getElementById('uploadPlaceholder');
-                    const uploadArea = document.getElementById('uploadArea');
-                    const setupButton = document.getElementById('setupButton');
-                    
-                    preview.src = e.target.result;
-                    preview.classList.add('active');
-                    placeholder.style.display = 'none';
-                    uploadArea.classList.add('has-image');
-                    setupButton.disabled = false;
-                    
-                    currentPhoto = input.files[0];
+                reader.onload = function(event) {
+                    document.getElementById('uploadPreview').src = event.target.result;
+                    document.getElementById('uploadPreview').classList.add('active');
+                    document.getElementById('uploadPlaceholder').style.display = 'none';
+                    document.getElementById('uploadArea').classList.add('has-image');
+                    document.getElementById('setupButton').disabled = false;
+                    currentPhoto = e.target.files[0];
                 };
-                reader.readAsDataURL(input.files[0]);
+                reader.readAsDataURL(e.target.files[0]);
             }
-        }
+        };
 
+        // Setup missing person
         async function setupMissingPerson() {
             if (!currentPhoto) {
-                alert('الرجاء رفع صورة أولاً | Please upload a photo first');
+                alert('الرجاء رفع صورة | Please upload photo');
                 return;
             }
 
-            const setupButton = document.getElementById('setupButton');
-            setupButton.disabled = true;
-            setupButton.textContent = '⏳ جاري الإعداد... | Setting up...';
+            const btn = document.getElementById('setupButton');
+            btn.disabled = true;
+            btn.textContent = '⏳ جاري الإعداد...';
 
             const formData = new FormData();
             formData.append('photo', currentPhoto);
@@ -604,48 +618,37 @@
                 });
 
                 const result = await response.json();
-                
                 const statusDiv = document.getElementById('uploadStatus');
                 
                 if (result.success) {
-                    statusDiv.innerHTML = '<div class="status-badge ready">✅ جاهز للبحث | Ready to Search</div>';
-                    isReferenceSetup = true;
-                    
-                    // Show in chat
-                    addMessage(result.message, false, true);
-                    
-                    // Enable detection overlay
+                    statusDiv.innerHTML = '<div class="status-badge ready">✅ جاهز - لن يرتاح الجناح حتى تتحقق لحظة العودة</div>';
+                    addMessage('✅ ' + result.message + '\n\n🕊️ "تطمّن وثق بالله - البحث بدأ الآن"', false, true);
                     document.getElementById('detectionOverlay').classList.add('active');
                 } else {
                     statusDiv.innerHTML = `<div class="status-badge not-ready">❌ ${result.message}</div>`;
-                    setupButton.disabled = false;
-                    setupButton.textContent = '🚀 بدء البحث | Start Search';
+                    btn.disabled = false;
+                    btn.textContent = '🚀 بدء البحث | Start Search';
                 }
             } catch (error) {
-                console.error('Upload error:', error);
-                alert('حدث خطأ | Error: ' + error.message);
-                setupButton.disabled = false;
-                setupButton.textContent = '🚀 بدء البحث | Start Search';
+                alert('خطأ | Error: ' + error);
+                btn.disabled = false;
+                btn.textContent = '🚀 بدء البحث | Start Search';
             }
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // Chat Functions (Original + Modified)
-        // ═══════════════════════════════════════════════════════════
-        const chatContainer = document.getElementById('chatContainer');
-        const messageInput = document.getElementById('messageInput');
-        const sendButton = document.getElementById('sendButton');
+        document.getElementById('setupButton').onclick = setupMissingPerson;
 
+        // Chat functions
         function addMessage(content, isUser = false, isAlert = false) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${isUser ? 'user' : 'bot'}`;
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content' + (isAlert ? ' alert' : '');
             contentDiv.textContent = content;
             
-            messageDiv.appendChild(contentDiv);
-            chatContainer.appendChild(messageDiv);
+            msgDiv.appendChild(contentDiv);
+            chatContainer.appendChild(msgDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
@@ -661,7 +664,7 @@
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: message })
+                    body: JSON.stringify({ message })
                 });
 
                 const reader = response.body.getReader();
@@ -685,8 +688,7 @@
                                 try {
                                     const item = JSON.parse(data);
                                     if (item.type === 'text') {
-                                        // Check if it's an alert
-                                        const isAlert = item.content.includes('🚨') || item.content.includes('ALERT');
+                                        const isAlert = item.content.includes('🚨');
                                         addMessage(item.content, false, isAlert);
                                     }
                                 } catch (e) {
@@ -697,23 +699,22 @@
                     }
                 }
             } catch (error) {
-                addMessage('حدث خطأ | Error: ' + error.message);
-                console.error('Error:', error);
+                addMessage('خطأ | Error: ' + error);
             } finally {
                 sendButton.disabled = false;
                 messageInput.focus();
             }
         }
 
-        function useExample(button) {
-            messageInput.value = button.textContent;
-            messageInput.focus();
+        function useExample(btn) {
+            messageInput.value = btn.textContent;
+            sendMessage();
         }
 
-        sendButton.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', (e) => {
+        sendButton.onclick = sendMessage;
+        messageInput.onkeypress = (e) => {
             if (e.key === 'Enter') sendMessage();
-        });
+        };
 
         // Video error handling
         document.getElementById('robotPov').onerror = function() {
@@ -722,7 +723,7 @@
             }, 1000);
         };
 
-        // Check reference status on load
+        // Check status on load
         fetch('/get-reference-status')
             .then(r => r.json())
             .then(data => {
@@ -730,7 +731,6 @@
                     document.getElementById('uploadStatus').innerHTML = 
                         '<div class="status-badge ready">✅ جاهز | Ready</div>';
                     document.getElementById('detectionOverlay').classList.add('active');
-                    isReferenceSetup = true;
                 }
             });
     </script>
