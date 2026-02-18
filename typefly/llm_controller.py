@@ -36,6 +36,10 @@ class LLMController():
         elif robot_info.robot_type == "tello_sim":
             from .platforms.tello_wrapper_janah import TelloSimWrapper
             self.robot = TelloSimWrapper(robot_info)
+        elif robot_info.robot_type == "airsim":
+            from .platforms.airsim_platform import AirSimDronePlatform
+            self.robot = AirSimDronePlatform(robot_info)
+            
         self.planner = LLMPlanner(self.robot)
         self.current_plan_loop_thread = None
         # Missing child information for SAR operations

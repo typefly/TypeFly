@@ -1,9 +1,12 @@
 {
     "robot_id": "janah_sim",
-    "robot_type": "tello_sim",
+    "robot_type": "airsim",
     "extra": {
         "capture": 0,
         "tracking": false,
-        "port": 50049
+        "port": 50049,
+        "airsim_vehicle": "Drone1",
+        "airsim_camera": "front_center",
+        "airsim_host": "127.0.0.1"
     }
 }
