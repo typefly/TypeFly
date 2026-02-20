@@ -52,14 +52,11 @@ class LLMController():
         elif robot_info.robot_type == "tello_sim":
             from .platforms.tello_wrapper_janah import TelloSimWrapper
             self.robot = TelloSimWrapper(robot_info)
-<<<<<<< HEAD
         elif robot_info.robot_type == "airsim":
             from .platforms.airsim_platform import AirSimDronePlatform
             self.robot = AirSimDronePlatform(robot_info)
             
-=======
 
->>>>>>> 621e52efaf1a758afa2870b9a3e4fd98c22d73a2
         self.planner = LLMPlanner(self.robot)
         self.current_plan_loop_thread = None
         self._stop_flag = threading.Event()  # يُستخدم لإيقاف plan شغالة

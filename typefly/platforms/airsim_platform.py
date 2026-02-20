@@ -27,13 +27,21 @@ class AirSimObservation(RobotObservation):
     def _start(self):
         self._worker_process = Process(
             target=airsim_worker,
-            args=(self.cmd_queue, self.img_queue,
-                  self.vehicle_name, self.camera_name, self.host),
+            args=(
+                self.cmd_queue,
+                self.img_queue,
+                self.vehicle_name,
+                self.camera_name,
+                self.host
+            ),
             daemon=True
         )
         self._worker_process.start()
+
         time.sleep(3)
         threading.Thread(target=self._image_spin, daemon=True).start()
+
+
 
     def _image_spin(self):
         while self.running:
