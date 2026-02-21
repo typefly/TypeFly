@@ -7,13 +7,15 @@ import asyncio, aiohttp
 
 from .utils import print_t
 from .robot_info import RobotInfo
-from .janah_cv_v2 import janah_cv_v2 as janah_cv  # âœ… FaceNet ظپظ‚ط· â€” pipeline ظ…ظˆط­ظ‘ط¯
+from .janah_color import janah_color as _janah_color   # clothing color detection
+from .janah_face  import janah_face  as _janah_face    # face recognition
+import cv2
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
 EDGE_SERVICE_PORT = os.environ.get("EDGE_SERVICE_PORT", "50049")
 
-# âœ… FIX #3: ط´ط؛ظ‘ظ„ FaceNet ظƒظ„ N ظپط±ظٹظ… ظپظ‚ط·
+# âœ… FIX #3: ط´ط؛ظ'ظ„ FaceNet ظƒظ„ N ظپط±ظٹظ… ظپظ‚ط·
 FACE_MATCH_EVERY_N_FRAMES = 5
 
 
@@ -102,11 +104,11 @@ class YoloClient():
         self.frame_id_lock = asyncio.Lock()
         self.object_trackers: dict[str, ObjectTracker] = {}
 
-        # âœ… FIX #3: ط¹ط¯ظ‘ط§ط¯ ظ„طھظ‚ظ„ظٹظ„ طھظƒط±ط§ط± FaceNet
+        # âœ… FIX #3: ط¹ط¯ظ'ط§ط¯ ظ„طھظ‚ظ„ظٹظ„ طھظƒط±ط§ط± FaceNet
         self._face_match_counter = 0
         self._face_cache: dict[tuple, int] = {}  # cache ط¨ط§ظ„ظ€ bbox position
 
-        print_t(f"[Y] YoloClient â†’ {self.service_url} | tracking: {self.enable_tracking} | face_every: {FACE_MATCH_EVERY_N_FRAMES}f")
+        print_t(f"[Y] YoloClient â†' {self.service_url} | tracking: {self.enable_tracking} | face_every: {FACE_MATCH_EVERY_N_FRAMES}f")
 
     @property
     def latest_result(self) -> tuple:
@@ -249,20 +251,27 @@ class YoloClient():
         self._face_match_counter += 1
         run_face_match = (self._face_match_counter % FACE_MATCH_EVERY_N_FRAMES == 0)
 
-        image_np = np.array(image)
+        # PIL Image is RGB  ->  convert to BGR for janah_color + janah_face
+        image_np  = np.array(image)                               # RGB
+        image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)    # BGR
+
         new_cache: dict[tuple, int] = {}
 
         for obj in list_obj:
             if obj.name == 'person':
                 bbox = {'x': obj.x, 'y': obj.y, 'width': obj.w, 'height': obj.h}
-                obj.clothing_color = janah_cv.detect_clothing_color(image_np, bbox)
 
-                # cache key = ظ…ظˆظ‚ط¹ bbox ظ…ظ‚ط±ظ‘ط¨ â€” ظ…ط³طھظ‚ط± ط¹ط¨ط± ط§ظ„ظپط±ظٹظ…ط§طھ ط¨ط؛ط¶ ط§ظ„ظ†ط¸ط± ط¹ظ† طھط±طھظٹط¨ YOLO
-                p = 10  # ط¯ظ‚ط© 0.1
+                # Color detection (BGR input)
+                color, _conf = _janah_color.detect_clothing_color(image_bgr, bbox)
+                obj.clothing_color = color
+
+                # cache key = approx bbox position (stable across frames)
+                p = 10
                 cache_key = (round(obj.x * p) / p, round(obj.y * p) / p)
 
                 if run_face_match:
-                    score = janah_cv.face_match(image_np, bbox)
+                    # Face match (BGR input)
+                    score = _janah_face.face_match(image_bgr, bbox)
                     obj.face_match = score
                 else:
                     obj.face_match = self._face_cache.get(cache_key, 0)
