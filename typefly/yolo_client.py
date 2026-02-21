@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from contextlib import asynccontextmanager
@@ -7,13 +7,13 @@ import asyncio, aiohttp
 
 from .utils import print_t
 from .robot_info import RobotInfo
-from .janah_cv_v2 import janah_cv_v2 as janah_cv  # ✅ FaceNet فقط — pipeline موحّد
+from .janah_cv_v2 import janah_cv_v2 as janah_cv  # âœ… FaceNet ظپظ‚ط· â€” pipeline ظ…ظˆط­ظ‘ط¯
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 EDGE_SERVICE_IP = os.environ.get("EDGE_SERVICE_IP", "localhost")
 EDGE_SERVICE_PORT = os.environ.get("EDGE_SERVICE_PORT", "50049")
 
-# ✅ FIX #3: شغّل FaceNet كل N فريم فقط
+# âœ… FIX #3: ط´ط؛ظ‘ظ„ FaceNet ظƒظ„ N ظپط±ظٹظ… ظپظ‚ط·
 FACE_MATCH_EVERY_N_FRAMES = 5
 
 
@@ -92,7 +92,7 @@ class YoloClient():
         self.service_url = 'http://{}:{}/process'.format(EDGE_SERVICE_IP, EDGE_SERVICE_PORT)
         self.target_image_width = 640
 
-        # ✅ FIX #8: tracking من config
+        # âœ… FIX #8: tracking ظ…ظ† config
         tracking_from_config = robot_info.extra.get('tracking', False) if robot_info.extra else False
         self.enable_tracking = enable_tracking or tracking_from_config
 
@@ -102,11 +102,11 @@ class YoloClient():
         self.frame_id_lock = asyncio.Lock()
         self.object_trackers: dict[str, ObjectTracker] = {}
 
-        # ✅ FIX #3: عدّاد لتقليل تكرار FaceNet
+        # âœ… FIX #3: ط¹ط¯ظ‘ط§ط¯ ظ„طھظ‚ظ„ظٹظ„ طھظƒط±ط§ط± FaceNet
         self._face_match_counter = 0
-        self._face_cache: dict[tuple, int] = {}  # cache بالـ bbox position
+        self._face_cache: dict[tuple, int] = {}  # cache ط¨ط§ظ„ظ€ bbox position
 
-        print_t(f"[Y] YoloClient → {self.service_url} | tracking: {self.enable_tracking} | face_every: {FACE_MATCH_EVERY_N_FRAMES}f")
+        print_t(f"[Y] YoloClient â†’ {self.service_url} | tracking: {self.enable_tracking} | face_every: {FACE_MATCH_EVERY_N_FRAMES}f")
 
     @property
     def latest_result(self) -> tuple:
@@ -126,7 +126,7 @@ class YoloClient():
 
     @staticmethod
     def image_to_bytes(image: Image.Image) -> bytes:
-        # ✅ FIX #4: JPEG فقط — content-type متطابق
+        # âœ… FIX #4: JPEG ظپظ‚ط· â€” content-type ظ…طھط·ط§ط¨ظ‚
         buf = BytesIO()
         image.save(buf, format='JPEG', quality=85)
         return buf.getvalue()
@@ -160,8 +160,8 @@ class YoloClient():
             if obj_info.w <= 0 or obj_info.h <= 0:
                 continue
             if self.enable_tracking:
-                # ✅ FIX #2 جزئي: استخدام اسم + موقع تقريبي كـ key
-                # track_id من YOLO يُستخدم لو موجود
+                # âœ… FIX #2 ط¬ط²ط¦ظٹ: ط§ط³طھط®ط¯ط§ظ… ط§ط³ظ… + ظ…ظˆظ‚ط¹ طھظ‚ط±ظٹط¨ظٹ ظƒظ€ key
+                # track_id ظ…ظ† YOLO ظٹظڈط³طھط®ط¯ظ… ظ„ظˆ ظ…ظˆط¬ظˆط¯
                 track_id = obj.get('track_id', None)
                 key = f"{obj_info.name}_{track_id}" if track_id else obj_info.name
                 if key not in self.object_trackers:
@@ -202,6 +202,15 @@ class YoloClient():
             print_t(f"[Y] Timeout: {service_url}")
 
     async def detect(self, image: Image.Image, conf=0.2):
+        # Throttle to prevent YOLO service overload
+        import time
+        now = time.time()
+        if not hasattr(self, '_last_detect_time'):
+            self._last_detect_time = 0
+        if now - self._last_detect_time < 0.5:
+            return
+        self._last_detect_time = now
+        
         config = {
             'robot_info': self.robot_info.robot_id,
             'service_type': 'yolo',
@@ -209,7 +218,7 @@ class YoloClient():
             'image_id': 0,
             'conf': conf,
         }
-        # ✅ FIX #4: JPEG فقط — content-type متطابق
+        # âœ… FIX #4: JPEG ظپظ‚ط· â€” content-type ظ…طھط·ط§ط¨ظ‚
         image_bytes = YoloClient.image_to_bytes(
             YoloClient.scale_image(image, self.target_image_width)
         )
@@ -219,8 +228,8 @@ class YoloClient():
             config['image_id'] = self.frame_id
             form_data = aiohttp.FormData()
             form_data.add_field('image', image_bytes,
-                                filename='frame.jpg',        # ✅ .jpg
-                                content_type='image/jpeg')   # ✅ متطابق
+                                filename='frame.jpg',        # âœ… .jpg
+                                content_type='image/jpeg')   # âœ… ظ…طھط·ط§ط¨ظ‚
             form_data.add_field('json_data', json.dumps(config), content_type='application/json')
 
         try:
@@ -236,7 +245,7 @@ class YoloClient():
 
         list_obj = self.cc_to_ps(json_results.get("result", []))
 
-        # ✅ FIX #3: FaceNet كل N فريم فقط — مش كل مرة
+        # âœ… FIX #3: FaceNet ظƒظ„ N ظپط±ظٹظ… ظپظ‚ط· â€” ظ…ط´ ظƒظ„ ظ…ط±ط©
         self._face_match_counter += 1
         run_face_match = (self._face_match_counter % FACE_MATCH_EVERY_N_FRAMES == 0)
 
@@ -248,8 +257,8 @@ class YoloClient():
                 bbox = {'x': obj.x, 'y': obj.y, 'width': obj.w, 'height': obj.h}
                 obj.clothing_color = janah_cv.detect_clothing_color(image_np, bbox)
 
-                # cache key = موقع bbox مقرّب — مستقر عبر الفريمات بغض النظر عن ترتيب YOLO
-                p = 10  # دقة 0.1
+                # cache key = ظ…ظˆظ‚ط¹ bbox ظ…ظ‚ط±ظ‘ط¨ â€” ظ…ط³طھظ‚ط± ط¹ط¨ط± ط§ظ„ظپط±ظٹظ…ط§طھ ط¨ط؛ط¶ ط§ظ„ظ†ط¸ط± ط¹ظ† طھط±طھظٹط¨ YOLO
+                p = 10  # ط¯ظ‚ط© 0.1
                 cache_key = (round(obj.x * p) / p, round(obj.y * p) / p)
 
                 if run_face_match:

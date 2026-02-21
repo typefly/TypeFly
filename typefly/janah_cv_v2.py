@@ -2,6 +2,7 @@
 """
 Janah CV v2.0 - FaceNet Enhanced Face Recognition
 FIXED: bbox crop before embedding + cleaner pipeline
+TELLO OPTIMIZED: Improved color detection with histogram + adaptive lighting
 """
 
 import cv2
@@ -160,30 +161,107 @@ class JanahCVv2:
 
         return max(0, min(100, score))
 
-    def detect_clothing_color(self, frame: np.ndarray, bbox: dict) -> str:
-        """Detect dominant clothing color from bbox region"""
+    def detect_clothing_color(self, frame: np.ndarray, bbox: dict) -> tuple:
+        """
+        Detect dominant clothing color - TELLO OPTIMIZED
+        
+        Based on research:
+        - HSV color space (best for color detection)
+        - Histogram-based (better than simple average)
+        - Adaptive CLAHE for outdoor lighting
+        - Wider ranges for outdoor conditions
+        
+        Returns:
+            (color_name, confidence)
+        """
         h, w = frame.shape[:2]
+        
+        # Extract person region
         x1 = max(0, int((bbox['x'] - bbox['width'] / 2) * w))
-        y1 = max(0, int((bbox['y'] + bbox['height'] / 4) * h))
         x2 = min(w, int((bbox['x'] + bbox['width'] / 2) * w))
+        y1 = max(0, int((bbox['y'] - bbox['height'] / 2) * h))
         y2 = min(h, int((bbox['y'] + bbox['height'] / 2) * h))
-
-        clothing = frame[y1:y2, x1:x2]
+        
+        person_region = frame[y1:y2, x1:x2]
+        
+        if person_region.size == 0:
+            return "unknown", 0.0
+        
+        # Extract clothing region (chest area: 25-65% from top)
+        # Avoids head and legs
+        person_h = person_region.shape[0]
+        clothing_y1 = int(person_h * 0.25)
+        clothing_y2 = int(person_h * 0.65)
+        
+        clothing = person_region[clothing_y1:clothing_y2, :]
+        
         if clothing.size == 0:
-            return "unknown"
-
+            return "unknown", 0.0
+        
+        # Convert to HSV
         hsv = cv2.cvtColor(clothing, cv2.COLOR_BGR2HSV)
-        h_val, s, v = np.mean(hsv, axis=(0, 1))
-
-        if s < 30:
-            return 'white' if v > 200 else 'gray' if v > 100 else 'black'
-        if h_val < 15 or h_val > 165: return 'red'
-        elif h_val < 30: return 'orange'
-        elif h_val < 45: return 'yellow'
-        elif h_val < 80: return 'green'
-        elif h_val < 130: return 'blue'
-        elif h_val < 150: return 'purple'
-        else: return 'pink'
+        
+        # Adaptive CLAHE for outdoor lighting (from research)
+        h_chan, s_chan, v_chan = cv2.split(hsv)
+        mean_v = np.mean(v_chan)
+        
+        # Adjust CLAHE based on brightness
+        if mean_v < 80:  # Dark (shadow)
+            clip_limit = 3.0
+        elif mean_v > 180:  # Very bright (direct sun)
+            clip_limit = 1.5
+        else:  # Normal lighting
+            clip_limit = 2.0
+        
+        clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(4, 4))
+        v_normalized = clahe.apply(v_chan)
+        hsv_normalized = cv2.merge([h_chan, s_chan, v_normalized])
+        
+        # Get HSV statistics
+        h_mean = np.mean(hsv_normalized[:, :, 0])
+        s_mean = np.mean(hsv_normalized[:, :, 1])
+        v_mean = np.mean(hsv_normalized[:, :, 2])
+        
+        # Histogram-based detection (more accurate than mean)
+        h_hist = cv2.calcHist([hsv_normalized], [0], None, [180], [0, 180])
+        h_peak = np.argmax(h_hist)
+        
+        # Color classification with WIDER ranges for outdoor
+        # Based on research: 77-81% accuracy with proper HSV ranges
+        if s_mean < 40:  # Low saturation (neutral colors)
+            if v_mean < 60:
+                color = 'black'
+                confidence = 1.0 - (v_mean / 60.0)
+            elif v_mean > 180:
+                color = 'white'
+                confidence = (v_mean - 180) / 75.0
+            else:
+                color = 'gray'
+                confidence = 0.6
+        else:  # Saturated colors
+            # Use histogram peak for better accuracy
+            if h_peak < 15 or h_peak > 165:
+                color = 'red'
+            elif h_peak < 30:
+                color = 'orange'
+            elif h_peak < 45:
+                color = 'yellow'
+            elif h_peak < 85:
+                color = 'green'
+            elif h_peak < 135:
+                color = 'blue'
+            elif h_peak < 160:
+                color = 'purple'
+            else:
+                color = 'pink'
+            
+            # Confidence based on saturation strength
+            confidence = min(s_mean / 100.0, 1.0)
+        
+        # Ensure confidence is in valid range
+        confidence = max(0.0, min(1.0, confidence))
+        
+        return color, confidence
 
 
 # Global instance

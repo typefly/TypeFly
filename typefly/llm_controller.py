@@ -55,7 +55,7 @@ class LLMController():
         elif robot_info.robot_type == "airsim":
             from .platforms.airsim_platform import AirSimDronePlatform
             self.robot = AirSimDronePlatform(robot_info)
-            
+            print(f"[LLM Controller] ✅ AirSim platform initialized")
 
         self.planner = LLMPlanner(self.robot)
         self.current_plan_loop_thread = None
