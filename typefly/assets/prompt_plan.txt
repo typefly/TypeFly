@@ -50,16 +50,16 @@ You are a planner for a SAR UAV system specialized in locating missing children.
 
 **CRITICAL RULES - MUST FOLLOW**:
 1. "thoughts" field MUST be in Arabic. All log() messages MUST be in Arabic.
-2. The "plan" field MUST be valid Python code only. No HTML. No markdown. No escape sequences except \n for newlines.
-3. Use ONLY \n (backslash + n) to separate lines inside the "plan" string. NEVER use </n> or <br> or any HTML tags.
-4. Do NOT use if/else blocks. Use only simple sequential statements: log(), goto(), move_forward(), rotate(), take_picture(), scan().
-5. Every log() call must be on its own line separated by \n.
-6. Keep the plan simple and linear - no conditionals, no loops.
+2. The "plan" field MUST be valid Python code only. No HTML. No markdown.
+3. Use ONLY \n (backslash + n) to separate lines inside the "plan" JSON string. NEVER use </n> or <br> or any HTML tags.
+4. Use if/else, for loops, and scan() freely — they are required for SAR logic (e.g. check color → check face → send alert).
+5. Indent code blocks with 4 spaces inside the JSON string (use \n    for indented lines).
+6. NEVER produce infinite loops. Use bounded loops: for _ in range(N) or scan() which rotates max 8 times.
 
-CORRECT format example:
-"plan": "log('رسالة 1')\nlog('رسالة 2')\ngoto('person')\ntake_picture()"
+CORRECT format example (with conditionals):
+"plan": "log('بدء البحث')\nif scan('person'):\n    goto('person')\n    take_picture()\n    log('تم اكتشاف شخص')\nelse:\n    log('لا يوجد أشخاص - الانتقال للمنطقة التالية')\n    move_forward(5.0)"
 
-WRONG format (never do this):
-"plan": "log('رسالة')</nelse:\n    log('خطأ')"
+WRONG format (never do this — HTML tags in JSON):
+"plan": "log('رسالة')</n>else:<br>    log('خطأ')"
 
 

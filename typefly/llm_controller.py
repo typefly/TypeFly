@@ -20,7 +20,7 @@ class RePlanSignal(Exception):
     pass
 
 # ✅ FIX #4: حد أقصى لوقت التنفيذ
-PLAN_EXECUTION_TIMEOUT = 30  # ثانية
+PLAN_EXECUTION_TIMEOUT = 120  # ثانية — كافية للبحث الدوراني الكامل (12 دوران × ~4s)
 
 # ✅ FIX #4: builtins آمنة فقط
 SAFE_BUILTINS = {

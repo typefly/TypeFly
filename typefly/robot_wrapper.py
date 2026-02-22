@@ -249,12 +249,20 @@ class RobotWrapper(ABC):
     def get_obj_info(self, object_name: str) -> ObjectInfo:
         object_name = object_name.strip('\'').lower()
 
+        # Check if a target x-coordinate is embedded: e.g. 'person[0.70]'
+        coord_match = re.search(r'\[(-?\d+(\.\d+)?)\]', object_name)
+        target_x = float(coord_match.group(1)) if coord_match else None
+        base_name = object_name[:coord_match.start()].strip() if coord_match else object_name
+
         # try to get the object info for 10 times
         for _ in range(10):
             object_list = self.get_obj_list()
-            for obj in object_list:
-                if obj.name.startswith(object_name):
-                    return obj
+            candidates = [obj for obj in object_list if obj.name.startswith(base_name)]
+            if candidates:
+                if target_x is not None:
+                    # Return the candidate whose x is closest to the requested coordinate
+                    return min(candidates, key=lambda obj: abs(obj.x - target_x))
+                return candidates[0]
             time.sleep(0.2)
         return None
 
