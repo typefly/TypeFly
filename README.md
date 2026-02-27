@@ -1,5 +1,5 @@
 # TypeFly
-TypeFly aims to provide an easy platform for developping robot control system with large language models (LLMs). Link to our [full Paper](https://drive.google.com/file/d/1COrozqEIk6v8DLxI3vCgoSUEWpnsc2mu/view) and [webpage](https://typefly.github.io/).
+TypeFly aims to provide an easy platform for developping robot control system with large language models (LLMs). Link to our [full Paper](https://www.computer.org/csdl/journal/tm/2025/09/10970379/260Skt3CSnS) and [webpage](https://typefly.github.io/).
 
 Also, check out the demo video here: [Demo 1: Find edible or drinkable items](http://www.youtube.com/watch?v=HEJYaTLWKfY), [Demo 2: Find a specific chair](http://www.youtube.com/watch?v=QwnBniFaINE).
 
