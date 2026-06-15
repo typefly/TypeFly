@@ -30,6 +30,9 @@ class LLMController():
         elif robot_info.robot_type == "go2":
             from .platforms.go2_wrapper import Go2Wrapper
             self.robot = Go2Wrapper(robot_info)
+        elif robot_info.robot_type == "petoi":
+            from .platforms.petoi_wrapper import PetoiWrapper
+            self.robot = PetoiWrapper(robot_info)
         self.planner = LLMPlanner(self.robot)
         self.current_plan_loop_thread = None
 
