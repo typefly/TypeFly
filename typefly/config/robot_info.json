@@ -1,6 +1,6 @@
 {
     "robot_id": "robot1",
-    "robot_type": "pod",
+    "robot_type": "virtual",
     "extra": {
         "capture": 0,
         "ip": "192.168.8.103"
