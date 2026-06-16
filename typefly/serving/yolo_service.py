@@ -1,4 +1,4 @@
-import sys, os, gc
+import sys, os
 from concurrent import futures
 from PIL import Image
 from io import BytesIO
@@ -26,24 +26,13 @@ def load_model():
     
     return model
 
-def release_model(model):
-    del model
-    gc.collect()
-    torch.cuda.empty_cache()
-
 """
     gRPC service class.
 """
 class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
     def __init__(self, port):
-        self.tracking_mode = False
         self.model = load_model()
         self.port = port
-
-    def reload_model(self):
-        if self.model is not None:
-            release_model(self.model)
-        self.model = load_model()
 
     @staticmethod
     def bytes_to_image(image_bytes) -> Image.Image:
@@ -57,15 +46,12 @@ class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
         formatted_result = []
         data = yolo_result.boxes.data.cpu().tolist()
         h, w = yolo_result.orig_shape
-        for i, row in enumerate(data):  # xyxy, track_id if tracking, conf, class_id
+        for i, row in enumerate(data):  # xyxy, conf, class_id
             box = {'x1': round(row[0] / w, 2), 'y1': round(row[1] / h, 2), 'x2': round(row[2] / w, 2), 'y2': round(row[3] / h, 2)}
             conf = row[-2]
             class_id = int(row[-1])
 
             name = yolo_result.names[class_id]
-            if yolo_result.boxes.is_track:
-                # result['track_id'] = int(row[-3])  # track ID
-                name = f'{name}_{int(row[-3])}'
             result = {'name': name, 'confidence': round(conf, 2), 'box': box}
             
             if yolo_result.masks:
@@ -82,12 +68,7 @@ class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
         image = YoloService.bytes_to_image(request.image_data)
 
         # Set defaults if missing
-        info.setdefault('tracking_mode', False)
         info.setdefault('conf', 0.3)
-
-        if self.tracking_mode != info['tracking_mode']:
-            self.tracking_mode = info['tracking_mode']
-            self.reload_model()
 
         return image, info
     
@@ -98,10 +79,7 @@ class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
         image, info = self.parse_request(request)
         print(f"Received Detect request {info['image_id']}")
 
-        if self.tracking_mode:
-            yolo_result = self.model.track(image, verbose=False, conf=info['conf'], tracker="bytetrack.yaml")[0]
-        else:
-            yolo_result = self.model(image, verbose=False, conf=info['conf'])[0]
+        yolo_result = self.model(image, verbose=False, conf=info['conf'])[0]
 
         info['result'] = YoloService.format_result(yolo_result)
         # print(f"Detection took {time.time() - start_time} seconds")
