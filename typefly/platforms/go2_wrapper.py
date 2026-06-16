@@ -142,6 +142,7 @@ class Go2Observation(RobotObservation):
         }
 
 class Go2Wrapper(RobotWrapper):
+    camera_moves_with_body = True  # body-mounted forward camera rotates/moves with the quadruped
     def __init__(self, robot_info: RobotInfo):
         super().__init__(robot_info, Go2Observation(robot_info))
 

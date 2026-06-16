@@ -166,6 +166,7 @@ class PetoiObservation(RobotObservation):
 
 
 class PetoiWrapper(RobotWrapper):
+    camera_moves_with_body = True  # body-mounted forward camera rotates/moves with the quadruped
     def __init__(self, robot_info: RobotInfo):
         super().__init__(robot_info, PetoiObservation(robot_info))
 

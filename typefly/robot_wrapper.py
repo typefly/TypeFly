@@ -138,6 +138,10 @@ class RobotObservation(ABC):
 
 class RobotWrapper(ABC):
     controller_func: list[callable] = []
+    # Platforms whose camera moves with the body set this True so the YOLO client
+    # can compensate for ego-motion during object association. Default False — e.g.
+    # the static-webcam `virtual` robot, where rotating does not move the view.
+    camera_moves_with_body: bool = False
     def __init__(self, robot_info: RobotInfo, obs: RobotObservation):
         self.robot_info = robot_info
         self.obs = obs
@@ -203,6 +207,16 @@ class RobotWrapper(ABC):
         if self._policy is not None:
             self._policy.poll()
 
+    def _note_ego(self, d_yaw_deg: float = 0.0, d_forward: float = 0.0) -> None:
+        """Forward a commanded-motion hint to the YOLO client so object tracking
+        can compensate for camera motion across frames. No-op unless the platform's
+        camera moves with the body and a tracking client is present."""
+        if not self.camera_moves_with_body:
+            return
+        client = getattr(self.obs, "yolo_client", None)
+        if client is not None:
+            client.note_ego_motion(d_yaw_deg=d_yaw_deg, d_forward=d_forward)
+
     # --- safety stops (overridden per platform) ---
     def stop_motion(self) -> None:
         """Halt any in-progress movement but keep the robot powered/live.
@@ -249,11 +263,13 @@ class RobotWrapper(ABC):
     def move_forward(self, dist: float):
         dist = self._policy_guard("move", dist)
         print_t(f"-> Move forward by {dist} m")
+        self._note_ego(d_forward=dist)
         self._move(dist, 0)
 
     def move_backward(self, dist: float):
         dist = self._policy_guard("move", dist)
         print_t(f"-> Move backward by {dist} m")
+        self._note_ego(d_forward=-dist)
         self._move(-dist, 0)
 
     def move_left(self, dist: float):
@@ -269,11 +285,13 @@ class RobotWrapper(ABC):
     def rotate_left(self, deg: float):
         deg = self._policy_guard("rotate", deg)
         print_t(f"-> Rotate left by {deg} degrees")
+        self._note_ego(d_yaw_deg=deg)
         self._rotate(deg)
 
     def rotate_right(self, deg: float):
         deg = self._policy_guard("rotate", deg)
         print_t(f"-> Rotate right by {deg} degrees")
+        self._note_ego(d_yaw_deg=-deg)
         self._rotate(-deg)
 
     # vision skills

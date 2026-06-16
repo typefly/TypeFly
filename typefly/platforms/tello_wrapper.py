@@ -60,6 +60,7 @@ class TelloObservation(RobotObservation):
         }
 
 class TelloWrapper(RobotWrapper):
+    camera_moves_with_body = True  # body-mounted forward camera rotates/moves with the drone
     def __init__(self, robot_info: RobotInfo):
         self.drone = Tello()
         super().__init__(robot_info, TelloObservation(self.drone, robot_info))
