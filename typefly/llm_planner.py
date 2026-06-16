@@ -2,7 +2,7 @@ import os
 from typing import Optional
 
 from .llm_wrapper import LLMWrapper, ModelType
-from .utils import print_t, CURRENT_PROJ_DIR
+from .utils import print_t, CURRENT_PROJ_DIR, sanitize_prompt_text
 from .robot_wrapper import RobotWrapper
 from .robot_info import RobotInfo
 
@@ -27,17 +27,22 @@ class LLMPlanner():
         """
         Plan the user instruction using the LLM
         """
+        # user_instruction is untrusted; flatten it (defense-in-depth). The real
+        # safety boundary is the AST validator + PlanPolicy in plan_execution.
         prompt = self.prompt_plan.format(guidelines=self.guidelines,
                                          robot_skills=str(self.robot.skillset),
                                          example_plans=self.example_plans,
                                          scene_description=self.robot.get_obj_list_str(),
-                                         user_instruction=user_instruction)
+                                         user_instruction=sanitize_prompt_text(user_instruction))
 
-        return self.llm.request(prompt, self.model_type)
-    
+        # json_mode: planning output must be a single JSON object.
+        return self.llm.request(prompt, self.model_type, json_mode=True)
+
     def probe(self, query: str, robot_info: RobotInfo) -> str:
         """
         Probe the LLM for question $query based on the scene description
         """
-        prompt = self.prompt_probe.format(scene_description=self.robot.get_obj_list_str(), query=query)
+        prompt = self.prompt_probe.format(scene_description=self.robot.get_obj_list_str(),
+                                          query=sanitize_prompt_text(query))
+        # No json_mode: probe returns free-form text (e.g. 'bottle', 'True', '2').
         return self.llm.request(prompt, self.model_type)

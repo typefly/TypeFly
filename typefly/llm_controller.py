@@ -1,20 +1,35 @@
 from PIL import Image
-import queue, io, base64
+import queue, io, base64, time
 from typing import Optional
 import threading
-import json
-import builtins
+import traceback
 
-from .yolo_client import YoloClient
 from .robot_wrapper import RobotWrapper
 from .llm_planner import LLMPlanner
 from .utils import print_t
 from .robot_info import RobotInfo
+from .plan_execution import (
+    SkillNamespace,
+    PlanPolicy,
+    PlanValidationError,
+    PlanCancelled,
+    PlanLimitExceeded,
+    extract_plan_json,
+    validate_plan,
+)
 
 _USER_LOG_QUEUE = queue.Queue()
 
+# Wall-clock budget for a single plan. Because we cannot forcibly kill a thread,
+# this is enforced cooperatively at skill-call boundaries (see PlanPolicy); it
+# bounds plans built from the validator's bounded loops + clamped skill calls.
+PLAN_TIMEOUT_SEC = 120.0
+# Bounded re-planning when the model returns invalid/unsafe output.
+MAX_PLAN_ATTEMPTS = 3
+
+
 class LLMController():
-    def __init__(self, robot_info: RobotInfo):
+    def __init__(self, robot_info: RobotInfo, plan_timeout: float = PLAN_TIMEOUT_SEC):
         self.controller_func = [
             self._user_log,
             self._probe
@@ -33,8 +48,18 @@ class LLMController():
         elif robot_info.robot_type == "petoi":
             from .platforms.petoi_wrapper import PetoiWrapper
             self.robot = PetoiWrapper(robot_info)
+        else:
+            raise ValueError(f"Unknown robot type: {robot_info.robot_type}")
         self.planner = LLMPlanner(self.robot)
-        self.current_plan_loop_thread = None
+
+        self.plan_timeout = plan_timeout
+        # Single worker consumes instructions sequentially, so two instructions
+        # can never drive the robot's actuators concurrently. A new instruction
+        # cancels the running plan (cooperatively) before its own runs.
+        self._instruction_queue: "queue.Queue[str]" = queue.Queue()
+        self._cancel_event = threading.Event()
+        self._running = False
+        self._worker_thread: Optional[threading.Thread] = None
 
     def _user_log(self, msg: str | Image.Image) -> bool:
         if isinstance(msg, Image.Image):
@@ -53,74 +78,109 @@ class LLMController():
 
     def start_controller(self):
         self.robot.start()
-        
+        self._running = True
+        self._worker_thread = threading.Thread(
+            target=self._worker_loop, name="plan-worker", daemon=True
+        )
+        self._worker_thread.start()
+
     def stop_controller(self):
+        self._running = False
+        self._cancel_event.set()
+        if self._worker_thread is not None:
+            self._worker_thread.join(timeout=5.0)
         self.robot.stop()
 
     def fetch_robot_pov(self, overlay: bool=True) -> Optional[Image.Image]:
+        from .yolo_client import YoloClient
         image = self.robot.obs.image
         yolo_results = self.robot.obs.image_process_result.get("yolo", [])
         if overlay:
             YoloClient.plot_results_ps(image, yolo_results)
         return image
 
-    def plan_loop(self, user_instruction: str):
-        while True:
-            plan = self.planner.plan(user_instruction)
-            print_t(f"[P] Plan: {plan}")
+    def put_instruction(self, user_instruction: str):
+        """Queue an instruction. Preempts any plan currently running so the new
+        one is not racing the old one for the robot."""
+        self._cancel_event.set()
+        self._instruction_queue.put(user_instruction)
 
-            if plan.startswith('```json'):
-                plan = plan.split('```json')[1].split('```')[0]
-            
-            # parse the plan json
+    # ------------------------------------------------------------------ #
+    # Worker / plan lifecycle
+    # ------------------------------------------------------------------ #
+    def _worker_loop(self):
+        while self._running:
             try:
-                plan = json.loads(plan)
-            except json.JSONDecodeError as e:
-                print_t(f"[P] Invalid json: {e}")
+                instruction = self._instruction_queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            # If several instructions were queued in a burst, keep only the most
+            # recent one.
+            while True:
+                try:
+                    instruction = self._instruction_queue.get_nowait()
+                except queue.Empty:
+                    break
+            # The cancel set by put_instruction was meant for the *previous* plan;
+            # clear it before running this one.
+            self._cancel_event.clear()
+            try:
+                self._execute_instruction(instruction)
+            except Exception as e:  # pragma: no cover - worker must never die
+                print_t(f"[P] Worker error: {e}")
+                print_t(traceback.format_exc())
+                _USER_LOG_QUEUE.put(f'[ERROR] {e}')
+            finally:
+                _USER_LOG_QUEUE.put('#end')
+
+    def _execute_instruction(self, user_instruction: str):
+        for attempt in range(MAX_PLAN_ATTEMPTS):
+            if self._cancel_event.is_set():
+                _USER_LOG_QUEUE.put('[ROBOT] Instruction cancelled.')
+                return
+
+            raw = self.planner.plan(user_instruction)
+            print_t(f"[P] Plan (attempt {attempt + 1}/{MAX_PLAN_ATTEMPTS}): {raw}")
+
+            try:
+                plan_obj = extract_plan_json(raw)
+                program_str = plan_obj["plan"]
+                code = validate_plan(program_str, self.robot.skillset.skills.keys())
+            except PlanValidationError as e:
+                # Bounded retry: ask again rather than executing unsafe/garbage
+                # output or looping forever. (P1 will feed `e` back into the
+                # prompt via the planner's error_message hook.)
+                print_t(f"[P] Rejected plan: {e}")
                 continue
 
-            program_str = plan['plan']
+            self._run_validated_plan(code)
+            return
 
-            break
+        _USER_LOG_QUEUE.put(
+            '[ROBOT] Sorry, I could not produce a valid plan for that request.'
+        )
 
-        # Execute the program string, routing robot skill calls through skillset
-        # Create a namespace that intercepts skill function calls
-        class SkillNamespace(dict):
-            def __init__(self, robot, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.robot = robot
-                # Pre-populate with available skills
-                for skill_name in robot.skillset.skills.keys():
-                    self[skill_name] = robot.skillset.get_skill(skill_name)
-                # Include builtins
-                self['__builtins__'] = builtins
-            
-            def __getitem__(self, key):
-                # If key is a skill, return it from skillset
-                if key in self.robot.skillset.skills:
-                    return self.robot.skillset.get_skill(key)
-                # Otherwise, try to get from dict
-                if key in self:
-                    return super().__getitem__(key)
-                # Check builtins if not found in dict
-                if hasattr(builtins, key):
-                    return getattr(builtins, key)
-                # If not found, raise NameError (standard Python behavior)
-                raise NameError(f"name '{key}' is not defined")
-        
-        # Create execution namespace
-        exec_namespace = SkillNamespace(self.robot)
-        
+    def _run_validated_plan(self, code):
+        policy = PlanPolicy(
+            cancel_event=self._cancel_event,
+            deadline=time.monotonic() + self.plan_timeout,
+        )
+        self.robot.set_policy(policy)
+        namespace = SkillNamespace(self.robot)
         try:
-            exec(program_str, exec_namespace)
+            exec(code, namespace)
+        except PlanCancelled as e:
+            print_t(f"[P] Plan stopped: {e}")
+            _USER_LOG_QUEUE.put(f'[ROBOT] Plan stopped ({e}).')
+            self.robot.stop_motion()
+        except PlanLimitExceeded as e:
+            print_t(f"[P] Plan limit exceeded: {e}")
+            _USER_LOG_QUEUE.put(f'[ROBOT] Plan stopped: {e}.')
+            self.robot.stop_motion()
         except Exception as e:
             print_t(f"[P] Error executing plan: {e}")
-            import traceback
             print_t(f"[P] Traceback: {traceback.format_exc()}")
-
-        # End the plan loop
-        _USER_LOG_QUEUE.put('#end')
-
-    def put_instruction(self, user_instruction: str):
-        self.current_plan_loop_thread = threading.Thread(target=self.plan_loop, args=(user_instruction,), daemon=True)
-        self.current_plan_loop_thread.start()
+            _USER_LOG_QUEUE.put(f'[ROBOT] Plan failed: {e}.')
+            self.robot.stop_motion()
+        finally:
+            self.robot.clear_policy()

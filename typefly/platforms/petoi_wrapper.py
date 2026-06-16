@@ -232,6 +232,16 @@ class PetoiWrapper(RobotWrapper):
         self._post("/rest", timeout=10.0)
         return True
 
+    @overrides
+    def stop_motion(self) -> None:
+        # Zero velocity -> firmware 'balance' gait (stop in place, stay standing).
+        self._post("/nav", {})
+
+    @overrides
+    def emergency_shutdown(self) -> None:
+        # Reserved for fatal paths: fold legs / power-save the servos.
+        self._post("/rest", timeout=10.0)
+
     # --- Movement primitives -------------------------------------------------
     def _walk(self, distance: float):
         """Open-loop forward (+) / backward (-) walk of `distance` metres.

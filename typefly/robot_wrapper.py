@@ -11,7 +11,7 @@ from .skillset import SkillSet
 from .robot_info import RobotInfo
 from .yolo_client import ObjectInfo
 from .skill_item import PROBE_RET_TYPE
-from .utils import evaluate_value, print_t
+from .utils import evaluate_value, print_t, sanitize_prompt_text
 
 class RobotObservation(ABC):
     """
@@ -141,6 +141,7 @@ class RobotWrapper(ABC):
     def __init__(self, robot_info: RobotInfo, obs: RobotObservation):
         self.robot_info = robot_info
         self.obs = obs
+        self._policy = None  # PlanPolicy set by the controller during plan execution
         common_movement_skill_func = [
             (self.move_forward, "Move forward by a dist (m)"),
             (self.move_backward, "Move backward by a dist (m)"),
@@ -180,6 +181,42 @@ class RobotWrapper(ABC):
     def set_controller_func(controller_func: list[callable]):
         RobotWrapper.controller_func = controller_func
 
+    # --- plan-policy hooks (set by the controller around plan execution) ---
+    def set_policy(self, policy) -> None:
+        """Install the active PlanPolicy so skills clamp args / honor cancel."""
+        self._policy = policy
+
+    def clear_policy(self) -> None:
+        self._policy = None
+
+    def _policy_guard(self, kind: str, value=None):
+        """Guard a skill action: clamp args, count work, honor cancellation.
+
+        Returns the (possibly clamped) value. A no-op when no policy is active
+        (e.g. high-level skills used outside a plan, or in tests)."""
+        if self._policy is None:
+            return value
+        return self._policy.checkpoint(kind, value)
+
+    def _policy_poll(self) -> None:
+        """Cancel/deadline check only, for tight internal wait loops."""
+        if self._policy is not None:
+            self._policy.poll()
+
+    # --- safety stops (overridden per platform) ---
+    def stop_motion(self) -> None:
+        """Halt any in-progress movement but keep the robot powered/live.
+
+        Default no-op; platforms override to issue a zero-velocity command.
+        Called by the controller when a plan errors or is cancelled."""
+        print_t("[Robot] stop_motion (no-op default)")
+
+    def emergency_shutdown(self) -> None:
+        """Bring the robot to a fully safe resting state (land/rest).
+
+        Default no-op; platforms override. Reserved for fatal paths."""
+        print_t("[Robot] emergency_shutdown (no-op default)")
+
     @abstractmethod
     def start(self) -> bool:
         """
@@ -210,26 +247,32 @@ class RobotWrapper(ABC):
 
     # movement skills
     def move_forward(self, dist: float):
+        dist = self._policy_guard("move", dist)
         print_t(f"-> Move forward by {dist} m")
         self._move(dist, 0)
-    
+
     def move_backward(self, dist: float):
+        dist = self._policy_guard("move", dist)
         print_t(f"-> Move backward by {dist} m")
         self._move(-dist, 0)
-    
+
     def move_left(self, dist: float):
+        dist = self._policy_guard("move", dist)
         print_t(f"-> Move left by {dist} m")
         self._move(0, dist)
-    
+
     def move_right(self, dist: float):
+        dist = self._policy_guard("move", dist)
         print_t(f"-> Move right by {dist} m")
         self._move(0, -dist)
-    
+
     def rotate_left(self, deg: float):
+        deg = self._policy_guard("rotate", deg)
         print_t(f"-> Rotate left by {deg} degrees")
         self._rotate(deg)
-    
+
     def rotate_right(self, deg: float):
+        deg = self._policy_guard("rotate", deg)
         print_t(f"-> Rotate right by {deg} degrees")
         self._rotate(-deg)
 
@@ -242,15 +285,25 @@ class RobotWrapper(ABC):
         return self.obs.image_process_result.get("yolo", [])
     
     def get_obj_list_str(self) -> str:
-        """Returns a formatted string of detected objects."""
+        """Returns a formatted string of detected objects.
+
+        Each object string is flattened to a single line (sanitize_prompt_text)
+        so a crafted/garbled YOLO label cannot inject extra lines into the
+        planning prompt. Defense-in-depth only; enforcement is in plan_execution.
+        """
         object_list = self.get_obj_list()
-        return "\n".join([str(obj) for obj in object_list]).replace("'", "")
+        return "\n".join(
+            sanitize_prompt_text(str(obj), max_len=200).replace("'", "")
+            for obj in object_list
+        )
 
     def get_obj_info(self, object_name: str) -> ObjectInfo:
+        self._policy_guard("vision")
         object_name = object_name.strip('\'').lower()
 
         # try to get the object info for 10 times
         for _ in range(10):
+            self._policy_poll()  # stay cancellable during the ~2s retry window
             object_list = self.get_obj_list()
             for obj in object_list:
                 if obj.name.startswith(object_name):
@@ -301,12 +354,14 @@ class RobotWrapper(ABC):
         self.controller_func[0](message)
 
     def delay(self, sec: float):
+        sec = self._policy_guard("delay", sec)
         time.sleep(sec)
-    
+
     def re_plan(self):
         return None
 
     def probe(self, query: str) -> PROBE_RET_TYPE:
+        self._policy_guard("probe")
         return evaluate_value(self.controller_func[1](query, self.robot_info))
 
     # high-level skills

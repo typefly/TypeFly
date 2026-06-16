@@ -111,10 +111,18 @@ class VirtualRobotWrapper(RobotWrapper):
         print(f"-> Rotate by {deg} degrees")
         time.sleep(SKILL_EXECUTION_TIME)
 
+    @overrides
+    def stop_motion(self) -> None:
+        print("-> stop_motion (virtual no-op)")
+
+    @overrides
+    def emergency_shutdown(self) -> None:
+        print("-> emergency_shutdown (virtual no-op)")
 
     """
     Extra skills to be implemented by the subclass
     """
     def lift(self, dist: float):
+        dist = self._policy_guard("move", dist)
         print(f"-> Lift for {dist} cm")
         time.sleep(SKILL_EXECUTION_TIME)

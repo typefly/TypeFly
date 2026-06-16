@@ -1,10 +1,31 @@
 import datetime, cv2
+import re
 import numpy as np
 from numpy import ndarray
 import os
 from .skill_item import PROBE_RET_TYPE
 
 CURRENT_PROJ_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def sanitize_prompt_text(text, max_len: int = 2000) -> str:
+    """Flatten untrusted text before it is interpolated into an LLM prompt.
+
+    DEFENSE-IN-DEPTH ONLY. This reduces the surface for prompt-injection
+    (newlines/control chars used to fake instruction boundaries) and caps length,
+    but it is NOT the security boundary — generated plans are constrained by the
+    AST allowlist + PlanPolicy in plan_execution.py. Do not rely on this to make
+    untrusted text safe.
+    """
+    if text is None:
+        return ""
+    s = str(text)
+    # Replace control chars / newlines / tabs with single spaces.
+    s = "".join(ch if (ch.isprintable() or ch == " ") else " " for ch in s)
+    s = re.sub(r"\s+", " ", s).strip()
+    if len(s) > max_len:
+        s = s[:max_len] + " …[truncated]"
+    return s
 
 def print_t(*args, **kwargs):
     # Get the current timestamp

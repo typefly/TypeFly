@@ -174,6 +174,20 @@ class Go2Wrapper(RobotWrapper):
         self.control_publisher.publish(twist)
         time.sleep(wait_time)
 
+    @overrides
+    def stop_motion(self) -> None:
+        # Publish a zero Twist so the quadruped stops moving but stays standing.
+        try:
+            self._stop_moving()
+        except Exception as e:
+            print_t(f"[Go2] stop_motion failed: {e}")
+
+    @overrides
+    def emergency_shutdown(self) -> None:
+        # No rest/damp command is wired in this SDK path; zero velocity is the
+        # safest available stop.
+        self.stop_motion()
+
     def _send_twist(self, linear_x: float=0.0, linear_y: float=0.0, angular_z: float=0.0):
         """
         Helper function to publish Twist messages for a specified duration.

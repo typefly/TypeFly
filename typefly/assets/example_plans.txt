@@ -157,6 +157,6 @@ What is 1231239+1231239?
 
 ## OUTPUT
 {
-    "thoughts": "This is a math problem, so we use log to output the answer.",
-    "plan": "result = 1231239 + 1231239\nlog(result)"
+    "thoughts": "This is a math problem. Compute the answer yourself and report it; plans do not perform arithmetic, only log the result.",
+    "plan": "log('1231239 + 1231239 = 2462478')"
 }

@@ -132,8 +132,26 @@ class TelloWrapper(RobotWrapper):
         self.drone.rotate_counter_clockwise(deg) if deg > 0 else self.drone.rotate_clockwise(-deg)
         self.last_command_time = time.time()
         time.sleep(EXECUTION_DELAY)
-    
+
+    @overrides
+    def stop_motion(self) -> None:
+        # Zero the RC channels so the drone hovers in place (stays airborne).
+        try:
+            self.drone.send_rc_control(0, 0, 0, 0)
+            self.last_command_time = time.time()
+        except Exception as e:
+            print(f"[Tello] stop_motion failed: {e}")
+
+    @overrides
+    def emergency_shutdown(self) -> None:
+        # Reserved for fatal paths: land the drone.
+        try:
+            self.drone.land()
+        except Exception as e:
+            print(f"[Tello] emergency_shutdown failed: {e}")
+
     def lift(self, dist: float):
+        dist = self._policy_guard("move", dist)
         print(f"-> Lift for {dist} cm")
         self.drone.move_up(self._cap_dist(dist)) if dist > 0 else self.drone.move_down(self._cap_dist(-dist))
         self.last_command_time = time.time()

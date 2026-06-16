@@ -34,7 +34,10 @@ def main():
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
     from typefly.serving.gateway import app
-    uvicorn.run(app, host="0.0.0.0", port=EDGE_SERVICE_PORT)
+    # Bind to localhost by default; opt in to a public interface explicitly
+    # (e.g. EDGE_SERVICE_HOST=0.0.0.0) once auth/rate-limiting are in place (P4).
+    host = os.environ.get("EDGE_SERVICE_HOST", "127.0.0.1")
+    uvicorn.run(app, host=host, port=EDGE_SERVICE_PORT)
 
 if __name__ == "__main__":
     main()
