@@ -348,9 +348,11 @@ class RobotWrapper(ABC):
     
     # other skills
     def take_picture(self):
+        self._policy_guard("action")  # count + honor cancellation
         self.controller_func[0](self.obs.image)
-    
+
     def log(self, message: str):
+        self._policy_guard("action")  # count + honor cancellation (prevents log flooding)
         self.controller_func[0](message)
 
     def delay(self, sec: float):
@@ -358,6 +360,7 @@ class RobotWrapper(ABC):
         time.sleep(sec)
 
     def re_plan(self):
+        self._policy_guard("action")  # count + honor cancellation
         return None
 
     def probe(self, query: str) -> PROBE_RET_TYPE:

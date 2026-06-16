@@ -89,6 +89,11 @@ SAFE_BUILTINS: dict = {
 
 # Cap on the literal iteration count of any single ``for ... in range(...)``.
 MAX_LOOP_ITERS = 100
+# Cap on the PRODUCT of *nested* loop counts, so deeply nested bounded loops
+# (e.g. range(100) inside range(100) inside range(100)) cannot run an enormous
+# number of pure-compute iterations before any policy checkpoint. Real plans
+# loop only a handful of times; this ceiling is far above any legitimate plan.
+MAX_TOTAL_LOOP_ITERS = 10_000
 
 
 # --------------------------------------------------------------------------- #
@@ -165,11 +170,12 @@ def validate_plan(
     or raises :class:`PlanValidationError`.
 
     The allowlist permits exactly what real generated plans use — skill calls,
-    single-name assignment, ``if/else``, bounded ``for ... in range(<literal>)``,
-    ``break``/``continue``, literals, names, arithmetic, comparisons, boolean ops,
-    f-strings — and rejects everything else, including ``import``, attribute access
-    (which would enable dunder reflection), ``while``, comprehensions, ``lambda``,
-    function/class definitions, and calls to anything that is not a known skill.
+    single-name assignment, ``if/else``, bounded ``for ... in range(<literal>)``
+    (also bounded in nested product), ``break``/``continue``, literals, names,
+    comparisons, boolean ops, and plain f-strings — and rejects everything else,
+    including ``import``, attribute access (which would enable dunder reflection),
+    ``while``, binary arithmetic, comprehensions, ``lambda``, function/class
+    definitions, f-string format specs, and calls to anything that is not a skill.
     """
     allowed = set(allowed_skills)
     try:
@@ -177,7 +183,7 @@ def validate_plan(
     except SyntaxError as exc:
         raise PlanValidationError(f"plan is not valid Python: {exc}") from exc
 
-    _PlanValidator(allowed, max_loop_iters).validate(tree)
+    _PlanValidator(allowed, max_loop_iters, MAX_TOTAL_LOOP_ITERS).validate(tree)
 
     try:
         return compile(tree, "<plan>", "exec")
@@ -186,16 +192,18 @@ def validate_plan(
 
 
 class _PlanValidator:
-    def __init__(self, allowed_skills: set, max_loop_iters: int):
+    def __init__(self, allowed_skills: set, max_loop_iters: int, max_total_loop_iters: int):
         self.allowed = allowed_skills
         self.max_loop_iters = max_loop_iters
+        self.max_total_loop_iters = max_total_loop_iters
 
     def validate(self, module: ast.Module) -> None:
+        # loop_mult = product of enclosing loop counts (1 at top level).
         for stmt in module.body:
-            self._stmt(stmt)
+            self._stmt(stmt, 1)
 
     # -- statements --------------------------------------------------------- #
-    def _stmt(self, node: ast.stmt) -> None:
+    def _stmt(self, node: ast.stmt, loop_mult: int) -> None:
         if isinstance(node, ast.Expr):
             self._expr(node.value)
         elif isinstance(node, ast.Assign):
@@ -204,10 +212,10 @@ class _PlanValidator:
             self._expr(node.value)
         elif isinstance(node, ast.If):
             self._expr(node.test)
-            self._body(node.body)
-            self._body(node.orelse)
+            self._body(node.body, loop_mult)
+            self._body(node.orelse, loop_mult)
         elif isinstance(node, ast.For):
-            self._for(node)
+            self._for(node, loop_mult)
         elif isinstance(node, (ast.Break, ast.Continue, ast.Pass)):
             return
         else:
@@ -215,11 +223,11 @@ class _PlanValidator:
                 f"statement '{type(node).__name__}' is not allowed in a plan"
             )
 
-    def _body(self, stmts) -> None:
+    def _body(self, stmts, loop_mult: int) -> None:
         for stmt in stmts:
-            self._stmt(stmt)
+            self._stmt(stmt, loop_mult)
 
-    def _for(self, node: ast.For) -> None:
+    def _for(self, node: ast.For, loop_mult: int) -> None:
         if node.orelse:
             raise PlanValidationError("for/else is not allowed")
         if not isinstance(node.target, ast.Name):
@@ -236,11 +244,19 @@ class _PlanValidator:
         if it.keywords or not (1 <= len(it.args) <= 3):
             raise PlanValidationError("range() takes 1-3 positional integer literals")
         literals = [self._int_literal(arg) for arg in it.args]
-        if self._range_count(literals) > self.max_loop_iters:
+        count = self._range_count(literals)
+        if count > self.max_loop_iters:
             raise PlanValidationError(
                 f"loop exceeds the maximum of {self.max_loop_iters} iterations"
             )
-        self._body(node.body)
+        # Bound the product of nested loop counts so deep nesting can't run an
+        # enormous number of (checkpoint-free) iterations before a skill call.
+        total = loop_mult * count
+        if total > self.max_total_loop_iters:
+            raise PlanValidationError(
+                f"nested loops exceed {self.max_total_loop_iters} total iterations"
+            )
+        self._body(node.body, total)
 
     @staticmethod
     def _range_count(literals: list) -> int:
@@ -307,9 +323,12 @@ class _PlanValidator:
             for value in node.values:
                 self._expr(value)
         elif isinstance(node, ast.FormattedValue):
-            self._expr(node.value)
+            # Reject format specs: e.g. f'{1:1000000000}' allocates a ~1GB string
+            # at format time (before the skill is even entered). Plain f-string
+            # interpolation of skill results / literals is all plans need.
             if node.format_spec is not None:
-                self._expr(node.format_spec)
+                raise PlanValidationError("f-string format specifiers are not allowed")
+            self._expr(node.value)
         else:
             raise PlanValidationError(
                 f"expression '{type(node).__name__}' is not allowed in a plan"

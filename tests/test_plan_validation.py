@@ -36,6 +36,7 @@ def test_example_plans_validate(plan):
     "x = 1\ny = 2\nlog(x)\nlog(y)",                  # several single-name assigns
     "for _ in range(%d):\n    rotate_right(10)" % MAX_LOOP_ITERS,  # exactly the cap
     "delay(-1)",                                     # negative arg is policy's problem, not the validator's
+    "for _ in range(50):\n    for _ in range(50):\n        rotate_right(1)",  # nested product 2500 <= cap
 ])
 def test_additional_valid_plans(plan):
     assert validate_plan(plan, SKILLS) is not None
@@ -77,6 +78,10 @@ def test_additional_valid_plans(plan):
     "s = 'a'\nfor _ in range(30):\n    s = s + s",     # exponential string-doubling bomb
     "x = 1\nfor _ in range(100):\n    x = x * 2",      # exponential int bomb
     "log('x' + 'y')",                                  # string concat via + (use f-strings instead)
+    # --- nested-loop CPU bomb + f-string format-spec allocation ---
+    "for _ in range(100):\n    for _ in range(100):\n        for _ in range(2):\n            pass",  # product 20000 > cap
+    "log(f'{1:1000000000}')",                          # format spec allocates ~1GB at format time
+    "log(f'{1:>10}')",                                 # any f-string format spec is rejected
 ])
 def test_forbidden_plans_rejected(plan):
     with pytest.raises(PlanValidationError):

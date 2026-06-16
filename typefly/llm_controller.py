@@ -134,12 +134,13 @@ class LLMController():
                 _USER_LOG_QUEUE.put('#end')
 
     def _execute_instruction(self, user_instruction: str):
+        error_message = None  # rejection reason fed back into the next attempt
         for attempt in range(MAX_PLAN_ATTEMPTS):
             if self._cancel_event.is_set():
                 _USER_LOG_QUEUE.put('[ROBOT] Instruction cancelled.')
                 return
 
-            raw = self.planner.plan(user_instruction)
+            raw = self.planner.plan(user_instruction, error_message=error_message)
             print_t(f"[P] Plan (attempt {attempt + 1}/{MAX_PLAN_ATTEMPTS}): {raw}")
 
             try:
@@ -147,10 +148,10 @@ class LLMController():
                 program_str = plan_obj["plan"]
                 code = validate_plan(program_str, self.robot.skillset.skills.keys())
             except PlanValidationError as e:
-                # Bounded retry: ask again rather than executing unsafe/garbage
-                # output or looping forever. (P1 will feed `e` back into the
-                # prompt via the planner's error_message hook.)
+                # Bounded, *corrective* retry: feed the rejection reason back so the
+                # model can fix it rather than (likely) repeating the same output.
                 print_t(f"[P] Rejected plan: {e}")
+                error_message = [str(e)]
                 continue
 
             self._run_validated_plan(code)
