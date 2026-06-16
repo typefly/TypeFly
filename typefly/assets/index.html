@@ -136,13 +136,10 @@
             margin: 0 auto;
             position: relative;
             z-index: 1;
-            /* Fill the viewport (minus body's 22px top/bottom padding) and lay out as a
-               column so the content row can flex to the leftover height instead of
-               growing with chat history. */
+            /* Lay out as a column; the content row below sets its own fixed height so the
+               POV and chat panels stay a constant size instead of growing with history. */
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 44px);
-            min-height: 560px;
         }
 
         .header {
@@ -237,9 +234,9 @@
             grid-template-rows: 1fr;
             gap: 20px;
             align-items: stretch;
-            /* Take all remaining vertical space; min-height:0 lets the inner chat
-               scroll instead of expanding the row. */
-            flex: 1;
+            /* Fixed panel height: the POV and chat keep a constant 800px size; min-height:0
+               lets the inner chat scroll instead of expanding the row. */
+            height: 800px;
             min-height: 0;
         }
 
@@ -660,13 +657,12 @@
 
         /* ---------- RESPONSIVE ---------- */
         @media (max-width: 1080px) {
-            /* Stacked layout: let the page scroll naturally rather than locking the
-               two panels into a single viewport height. */
-            .main-container { height: auto; }
+            /* Stacked layout: let each panel size to its own content/min-height rather
+               than sharing one fixed 800px row. */
             .content-wrapper {
                 grid-template-columns: 1fr;
                 grid-template-rows: auto;
-                flex: none;
+                height: auto;
             }
             .video-container { min-height: 320px; }
             .chat-section { min-height: 480px; }
