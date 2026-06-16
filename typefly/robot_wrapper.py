@@ -299,6 +299,14 @@ class RobotWrapper(ABC):
 
     def get_obj_info(self, object_name: str) -> ObjectInfo:
         self._policy_guard("vision")
+        # A generated plan can chain skills so a bool/number reaches here, e.g.
+        # goto(scan('x')) or `obj = scan_description(...); goto(obj)` when probe
+        # answers a yes/no query with True. Treat any non-string as "not in
+        # sight" instead of crashing on .strip() ('bool' has no attribute strip).
+        if not isinstance(object_name, str):
+            print_t(f"[!] get_obj_info expected an object-name string, got "
+                    f"{type(object_name).__name__} ({object_name!r}); treating as not in sight")
+            return None
         object_name = object_name.strip('\'').lower()
 
         # try to get the object info for 10 times
@@ -322,15 +330,17 @@ class RobotWrapper(ABC):
         return getattr(info, attr)
     
     def object_x(self, object_name: str) -> float:
-        # if `[float]` is in the object_name, use it
-        match = re.search(r'\[(-?\d+(\.\d+)?)\]', object_name)
-        if match:
-            # Extract the number and return it as a float
-            extracted_number = float(match.group(1))
-            if extracted_number is not None:
-                return extracted_number
-            else:
-                raise ValueError(f'{object_name} is not a valid number')
+        # if `[float]` is in the object_name, use it (guard re.search against a
+        # non-string arg chained in from a bool/number-returning skill)
+        if isinstance(object_name, str):
+            match = re.search(r'\[(-?\d+(\.\d+)?)\]', object_name)
+            if match:
+                # Extract the number and return it as a float
+                extracted_number = float(match.group(1))
+                if extracted_number is not None:
+                    return extracted_number
+                else:
+                    raise ValueError(f'{object_name} is not a valid number')
         return self._get_object_attribute(object_name, 'x')
     
     def object_y(self, object_name: str) -> float:
@@ -344,6 +354,14 @@ class RobotWrapper(ABC):
     
     def object_dist(self, object_name: str) -> float:
         depth_info = self._get_object_attribute(object_name, 'depth')
+        # Not in sight: _get_object_attribute already returned a descriptive
+        # string -- pass it through rather than amplifying it by 100x.
+        if isinstance(depth_info, str):
+            return depth_info
+        # In sight but no depth: the YOLO webcam/petoi pipeline emits no depth
+        # key, so ObjectInfo.depth is None. Don't compute None * 100 (TypeError).
+        if depth_info is None:
+            return f'dist: {object_name} has no depth information'
         return depth_info * 100
     
     # other skills
@@ -380,7 +398,11 @@ class RobotWrapper(ABC):
         print(f"-> Scan for {description}")
         for _ in range(8):
             ret = self.probe(description)
-            if ret != False:
+            # Contract (see skill registration): return the *object name* if
+            # found. probe() may answer a yes/no query with True or a count with
+            # a number; those are not usable goto() targets, so keep scanning
+            # rather than returning a non-string that would crash goto().
+            if isinstance(ret, str) and ret:
                 return ret
             self.rotate_left(45)
         return False
