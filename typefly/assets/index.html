@@ -136,6 +136,13 @@
             margin: 0 auto;
             position: relative;
             z-index: 1;
+            /* Fill the viewport (minus body's 22px top/bottom padding) and lay out as a
+               column so the content row can flex to the leftover height instead of
+               growing with chat history. */
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 44px);
+            min-height: 560px;
         }
 
         .header {
@@ -227,8 +234,13 @@
         .content-wrapper {
             display: grid;
             grid-template-columns: 1.18fr 0.92fr;
+            grid-template-rows: 1fr;
             gap: 20px;
             align-items: stretch;
+            /* Take all remaining vertical space; min-height:0 lets the inner chat
+               scroll instead of expanding the row. */
+            flex: 1;
+            min-height: 0;
         }
 
         .glass {
@@ -427,7 +439,7 @@
         .rec b { width: 9px; height: 9px; border-radius: 50%; background: var(--bad); box-shadow: 0 0 8px var(--bad); animation: blink 1.2s steps(1) infinite; }
 
         /* ---------- CHAT ---------- */
-        .chat-section { display: flex; flex-direction: column; min-height: 560px; }
+        .chat-section { display: flex; flex-direction: column; min-height: 0; }
         .chat-head { padding: 18px 20px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); }
         .chat-head .panel-head { padding: 0 0 12px; }
         .example-commands { display: flex; flex-wrap: wrap; gap: 9px; }
@@ -463,6 +475,7 @@
 
         .chat-container {
             flex: 1;
+            min-height: 0;
             overflow-y: auto;
             padding: 20px;
             display: flex;
@@ -647,9 +660,17 @@
 
         /* ---------- RESPONSIVE ---------- */
         @media (max-width: 1080px) {
-            .content-wrapper { grid-template-columns: 1fr; }
+            /* Stacked layout: let the page scroll naturally rather than locking the
+               two panels into a single viewport height. */
+            .main-container { height: auto; }
+            .content-wrapper {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+                flex: none;
+            }
             .video-container { min-height: 320px; }
             .chat-section { min-height: 480px; }
+            .chat-container { max-height: 60vh; }
         }
         @media (max-width: 620px) {
             body { padding: 12px; }
