@@ -1,4 +1,4 @@
-import io, time, json, os, queue
+import io, time, json, os, queue, sys, urllib.request
 from flask import Flask, Response, render_template, request, jsonify
 
 from typefly.robot_info import RobotInfo
@@ -74,8 +74,17 @@ class TypeFly:
         
         @self.app.route('/health')
         def health():
-            """Health check endpoint."""
-            return jsonify({'status': 'running', 'robot': self.running})
+            """Health check; also reports whether the vision service is reachable."""
+            from typefly.yolo_client import EDGE_SERVICE_IP, EDGE_SERVICE_PORT
+            vision_ok = False
+            try:
+                with urllib.request.urlopen(
+                    f"http://{EDGE_SERVICE_IP}:{EDGE_SERVICE_PORT}/health", timeout=1.0
+                ) as r:
+                    vision_ok = (r.status == 200)
+            except Exception:
+                vision_ok = False
+            return jsonify({'status': 'running', 'robot': self.running, 'vision_service': vision_ok})
 
     def generate_mjpeg_stream(self, source: str):
         """Generate MJPEG stream for video feeds."""
@@ -109,6 +118,10 @@ class TypeFly:
         self.llm_controller.stop_controller()
 
 def main():
+    if not os.environ.get("OPENAI_API_KEY"):
+        print_t("[TypeFly] OPENAI_API_KEY is not set. Copy .env.example to .env and add your "
+                "key (cp .env.example .env), or run: export OPENAI_API_KEY=sk-...")
+        sys.exit(1)
     with open(os.path.join(CURRENT_PROJ_DIR, 'config/robot_info.json'), 'r') as f:
         typefly = TypeFly(RobotInfo.from_dict(json.load(f)))
         typefly.run()

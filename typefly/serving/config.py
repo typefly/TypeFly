@@ -1,5 +1,12 @@
 import os
 
+from dotenv import load_dotenv
+
+# Load .env so EDGE_SERVICE_* / PROJ_PATH are available even when this module is
+# imported (the serving side) without going through typefly.utils. Idempotent and
+# never overrides real shell exports.
+load_dotenv()
+
 PROJ_DIR = os.environ.get("PROJ_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 EDGE_SERVICE_PORT = int(os.environ.get("EDGE_SERVICE_PORT", "50049"))
 

@@ -10,13 +10,12 @@ name = "typefly"
 version = "0.1.0"
 description = "An low-response latency LLM-based robot control framework."
 authors = [{ name = "Guojun Chen", email = "guojun.chen@yale.edu" }]
-requires-python = ">= 3.10"
+requires-python = ">=3.10"
 dependencies = [
     "overrides",
     "flask",
     "uvicorn",
     "quart",
-    "gradio",
     "grpcio-tools",
     "aiohttp",
     "openai",
@@ -25,7 +24,15 @@ dependencies = [
     "pillow",
     "djitellopy",
     "filterpy",
+    "python-dotenv",
+    "ultralytics",
+    "torch",
 ]
+
+[project.scripts]
+typefly-run = "typefly.launcher:main"
+typefly-serving = "typefly.serving.run:main"
+typefly-webui = "typefly.webui:main"
 
 [project.optional-dependencies]
 dev = [

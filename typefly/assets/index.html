@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TypeFly: Power the Drone with Large Language Model</title>
+    <title>TypeFly: Control Robots with a Large Language Model</title>
     <style>
         :root {
             --glass-bg: rgba(255, 255, 255, 0.08);
@@ -707,7 +707,7 @@
                 </div>
                 <div class="titles">
                     <h1>TypeFly</h1>
-                    <p>Power the drone with a Large Language Model</p>
+                    <p>Control your robot with a Large Language Model</p>
                 </div>
             </div>
             <div class="status-cluster">
@@ -775,9 +775,9 @@
                         <h2><span class="pulse"></span> Chat with TypeFly</h2>
                     </div>
                     <div class="example-commands">
-                        <button class="example-btn" type="button" onclick="useExample(this)">Find something I can eat.</button>
-                        <button class="example-btn" type="button" onclick="useExample(this)">What you can see?</button>
-                        <button class="example-btn" type="button" onclick="useExample(this)">Find a chair for me.</button>
+                        <button class="example-btn" type="button" onclick="useExample(this)">Find an apple.</button>
+                        <button class="example-btn" type="button" onclick="useExample(this)">Find a bottle, tell me its height and take a picture of it.</button>
+                        <button class="example-btn" type="button" onclick="useExample(this)">Find and go any edible object.</button>
                     </div>
                 </div>
 
@@ -786,7 +786,7 @@
                         <div class="bubble-wrap">
                             <div class="msg-meta"><span class="who">TYPEFLY</span><span class="ts">SYSTEM</span></div>
                             <div class="message-content">
-                                Hello! I'm TypeFly, your AI-powered drone. You can ask me to navigate, find objects, or describe what I see. Try one of the example commands above!
+                                Hi! I'm TypeFly. Type a goal and I'll turn it into a plan the robot runs from what it sees. The default setup uses your webcam — I can find, measure, and photograph objects in view. Click an example above to get started!
                             </div>
                         </div>
                     </div>
@@ -798,9 +798,9 @@
                         <input
                             type="text"
                             id="messageInput"
-                            placeholder="Type a command for the drone..."
+                            placeholder="Ask me to find or describe something I can see..."
                             autocomplete="off"
-                            aria-label="Type a command for the drone"
+                            aria-label="Ask me to find or describe something I can see"
                         >
                         <button id="sendButton" type="button" aria-label="Send command">
                             <span class="lbl">Send</span>
@@ -811,7 +811,7 @@
             </section>
         </div>
 
-        <p class="footer-note">TYPEFLY &middot; LLM-DRIVEN AUTONOMOUS CONTROL &middot; STAY CLEAR OF PROPELLERS</p>
+        <p class="footer-note">TYPEFLY &middot; LLM-DRIVEN ROBOT CONTROL</p>
     </div>
 
     <script>

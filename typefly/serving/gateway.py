@@ -3,13 +3,20 @@ import json, sys, os
 
 from typefly.serving.service_manager import ServiceManager
 from typefly.serving.config import SERVICE_INFO, PROJ_DIR
+from typefly.proto._bootstrap import ensure_stubs
 
+ensure_stubs()  # generate gRPC stubs on first run before importing them
 sys.path.append(os.path.join(PROJ_DIR, "./proto"))
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 
 app = Quart(__name__)
 grpcServiceManager = ServiceManager()
+
+@app.route('/health', methods=['GET'])
+async def health():
+    """Readiness probe used by the launcher and the web UI."""
+    return {"status": "ok"}
 
 @app.before_serving
 async def before_serving():

@@ -1,4 +1,8 @@
-.PHONY: serving_stop, serving_start, serving_remove, serving_open, serving_build
+.PHONY: run, serving_stop, serving_start, serving_remove, serving_open, serving_build
+
+# Run TypeFly locally (vision service + web UI) with one command.
+run:
+	typefly-run
 
 GPU_DEVICES=0
 GPU_OPTIONS=$(shell if [ -f /proc/driver/nvidia/version ]; then echo "--gpus all -e CUDA_VISIBLE_DEVICES=$(GPU_DEVICES)"; else echo ""; fi)

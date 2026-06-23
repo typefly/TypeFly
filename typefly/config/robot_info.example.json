@@ -1,0 +1,34 @@
+{
+    "_comment": "Reference configs for every supported robot. Copy the block you need into robot_info.json (keep only ONE top-level object there). The committed robot_info.json defaults to the 'virtual' webcam robot so TypeFly runs with no hardware.",
+
+    "virtual": {
+        "robot_id": "robot1",
+        "robot_type": "virtual",
+        "extra": {
+            "capture": 0
+        }
+    },
+
+    "tello": {
+        "robot_id": "tello1",
+        "robot_type": "tello",
+        "extra": {}
+    },
+
+    "go2": {
+        "robot_id": "go2-1",
+        "robot_type": "go2",
+        "extra": {
+            "ip": "<YOUR_GO2_IP>"
+        }
+    },
+
+    "petoi": {
+        "robot_id": "petoi1",
+        "robot_type": "petoi",
+        "extra": {
+            "ip": "<YOUR_OPENCAT_ESP32_IP>",
+            "camera_ip": "<YOUR_ESP32_CAM_IP>"
+        }
+    }
+}

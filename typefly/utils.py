@@ -3,7 +3,13 @@ import re
 import numpy as np
 from numpy import ndarray
 import os
+from dotenv import load_dotenv
 from .skill_item import PROBE_RET_TYPE
+
+# Load .env once, early. utils is imported transitively almost everywhere (and
+# before OPENAI_API_KEY / EDGE_SERVICE_* are read), so this is the central load
+# point for the client side. Idempotent; never overrides real shell exports.
+load_dotenv()
 
 CURRENT_PROJ_DIR = os.path.dirname(os.path.abspath(__file__))
 

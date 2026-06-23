@@ -8,15 +8,20 @@ import torch
 from ultralytics import YOLO
 
 from typefly.serving.config import PROJ_DIR
+from typefly.proto._bootstrap import ensure_stubs
+ensure_stubs()  # generate gRPC stubs on first run before importing them
 sys.path.append(os.path.join(PROJ_DIR, "./proto"))
 import hyrch_serving_pb2
 import hyrch_serving_pb2_grpc
 
 MODEL_PATH = os.path.join(PROJ_DIR, "./serving/models/")
-MODEL_TYPE = "yolov8m.pt"
+MODEL_TYPE = "yolo26s.pt"
 
 def load_model():
-    model = YOLO(MODEL_PATH + MODEL_TYPE)
+    target = os.path.join(MODEL_PATH, MODEL_TYPE)
+    if not os.path.exists(target):
+        print(f"[typefly] First run: downloading YOLO weights {MODEL_TYPE} (~50MB), this may take a minute ...")
+    model = YOLO(target)
     if torch.cuda.is_available():
         model.to('cuda')
         print(f"GPU memory usage: {torch.cuda.memory_allocated()}")
@@ -77,7 +82,7 @@ class YoloService(hyrch_serving_pb2_grpc.YoloServiceServicer):
         
         # start_time = time.time()
         image, info = self.parse_request(request)
-        print(f"Received Detect request {info['image_id']}")
+        # print(f"Received Detect request {info['image_id']}")  # per-frame; noisy
 
         yolo_result = self.model(image, verbose=False, conf=info['conf'])[0]
 

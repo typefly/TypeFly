@@ -18,12 +18,27 @@ class VirtualObservation(RobotObservation):
         if "capture" not in robot_info.extra:
             raise ValueError("Robot info must contain 'capture' key in extra, which is the camera index")
 
+        capture_index = int(robot_info.extra["capture"])
+
+        # Fail fast in the main thread (with an actionable message) if the camera
+        # can't be opened, instead of letting the error vanish inside the capture
+        # thread and leaving a silently-blank feed. The capture is re-opened inside
+        # the thread because some backends require open+read on the same thread.
+        _probe = cv2.VideoCapture(capture_index)
+        _opened = _probe.isOpened()
+        _probe.release()
+        if not _opened:
+            raise RuntimeError(
+                f"Could not open camera index {capture_index}. Connect a webcam, or set a valid "
+                f"'capture' index in typefly/config/robot_info.json (extra.capture)."
+            )
+
         self.cap: cv2.VideoCapture = None
         def _capture_spin():
             # must create the capture and read in the same thread
-            self.cap = cv2.VideoCapture(int(self.robot_info.extra["capture"]))
+            self.cap = cv2.VideoCapture(capture_index)
             if not self.cap.isOpened():
-                raise RuntimeError("Failed to open GStreamer pipeline")
+                raise RuntimeError(f"Could not open camera index {capture_index} in capture thread.")
             while self.running:
                 ret, frame = self.cap.read()
                 if not ret:
