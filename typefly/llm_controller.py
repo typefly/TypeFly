@@ -183,5 +183,10 @@ class LLMController():
             print_t(f"[P] Traceback: {traceback.format_exc()}")
             _USER_LOG_QUEUE.put(f'[ROBOT] Plan failed: {e}.')
             self.robot.stop_motion()
+        else:
+            # Plan ran to completion without error/cancellation. Always surface a
+            # closing message so the UI shows something even when the plan itself
+            # logged nothing (e.g. a bare "turn left").
+            _USER_LOG_QUEUE.put('[ROBOT] Done.')
         finally:
             self.robot.clear_policy()
