@@ -79,7 +79,7 @@ To control a Unitree Go2 robot dog, install ROS2 and run the
 
 ### Petoi quadruped
 
-https://github.com/typefly/TypeFly/raw/dev/assets/petoi_find_bottle_compressed.mp4
+<video src="https://github.com/typefly/TypeFly/raw/dev/assets/petoi_find_bottle_compressed.mp4" controls width="640"></video>
 
 > Demo: a Petoi quadruped finds a bottle. ([download/play](assets/petoi_find_bottle_compressed.mp4))
 
