@@ -436,5 +436,17 @@ class RobotWrapper(ABC):
         print(f"-> Go to {object_name}")
         if not self.orienting(object_name):
             return False
-        self.move_forward(1.0)
+        # Approach in steps until the object fills enough of the view
+        # (width > 0.6) or it is no longer detected. The step cap is a backstop
+        # so a noisy/stuck width reading can't drive the robot forward forever
+        # when no PlanPolicy budget is active.
+        for _ in range(20):
+            width = self.object_width(object_name)
+            # object_width returns a "w: ... is not in sight" string when the
+            # object drops out of detection; any non-float means stop here.
+            if not isinstance(width, (int, float)) or width > 0.6:
+                break
+            self.move_forward(0.2)
+            # Re-center so the object doesn't drift out of view as we close in.
+            self.orienting(object_name)
         return True
