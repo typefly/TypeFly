@@ -29,6 +29,26 @@ TypeFly works with the DJI Tello drone. However, since Tello drone requires your
 ### Go2 Dog
 To control a Unitree Go2 robot dog with TypeFly, you need to install ROS2 and run the [go2_ros2_sdk](https://github.com/abizovnuralem/go2_ros2_sdk).
 
+### Petoi Quadruped
+TypeFly works with Petoi quadrupeds (Bittle / Nybble / Cub) running the [OpenCatESP32 firmware](https://github.com/Leonana69/typego-petoi-firmware). The Petoi is driven over plain HTTP and uses **two boards**: the OpenCatESP32 control board (locomotion and body pose, JSON API on port `80`) and a separate Seeed XIAO ESP32S3 camera board running `esp32-xiao-cam-stream`, which serves an MJPEG video stream for YOLO. To use it, set `robot_type` to `petoi` and add both board addresses to `extra` in `typefly/config/robot_info.json`:
+```json
+{
+    "robot_id": "petoi1",
+    "robot_type": "petoi",
+    "extra": {
+        "ip": "192.168.1.50",
+        "camera_ip": "192.168.1.51",
+        "walk_speed": 0.07,
+        "rotate_speed": 45.0
+    }
+}
+```
+- `ip` (required): the OpenCatESP32 control board address.
+- `camera_ip` (required for vision): the XIAO camera board address.
+- `walk_speed` (optional, m/s) and `rotate_speed` (optional, deg/s): movement is open-loop (timed gaits), so calibrate these for your surface.
+
+Beyond the common movement and vision skills, the Petoi exposes a few expressive body-pose skills driven by the firmware's `euler` command: `nod` (a "yes"), `shake_head` (a "no"), and `look_object` (track an object with the head for a few seconds).
+
 ### Other Robots
 To support other robots, you need to implement the robot control interface based on the `RobotWrapper`, see examples in `typefly/platforms/*`.
 

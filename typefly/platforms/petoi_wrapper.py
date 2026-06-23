@@ -91,6 +91,44 @@ MIN_ROTATE_DEG = 1.0
 # Let the robot settle into the balance posture between commands.
 SETTLE_DELAY = 0.3
 
+# --- /control "euler" body-pose gestures (radians) ---------------------------
+# The firmware exposes POST /control {"command":"euler","roll","pitch","yaw"},
+# which sets an *absolute* body orientation (radians) without walking. All
+# gesture/look skills go through this.
+#
+# Per-axis limits are enforced by the firmware (OpenCatESP32 README "/euler") and
+# OUT-OF-RANGE VALUES ARE REJECTED by the board, so we clamp to them. They are
+# asymmetric. Sign conventions, also from the firmware:
+#   * yaw  + = head pans LEFT (matches orienting()/nav "+ = left").
+#   * pitch is inverted vs intuition: NEGATIVE = head UP (rear squat),
+#     POSITIVE = head DOWN. Range is asymmetric (more down-travel than up).
+#   * roll + = lean (IMU-stabilised).
+EULER_ROLL_LIMITS = (-0.4, 0.4)
+EULER_PITCH_LIMITS = (-0.2, 0.5)
+EULER_YAW_LIMITS = (-1.0, 1.0)
+# Hold each pose briefly so the motion is visible before the next one.
+EULER_POSE_HOLD = 0.25
+GESTURE_REPEATS = 3
+# nod -> dip the head down then up, repeatedly (both within the pitch range).
+NOD_PITCH_DOWN_RAD = 0.3    # +pitch = head down
+NOD_PITCH_UP_RAD = -0.15    # -pitch = head up (>= EULER_PITCH_LIMITS[0] = -0.2)
+# shake_head -> yaw left/right ("no" gesture), within +-1.0.
+SHAKE_YAW_RAD = 0.5
+# look_object maps an object's 0-1 frame offset from center to head angles.
+# yaw: +yaw = left, matching orienting()'s (0.5 - x). pitch: an object ABOVE the
+# frame center (y < 0.5) -> head up (negative); BELOW (y > 0.5) -> head down
+# (positive), using the asymmetric up/down swings below (both within range).
+LOOK_YAW_RANGE_RAD = 0.8    # +-0.4 swing at frame edges (within +-1.0)
+LOOK_PITCH_UP_RAD = 0.2     # max head-up magnitude  -> maps to -0.2
+LOOK_PITCH_DOWN_RAD = 0.4   # max head-down magnitude -> maps to +0.4
+LOOK_DURATION_S = 5.0       # look_object follows the object for this long
+
+
+def _clamp(value: float, limits: tuple[float, float]) -> float:
+    """Clamp a commanded euler angle (radians) to its firmware axis limits."""
+    lo, hi = limits
+    return max(lo, min(hi, value))
+
 
 class PetoiObservation(RobotObservation):
     """
@@ -179,6 +217,12 @@ class PetoiWrapper(RobotWrapper):
         self.base_url = f"http://{ip}:{port}"
         self.walk_speed = float(extra.get("walk_speed", DEFAULT_WALK_SPEED_MPS))
         self.rotate_speed = float(extra.get("rotate_speed", DEFAULT_ROTATE_SPEED_DPS))
+
+        # Petoi-specific expressive skills driven by the firmware /control "euler"
+        # command (body pose, no walking). See the gesture methods below.
+        self.skillset.add_skill(self.nod, "Nod the head up and down (a 'yes' gesture)")
+        self.skillset.add_skill(self.shake_head, "Shake the head left and right (a 'no' gesture)")
+        self.skillset.add_skill(self.look_object, "Tilt the head to look toward an object without moving the body")
 
     # --- HTTP helpers --------------------------------------------------------
     def _post(self, path: str, payload: Optional[dict] = None,
@@ -296,3 +340,80 @@ class PetoiWrapper(RobotWrapper):
         time.sleep(abs(deg) / self.rotate_speed)
         self._post("/nav", {})  # vx, vyaw below dead-zone -> balance (stop)
         time.sleep(SETTLE_DELAY)
+
+    # --- Expressive body-pose skills (firmware /control "euler") --------------
+    def _euler(self, roll: float = 0.0, pitch: float = 0.0, yaw: float = 0.0) -> bool:
+        """Set an absolute body orientation (radians) via /control 'euler'.
+
+        Each angle is clamped to its firmware axis limits (the board rejects
+        out-of-range values), and the call is routed through the plan policy
+        ('action': counts against the budget + honors a cancel) so a plan can't
+        spam poses or run past cancellation. Returns True if the board accepted
+        the command (False if the HTTP request failed — _post already logs why).
+        """
+        self._policy_guard("action")
+        result = self._post("/control", {
+            "command": "euler",
+            "roll": _clamp(roll, EULER_ROLL_LIMITS),
+            "pitch": _clamp(pitch, EULER_PITCH_LIMITS),
+            "yaw": _clamp(yaw, EULER_YAW_LIMITS),
+        })
+        time.sleep(EULER_POSE_HOLD)
+        return result is not None
+
+    def _level(self) -> None:
+        """Command a level (all-zero) posture directly, bypassing the policy
+        guard so it still runs from a finally on the cancel/error cleanup path
+        (the guard would re-raise PlanCancelled and skip the reset)."""
+        self._post("/control", {"command": "euler", "roll": 0.0, "pitch": 0.0, "yaw": 0.0})
+
+    def nod(self):
+        """Nod the head up and down (a 'yes' gesture) by oscillating euler pitch."""
+        print_t("-> Nod")
+        try:
+            for _ in range(GESTURE_REPEATS):
+                self._euler(pitch=NOD_PITCH_DOWN_RAD)  # head down
+                self._euler(pitch=NOD_PITCH_UP_RAD)    # head up
+        finally:
+            self._level()  # always end level, even if cancelled mid-gesture
+
+    def shake_head(self):
+        """Shake the head left and right (a 'no' gesture) by oscillating euler yaw."""
+        print_t("-> Shake head")
+        try:
+            for _ in range(GESTURE_REPEATS):
+                self._euler(yaw=SHAKE_YAW_RAD)   # +yaw = left
+                self._euler(yaw=-SHAKE_YAW_RAD)  # -yaw = right
+        finally:
+            self._level()  # always end level, even if cancelled mid-gesture
+
+    def look_object(self, object_name: str) -> bool:
+        """Track `object_name` with the head for ~LOOK_DURATION_S seconds.
+
+        Repeatedly reads the object's normalized frame position (0-1, 0.5 =
+        center) and updates the euler yaw/pitch so the head follows it in place,
+        until the duration elapses or the object leaves the view. Returns True if
+        the object was in sight at least once, else False.
+        """
+        print_t(f"-> Look at {object_name} for {LOOK_DURATION_S:.0f}s")
+        deadline = time.monotonic() + LOOK_DURATION_S
+        tracked = False
+        while time.monotonic() < deadline:
+            self._policy_poll()  # stay cancellable across the tracking window
+            x = self.object_x(object_name)
+            y = self.object_y(object_name)
+            # object_x/object_y yield a 'not in sight' string when the object is
+            # lost; stop tracking (a flicker simply ends the look early).
+            if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+                if not tracked:
+                    print_t(f"-> look_object: {object_name} is not in sight")
+                break
+            # +yaw = left (CCW) like orienting(); object left of center -> +yaw.
+            yaw = (0.5 - x) * LOOK_YAW_RANGE_RAD
+            # Below center (y>0.5) -> look down (+pitch); above -> up (-pitch).
+            # Asymmetric: more down-travel than up (firmware pitch range).
+            v = (y - 0.5) * 2.0  # -1 (top) .. +1 (bottom)
+            pitch = v * (LOOK_PITCH_DOWN_RAD if v >= 0 else LOOK_PITCH_UP_RAD)
+            self._euler(pitch=pitch, yaw=yaw)  # paces the loop via EULER_POSE_HOLD
+            tracked = True
+        return tracked
