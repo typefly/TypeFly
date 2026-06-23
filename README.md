@@ -79,9 +79,9 @@ To control a Unitree Go2 robot dog, install ROS2 and run the
 
 ### Petoi quadruped
 
-<video src="https://github.com/typefly/TypeFly/raw/dev/assets/petoi_find_bottle_compressed.mp4" controls width="640"></video>
+[![Demo: a Petoi quadruped finds a bottle](https://img.youtube.com/vi/OnQxpm0XPS4/hqdefault.jpg)](https://youtu.be/OnQxpm0XPS4)
 
-> Demo: a Petoi quadruped finds a bottle. ([download/play](assets/petoi_find_bottle_compressed.mp4))
+> ▶️ Demo: a Petoi quadruped finds a bottle (click to watch on YouTube).
 
 TypeFly works with Petoi quadrupeds (Bittle / Nybble / Cub) running the
 [OpenCatESP32 firmware](https://github.com/Leonana69/typego-petoi-firmware). The Petoi is driven
