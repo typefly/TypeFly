@@ -1,5 +1,7 @@
 # TypeFly
 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE.md)
+
 TypeFly is a low-latency, LLM-based robot control framework. You type a natural-language
 instruction; an LLM turns it into an executable plan built from the robot's "skills", and the
 plan runs to drive the robot. A YOLO vision service supplies the scene description the planner
@@ -138,3 +140,7 @@ native `pip install -e . && typefly-run` path, which uses Apple MPS acceleration
   manually after editing `typefly/proto/hyrch_serving.proto`: `cd typefly/proto && bash generate.sh`.
 - The web UI binds to `127.0.0.1:50000`; the vision gateway to `EDGE_SERVICE_PORT` (default
   `50049`); YOLO workers to `50050`.
+
+## License
+
+TypeFly is licensed under the [Apache License 2.0](LICENSE.md).
